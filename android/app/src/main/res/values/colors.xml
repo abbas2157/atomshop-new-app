@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash Background — matches ColorPalette.background = 0xFFFFFFFF -->
+    <color name="splashBackground">#FFFFFF</color>
+
+    <!-- Brand Colors — matches your ColorPalette.dart -->
+    <color name="primary">#FFA500</color>
+    <color name="primaryDark">#E6B400</color>
+    <color name="secondary">#213F9A</color>
+    <color name="secondaryLight">#2261E5</color>
+
+    <!-- Status/System UI -->
+    <color name="transparent">@android:color/transparent</color>
+</resources>
