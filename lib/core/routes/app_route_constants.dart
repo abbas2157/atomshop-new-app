@@ -20,4 +20,5 @@ class AppRoutes {
   static const String myOrders = '/my_orders';
   static const String changePassword = '/change_password';
   static const String notifications = '/notifications';
+  static const String editProfile = '/edit-profile'; // ← ADD THIS
 }

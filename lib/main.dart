@@ -8,10 +8,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:device_preview/device_preview.dart';
 
-void main() {
+void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -37,7 +41,8 @@ class MyApp extends ConsumerWidget {
           title: 'AtomShop',
           scaffoldMessengerKey: SnackbarService().scaffoldMessengerKey,
           debugShowCheckedModeBanner: false,
-
+          locale: DevicePreview.locale(context),
+          builder: DevicePreview.appBuilder,
           // Apply the theme
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,

@@ -337,7 +337,9 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                   // Edit pill
                   GestureDetector(
-                    onTap: () {},
+                    onTap: () {
+                      AppNavigator.goToEditProfile();
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 13,

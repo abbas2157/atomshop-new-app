@@ -6,6 +6,8 @@ class AppCachedImage extends StatelessWidget {
   final String imageUrl;
   final double? height;
   final double? width;
+  final double? placeHolderheight;
+  final double? placeHolderwidth;
   final double borderRadius;
   final BoxFit fit;
 
@@ -16,6 +18,8 @@ class AppCachedImage extends StatelessWidget {
     this.width,
     this.borderRadius = 12,
     this.fit = BoxFit.cover,
+    this.placeHolderheight,
+    this.placeHolderwidth,
   });
 
   @override
@@ -32,7 +36,11 @@ class AppCachedImage extends StatelessWidget {
         placeholder: (context, url) => Shimmer.fromColors(
           baseColor: Colors.grey.shade300,
           highlightColor: Colors.grey.shade100,
-          child: Container(height: height, width: width, color: Colors.white),
+          child: Container(
+            height: placeHolderheight,
+            width: placeHolderwidth,
+            color: Colors.white,
+          ),
         ),
 
         /// ❌ Error Widget

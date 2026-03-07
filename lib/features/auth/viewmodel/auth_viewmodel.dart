@@ -4,6 +4,8 @@ import 'package:atompro/features/auth/repository/auth_repo.dart';
 import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
+import 'package:atompro/features/profile/viewmodel/profile_viewmodel.dart';
+
 part 'auth_viewmodel.g.dart';
 
 @riverpod
@@ -18,23 +20,46 @@ class AuthViewModel extends _$AuthViewModel {
       final response = await ref
           .read(authRepositoryProvider)
           .login(email, password);
+
       if (response['success'] == true) {
         final data = response['data'];
-        if (data['email_verified'] == true) {
+        final user = data['user'];
+
+        if (user['email_verified'] == true) {
+          // ── Save session ─────────────────────────────────────────────────
           await SessionManager.saveUserSession(
-            token: data['token'].toString(),
-            userId: data['user']['id'].toString(),
-            username: data['user']['name'].toString(),
-            userUuid: data['user']['uuid'].toString(),
+            token: data['token'] != null
+                ? data['token'].toString()
+                : user['token'].toString(),
+            userId: user['id'].toString(),
+            username: user['name'].toString(),
+            userUuid: user['uuid'].toString(),
+            phone: user['phone']?.toString(),
+            email: user['email'].toString(),
+            cityId: user['city_id']?.toString(),
+            areaId: user['area_id']?.toString(),
+            address: user['address']?.toString(),
           );
+
           state = const AsyncValue.data(null);
-          AppNavigator.clearStackAndPush(AppRoutes.homePage);
-          SnackbarService().showSuccessSnackBar('Welcome back!');
+
+          // ── Profile completion check ─────────────────────────────────────
+          // We check directly from the login response (most up-to-date).
+          if (isProfileIncomplete(user)) {
+            SnackbarService().showSuccessSnackBar(
+              'Welcome! Please complete your profile.',
+            );
+            AppNavigator.goToEditProfile(isCompletionFlow: true);
+          } else {
+            SnackbarService().showSuccessSnackBar('Welcome back!');
+            AppNavigator.clearStackAndPush(AppRoutes.homePage);
+          }
         } else {
+          // Email not verified — go to OTP screen
           state = const AsyncValue.data(null);
           AppNavigator.pushNamed(
             AppRoutes.verifyOTP,
-            arguments: {'email': email, 'user_id': data['user_id'].toString()},
+            arguments: {'email': email, 'user_id': user['id'].toString()},
           );
         }
       } else {
@@ -130,7 +155,6 @@ class AuthViewModel extends _$AuthViewModel {
   }
 
   // ── FORGOT — STEP 1: Send OTP ──────────────────────────────────────────────
-  /// Returns uuid on success so the view can move to the next step.
   Future<String> sendForgotPasswordOtp(String email) async {
     state = const AsyncValue.loading();
     try {
@@ -198,10 +222,6 @@ class AuthViewModel extends _$AuthViewModel {
           .setNewPassword(uuid: uuid, password: password);
       if (response['success'] == true) {
         state = const AsyncValue.data(null);
-        // success snackbar + navigation handled per calling context
-        // (forgot flow vs change password flow — each calls setNewPassword
-        //  but needs different post-success behaviour, so we just set state
-        //  and let the caller decide what to do next)
       } else {
         final msg = response['message'] ?? 'Failed to reset password.';
         state = AsyncValue.error(msg, StackTrace.current);

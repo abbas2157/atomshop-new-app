@@ -10,4 +10,5 @@ class ApiEndpoints {
   static const String setPassword = "account/send/code/reset/password";
   static const String categories = "categories";
   static const String placeCustomOrder = "custom-order/create";
+  static const String updateProfile = "account/profile/update";
 }

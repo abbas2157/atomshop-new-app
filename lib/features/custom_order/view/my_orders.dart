@@ -682,9 +682,9 @@ class _OrderCardState extends State<_OrderCard> {
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        o.supplier?.businessName == null
-                            ? "Supplier: N/A (${o.status})"
-                            : "Supplier: ${o.supplier?.businessName}",
+                        o.seller?.businessName == null
+                            ? "Seller: N/A (${o.status})"
+                            : "Seller: ${o.seller?.businessName}",
                         style: const TextStyle(
                           fontSize: 12,
                           color: ColorPalette.textSecondary,
@@ -882,7 +882,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                 border: Border.all(color: ColorPalette.border),
               ),
               child: Row(
-                children: ['Overview', 'Customer', 'Supplier', 'Installments']
+                children: ['Overview', 'Customer', 'Seller', 'Installments']
                     .asMap()
                     .entries
                     .map((e) {
@@ -928,7 +928,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                   : _tab == 1
                   ? _buildCustomer(widget.customer, widget.userInfo)
                   : _tab == 2
-                  ? _buildSupplier(o)
+                  ? _buildSeller(o)
                   : _buildInstallments(o.installments),
             ),
           ),
@@ -1204,9 +1204,9 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
     );
   }
 
-  Widget _buildSupplier(OrderModel o) {
-    // Null supplier OR cancelled order — show appropriate message
-    if (o.supplier == null || o.isCancelled) {
+  Widget _buildSeller(OrderModel o) {
+    // Null seller OR cancelled order — show appropriate message
+    if (o.seller == null || o.isCancelled) {
       final isCancelled = o.isCancelled;
       return SingleChildScrollView(
         key: const ValueKey(2),
@@ -1250,8 +1250,8 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   isCancelled
-                      ? 'This order has been cancelled. No supplier was assigned.'
-                      : 'Supplier details will be visible once your order is reviewed and approved by our team.',
+                      ? 'This order has been cancelled. No Seller was assigned.'
+                      : 'Seller details will be visible once your order is reviewed and approved by our team.',
                   style: const TextStyle(
                     fontSize: 13,
                     color: ColorPalette.textSecondary,
@@ -1302,7 +1302,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
     }
 
     // Supplier is available — show full details
-    final s = o.supplier!;
+    final s = o.seller!;
     final initials = s.name
         .trim()
         .split(' ')

@@ -24,6 +24,11 @@ class AppNavigator {
     );
   }
 
+  static void goToEditProfile({bool isCompletionFlow = false}) => pushNamed(
+    AppRoutes.editProfile,
+    arguments: {'isCompletionFlow': isCompletionFlow},
+  );
+
   // Add this method to AppNavigator
   static Future<T?> pushNamed<T>(String routeName, {Object? arguments}) {
     return navigatorKey.currentState!.pushNamed<T>(

@@ -9,6 +9,7 @@ import 'package:atompro/features/home/view/home_page.dart';
 import 'package:atompro/features/make_offer/view/make_offer_view.dart';
 import 'package:atompro/features/notifications/notifications_view.dart';
 import 'package:atompro/features/privacy_policy/view/privacy_policy_view.dart';
+import 'package:atompro/features/profile/view/edit_profile.dart';
 import 'package:atompro/features/profile/view/profile_view.dart';
 import 'package:atompro/features/return_refund_policy/return_refund_policy.dart';
 import 'package:atompro/features/smart_seller/view/smart_seller_form.dart';
@@ -54,7 +55,7 @@ class AppRouteGenerator {
         return MaterialPageRoute(builder: (_) => ModernAuthScreen());
       case AppRoutes.whyatomshop:
         return MaterialPageRoute(builder: (_) => WhyAtomshopView());
-      //smart seller
+      // smart seller
       case AppRoutes.smartsellerhome:
         return MaterialPageRoute(builder: (_) => SmartSellerHome());
       case AppRoutes.smartsellerform:
@@ -69,6 +70,14 @@ class AppRouteGenerator {
         return MaterialPageRoute(
           builder: (_) =>
               OTPVerifyScreen(email: args['email'], userId: args['user_id']),
+        );
+
+      // ── Edit / Complete Profile ────────────────────────────────────────────
+      case AppRoutes.editProfile:
+        final args = settings.arguments as Map<String, dynamic>?;
+        final isCompletionFlow = args?['isCompletionFlow'] as bool? ?? false;
+        return MaterialPageRoute(
+          builder: (_) => EditProfilePage(isCompletionFlow: isCompletionFlow),
         );
 
       default:

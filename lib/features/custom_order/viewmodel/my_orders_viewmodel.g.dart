@@ -41,7 +41,7 @@ final class MyOrdersViewModelProvider
   }
 }
 
-String _$myOrdersViewModelHash() => r'e4d0692bf2eabdb086667c2dcc3ec21cfca4d2cc';
+String _$myOrdersViewModelHash() => r'7033d5de15409fd05047c59fe0f06b765b20afda';
 
 abstract class _$MyOrdersViewModel
     extends $Notifier<AsyncValue<MyOrdersResponse>> {

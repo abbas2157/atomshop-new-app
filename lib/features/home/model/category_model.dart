@@ -6,18 +6,36 @@ class CategoryModel {
 }
 
 final List<CategoryModel> categories = [
-  CategoryModel(name: "Motor Bikes", imageUrl: "assets/images/motor-bikes.png"),
+  CategoryModel(
+    name: "Motor Bikes",
+    imageUrl: "https://atomshop.pk/public/web/img/motor-bikes.png",
+  ),
   CategoryModel(
     name: "Electric Scooty",
-    imageUrl: "assets/images/electric-scooty.png",
+    imageUrl: "https://atomshop.pk/public/web/img/electric-scooty.png",
   ),
-  CategoryModel(name: "Smart TV", imageUrl: "assets/images/smart-tv.png"),
-  CategoryModel(name: "Laptops", imageUrl: "assets/images/laptops.png"),
-  CategoryModel(name: "Mobiles", imageUrl: "assets/images/mobiles.png"),
-  CategoryModel(name: "Tablets", imageUrl: "assets/images/tablets.png"),
+  CategoryModel(
+    name: "Smart TV",
+    imageUrl: "https://atomshop.pk/public/web/img/smart-tv.png",
+  ),
+  CategoryModel(
+    name: "Laptops",
+    imageUrl: "https://atomshop.pk/public/web/img/laptops.png",
+  ),
+  CategoryModel(
+    name: "Mobiles",
+    imageUrl: "https://atomshop.pk/public/web/img/mobiles.png",
+  ),
+  CategoryModel(
+    name: "Tablets",
+    imageUrl: "https://atomshop.pk/public/web/img/tablets.png",
+  ),
   CategoryModel(
     name: "Home Appliaances",
-    imageUrl: "assets/images/home-appliaances.png",
+    imageUrl: "https://atomshop.pk/public/web/img/home-appliaances.png",
   ),
-  CategoryModel(name: "Gaming", imageUrl: "assets/images/gaming.png"),
+  CategoryModel(
+    name: "Gaming",
+    imageUrl: "https://atomshop.pk/public/web/img/gaming.png",
+  ),
 ];

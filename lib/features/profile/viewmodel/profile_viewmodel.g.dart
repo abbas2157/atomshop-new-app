@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'auth_viewmodel.dart';
+part of 'profile_viewmodel.dart';
 
 // **************************************************************************
 // RiverpodGenerator
@@ -9,52 +9,52 @@ part of 'auth_viewmodel.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(AuthViewModel)
-const authViewModelProvider = AuthViewModelProvider._();
+@ProviderFor(ProfileViewModel)
+const profileViewModelProvider = ProfileViewModelProvider._();
 
-final class AuthViewModelProvider
-    extends $NotifierProvider<AuthViewModel, AsyncValue<void>> {
-  const AuthViewModelProvider._()
+final class ProfileViewModelProvider
+    extends $NotifierProvider<ProfileViewModel, ProfileEditState> {
+  const ProfileViewModelProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'authViewModelProvider',
+        name: r'profileViewModelProvider',
         isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$authViewModelHash();
+  String debugGetCreateSourceHash() => _$profileViewModelHash();
 
   @$internal
   @override
-  AuthViewModel create() => AuthViewModel();
+  ProfileViewModel create() => ProfileViewModel();
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AsyncValue<void> value) {
+  Override overrideWithValue(ProfileEditState value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<AsyncValue<void>>(value),
+      providerOverride: $SyncValueProvider<ProfileEditState>(value),
     );
   }
 }
 
-String _$authViewModelHash() => r'a0846a11711c0b03d2917291667f7d70e12d7da6';
+String _$profileViewModelHash() => r'e4d7815a4d0aa2247868500ea8d851511453288a';
 
-abstract class _$AuthViewModel extends $Notifier<AsyncValue<void>> {
-  AsyncValue<void> build();
+abstract class _$ProfileViewModel extends $Notifier<ProfileEditState> {
+  ProfileEditState build();
   @$mustCallSuper
   @override
   void runBuild() {
     final created = build();
-    final ref = this.ref as $Ref<AsyncValue<void>, AsyncValue<void>>;
+    final ref = this.ref as $Ref<ProfileEditState, ProfileEditState>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AsyncValue<void>, AsyncValue<void>>,
-              AsyncValue<void>,
+              AnyNotifier<ProfileEditState, ProfileEditState>,
+              ProfileEditState,
               Object?,
               Object?
             >;

@@ -474,8 +474,8 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
           const SizedBox(height: 32),
           _sf(
             CustomTextField(
-              labelText: 'Email Address',
-              hintText: 'yourname@email.com',
+              labelText: 'Email or Phone',
+              hintText: 'xyz@email.com or 0301...',
               controller: _loginEmailController,
               keyboardType: TextInputType.emailAddress,
               prefixIcon: const Icon(Icons.email_outlined, size: 20),

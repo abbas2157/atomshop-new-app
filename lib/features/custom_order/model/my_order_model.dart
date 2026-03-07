@@ -89,7 +89,7 @@ class OrderModel {
   final String createdAt;
   final ProductInfo product;
   final List<InstallmentItem> installments;
-  final SupplierInfo? supplier; // nullable — supplier can be null from API
+  final SellerInfo? seller; // nullable — supplier can be null from API
 
   const OrderModel({
     required this.id,
@@ -105,7 +105,7 @@ class OrderModel {
     required this.createdAt,
     required this.product,
     required this.installments,
-    this.supplier,
+    this.seller,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) => OrderModel(
@@ -126,8 +126,8 @@ class OrderModel {
     installments: (json['installments'] as List? ?? [])
         .map((i) => InstallmentItem.fromJson(i as Map<String, dynamic>))
         .toList(),
-    supplier: json['supplier'] != null
-        ? SupplierInfo.fromJson(json['supplier'] as Map<String, dynamic>)
+    seller: json['seller'] != null
+        ? SellerInfo.fromJson(json['seller'] as Map<String, dynamic>)
         : null,
   );
 
@@ -255,18 +255,18 @@ class InstallmentItem {
   String? get paidDate => installmentDate;
 }
 
-class SupplierInfo {
+class SellerInfo {
   final String name;
   final String businessName;
   final String phone;
 
-  const SupplierInfo({
+  const SellerInfo({
     required this.name,
     required this.businessName,
     required this.phone,
   });
 
-  factory SupplierInfo.fromJson(Map<String, dynamic> json) => SupplierInfo(
+  factory SellerInfo.fromJson(Map<String, dynamic> json) => SellerInfo(
     name: json['name']?.toString() ?? '-',
     businessName: json['business_name']?.toString() ?? '-',
     phone: json['phone']?.toString() ?? '-',

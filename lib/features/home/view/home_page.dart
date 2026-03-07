@@ -1,5 +1,4 @@
 import 'package:atompro/core/common/images/app_images.dart';
-import 'package:atompro/core/common/utils/utils.dart';
 import 'package:atompro/core/common/widgets/app_bar.dart';
 import 'package:atompro/core/common/widgets/app_cached_image.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
@@ -11,6 +10,7 @@ import 'package:atompro/features/home/model/category_model.dart';
 import 'package:atompro/features/home/utils/home_utils.dart';
 import 'package:atompro/features/home/widgets/faq_widget.dart';
 import 'package:atompro/features/lead_form/lead_form.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:atompro/core/common/widgets/custom_button.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
@@ -26,6 +26,24 @@ class _HomePageState extends State<HomePage> {
   final GlobalKey _leadFormKey = GlobalKey();
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _scrollController = ScrollController();
+  bool _showScrollToTop = false;
+  @override
+  void initState() {
+    super.initState();
+
+    _scrollController.addListener(() {
+      if (_scrollController.offset > 500) {
+        if (!_showScrollToTop) {
+          setState(() => _showScrollToTop = true);
+        }
+      } else {
+        if (_showScrollToTop) {
+          setState(() => _showScrollToTop = false);
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +57,7 @@ class _HomePageState extends State<HomePage> {
       drawer: AppDrawer(),
 
       body: SingleChildScrollView(
+        controller: _scrollController,
         child: Column(
           children: [
             SizedBox(height: context.h(25)),
@@ -173,6 +192,19 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+      floatingActionButton: _showScrollToTop
+          ? FloatingActionButton(
+              backgroundColor: ColorPalette.primary,
+              onPressed: () {
+                _scrollController.animateTo(
+                  0,
+                  duration: Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                );
+              },
+              child: Icon(Icons.arrow_upward),
+            )
+          : null,
     );
   }
 
@@ -191,8 +223,8 @@ class _HomePageState extends State<HomePage> {
             ), // Negative to pull it down and create overlap
             left: 0,
             right: 0,
-            child: Image.asset(
-              AppImages.herobg,
+            child: CachedNetworkImage(
+              imageUrl: AppImages.herobg,
               width: double.infinity,
               fit: BoxFit.fitWidth, // Ensures it stretches across the screen
             ),
@@ -213,6 +245,9 @@ class _HomePageState extends State<HomePage> {
                     SizedBox(
                       width: screenWidth * 0.7,
                       child: AppCachedImage(
+                        placeHolderheight: 220,
+                        placeHolderwidth: screenWidth * 0.7,
+                        fit: BoxFit.contain,
                         imageUrl:
                             "https://atomshop.pk/public/web/img/hero-1.png",
                       ),
@@ -291,6 +326,8 @@ class _HomePageState extends State<HomePage> {
               SizedBox(
                 width: screenWidth * 0.7,
                 child: AppCachedImage(
+                  placeHolderheight: 220,
+                  placeHolderwidth: screenWidth * 0.7,
                   imageUrl: "https://atomshop.pk/public/web/img/hero-2.png",
                   fit: BoxFit.contain,
                 ),
@@ -555,8 +592,8 @@ class _HomePageState extends State<HomePage> {
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Image.asset(
-                            category.imageUrl,
+                          child: CachedNetworkImage(
+                            imageUrl: category.imageUrl,
                             fit: BoxFit.contain,
                           ),
                         ),

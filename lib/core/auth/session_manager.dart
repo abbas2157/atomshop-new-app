@@ -8,6 +8,11 @@ class SessionManager {
   static const String _keyUserId = "user_id";
   static const String _keyUserUuid = "user_uuid";
   static const String _keyUserName = "user_name";
+  static const String _keyPhone = "phone";
+  static const String _keyEmail = "email";
+  static const String _keyCity = "city_id";
+  static const String _keyArea = "area_id";
+  static const String _keyAddress = "address";
 
   /// Save the session after Login/OTP success
   static Future<void> saveUserSession({
@@ -15,11 +20,21 @@ class SessionManager {
     required String userId,
     required String username,
     required String userUuid,
+    String? phone,
+    String? email,
+    String? cityId,
+    String? areaId,
+    String? address,
   }) async {
     await _storage.write(key: _keyToken, value: token);
     await _storage.write(key: _keyUserId, value: userId);
     await _storage.write(key: _keyUserUuid, value: userUuid);
     await _storage.write(key: _keyUserName, value: username);
+    await _storage.write(key: _keyPhone, value: phone);
+    await _storage.write(key: _keyEmail, value: email);
+    await _storage.write(key: _keyCity, value: cityId);
+    await _storage.write(key: _keyArea, value: areaId);
+    await _storage.write(key: _keyAddress, value: address);
   }
 
   /// Retrieve the token for API headers
@@ -58,6 +73,26 @@ class SessionManager {
     }
 
     return null;
+  }
+
+  static Future<String?> getPhone() async {
+    return await _storage.read(key: _keyPhone);
+  }
+
+  static Future<String?> getEmail() async {
+    return await _storage.read(key: _keyEmail);
+  }
+
+  static Future<String?> getCityId() async {
+    return await _storage.read(key: _keyCity);
+  }
+
+  static Future<String?> getAreaId() async {
+    return await _storage.read(key: _keyArea);
+  }
+
+  static Future<String?> getAddress() async {
+    return await _storage.read(key: _keyAddress);
   }
 
   /// Check if user is authenticated
