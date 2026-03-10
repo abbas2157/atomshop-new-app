@@ -1,4 +1,4 @@
-package com.example.atompro
+package com.ecommerce.atomshop
 
 import io.flutter.embedding.android.FlutterActivity
 

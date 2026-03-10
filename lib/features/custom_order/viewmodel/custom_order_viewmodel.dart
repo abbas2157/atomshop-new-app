@@ -31,7 +31,8 @@ class CustomOrderState {
   final bool isSubmitting;
   final bool isSuccess;
   final bool isValidatingRefCode;
-  final bool isRefCodeValid; // new — tracks validation result
+  final bool isRefCodeValid;
+  final bool isLoadingUserDetails; // ← NEW: tracks session prefill loading
   final String? errorMessage;
   final String? refCode;
   final String? fullName;
@@ -52,6 +53,7 @@ class CustomOrderState {
     this.isSuccess = false,
     this.isValidatingRefCode = false,
     this.isRefCodeValid = false,
+    this.isLoadingUserDetails = false,
     this.errorMessage,
     this.refCode,
     this.fullName,
@@ -73,6 +75,7 @@ class CustomOrderState {
     bool? isSuccess,
     bool? isValidatingRefCode,
     bool? isRefCodeValid,
+    bool? isLoadingUserDetails,
     String? errorMessage,
     String? refCode,
     String? fullName,
@@ -95,6 +98,7 @@ class CustomOrderState {
       isSuccess: isSuccess ?? this.isSuccess,
       isValidatingRefCode: isValidatingRefCode ?? this.isValidatingRefCode,
       isRefCodeValid: isRefCodeValid ?? this.isRefCodeValid,
+      isLoadingUserDetails: isLoadingUserDetails ?? this.isLoadingUserDetails,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       refCode: clearRefCode ? null : (refCode ?? this.refCode),
       fullName: fullName ?? this.fullName,
@@ -102,8 +106,6 @@ class CustomOrderState {
       address: address ?? this.address,
     );
   }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
 
   bool get hasValidPlan => plans.isNotEmpty && errorMessage == null;
 
@@ -117,7 +119,6 @@ class CustomOrderState {
 
   double get minimumAdvance => productPrice * 0.2;
 
-  /// 1% normally, 0.5% with a valid ref code
   double get sourcingFeePercent => hasDiscount ? 0.005 : 0.01;
 
   String get formattedMonthlyPayment =>
@@ -132,6 +133,116 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
   CustomOrderState build() {
     ref.onDispose(() => _refDebounce?.cancel());
     return const CustomOrderState();
+  }
+
+  // ── Load user details from session (called when entering Phase 3) ─────────
+  //
+  // Only prefills if the field is currently empty — so edited values are
+  // never overwritten on a hot-reload or accidental double-call.
+  Future<void> loadUserDetails() async {
+    // Skip if already loaded or currently loading
+    if (state.isLoadingUserDetails) return;
+    if (state.hasCompletePersonalInfo) return;
+
+    state = state.copyWith(isLoadingUserDetails: true);
+
+    final isLoggedIn = await SessionManager.isLoggedIn();
+    if (!isLoggedIn) {
+      state = state.copyWith(isLoadingUserDetails: false);
+      return;
+    }
+
+    final name = await SessionManager.getUserName();
+    final phone = await SessionManager.getPhone();
+    final address = await SessionManager.getAddress();
+    final cityIdStr = await SessionManager.getCityId();
+    final areaIdStr = await SessionManager.getAreaId();
+
+    state = state.copyWith(
+      fullName: state.fullName?.isNotEmpty == true ? state.fullName : name,
+      phoneNumber: state.phoneNumber?.isNotEmpty == true
+          ? state.phoneNumber
+          : phone,
+      address: state.address?.isNotEmpty == true ? state.address : address,
+      isLoadingUserDetails: false,
+    );
+
+    // Auto-select city & area in the shared CityAreaViewModel
+    final cityAreaNotifier = ref.read(cityAreaViewModelProvider.notifier);
+    final cityAreaState = ref.read(cityAreaViewModelProvider);
+
+    final storedCityId = int.tryParse(cityIdStr ?? '');
+    final storedAreaId = int.tryParse(areaIdStr ?? '');
+
+    if (storedCityId != null &&
+        cityAreaState.selectedCity == null &&
+        cityAreaState.cities.isNotEmpty) {
+      final match = cityAreaState.cities.where((c) => c.id == storedCityId);
+      if (match.isNotEmpty) {
+        await cityAreaNotifier.onCityChanged(match.first);
+      }
+    }
+
+    // Area needs to be set after onCityChanged fetches areas
+    if (storedAreaId != null && cityAreaState.selectedArea == null) {
+      // Poll briefly for areas to load after city selection
+      for (var i = 0; i < 10; i++) {
+        await Future.delayed(const Duration(milliseconds: 150));
+        final updated = ref.read(cityAreaViewModelProvider);
+        if (updated.areas.isNotEmpty) {
+          final match = updated.areas.where((a) => a.id == storedAreaId);
+          if (match.isNotEmpty) {
+            cityAreaNotifier.onAreaChanged(match.first);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  /// Call this when returning from EditProfilePage so Phase 3 refreshes
+  /// with the latest saved values from SessionManager.
+  Future<void> refreshUserDetails() async {
+    final name = await SessionManager.getUserName();
+    final phone = await SessionManager.getPhone();
+    final address = await SessionManager.getAddress();
+    final cityIdStr = await SessionManager.getCityId();
+    final areaIdStr = await SessionManager.getAreaId();
+
+    state = state.copyWith(
+      fullName: name,
+      phoneNumber: phone,
+      address: address,
+    );
+
+    final cityAreaNotifier = ref.read(cityAreaViewModelProvider.notifier);
+    final storedCityId = int.tryParse(cityIdStr ?? '');
+    final storedAreaId = int.tryParse(areaIdStr ?? '');
+
+    if (storedCityId != null) {
+      final cityAreaState = ref.read(cityAreaViewModelProvider);
+      final cityMatch = cityAreaState.cities.where((c) => c.id == storedCityId);
+      if (cityMatch.isNotEmpty) {
+        await cityAreaNotifier.onCityChanged(cityMatch.first);
+
+        // Wait for areas to load then set area
+        if (storedAreaId != null) {
+          for (var i = 0; i < 10; i++) {
+            await Future.delayed(const Duration(milliseconds: 150));
+            final updated = ref.read(cityAreaViewModelProvider);
+            if (updated.areas.isNotEmpty) {
+              final areaMatch = updated.areas.where(
+                (a) => a.id == storedAreaId,
+              );
+              if (areaMatch.isNotEmpty) {
+                cityAreaNotifier.onAreaChanged(areaMatch.first);
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
   }
 
   // ── Simple field updates ──────────────────────────────────────────────────
@@ -182,7 +293,6 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
       return;
     }
 
-    // ── Validations ──────────────────────────────────────────────────────
     if (price < 10000) {
       state = state.copyWith(
         errorMessage: 'Minimum product price is Rs. 10,000',
@@ -209,25 +319,14 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
       return;
     }
 
-    // ── Calculation ───────────────────────────────────────────────────────
-    //
-    // principal          = price - advance
-    // markup             = principal × 4% × months
-    // totalDeal          = principal + markup        (what customer pays back)
-    // dealPriceForApi    = price + markup             (sent to server)
-    // sourcingFee        = price × 1%  (or 0.5% with discount)
-    // monthlyInstalment  = totalDeal / months
-
     final principal = price - advance;
-    const markupRate = 0.04; // 4% flat per month on remaining principal
+    const markupRate = 0.04;
     final totalMarkup = principal * markupRate * months;
     final totalDeal = principal + totalMarkup;
     final dealPriceForApi = price + totalMarkup;
-
-    // ── Sourcing fee: 1% normal / 0.5% with valid ref code ───────────────
     final sourcingFee = price * state.sourcingFeePercent;
-
     final monthlyAmount = totalDeal / months;
+
     final newPlans = List.generate(
       months,
       (i) => InstallmentPlan(
@@ -247,25 +346,21 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
   }
 
   // ── Reference code ────────────────────────────────────────────────────────
-  //
-  // Debounced: waits 800 ms after the user stops typing before hitting the API.
 
   void updateRefCode(String code) {
     _refDebounce?.cancel();
 
     if (code.trim().isEmpty) {
-      // Clear discount instantly when field is emptied
       state = state.copyWith(
         hasDiscount: false,
         isRefCodeValid: false,
         clearRefCode: true,
         clearError: true,
       );
-      _calculate(); // recalc at 1% fee
+      _calculate();
       return;
     }
 
-    // Show spinner immediately while debouncing
     state = state.copyWith(isValidatingRefCode: true, clearError: true);
 
     _refDebounce = Timer(const Duration(milliseconds: 800), () async {
@@ -297,7 +392,6 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
       );
     }
 
-    // Recalc with updated discount status
     _calculate();
   }
 
@@ -335,6 +429,7 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
         'area_id': cityArea.selectedArea!.id.toString(),
         'address': state.address!.trim(),
       };
+
       final response = await ref
           .read(customOrderRepositoryProvider)
           .submitOrder(fields);
@@ -389,26 +484,20 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
     return null;
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
   String _parseError(dynamic e) {
     final s = e.toString();
     if (s.contains('SocketException') || s.contains('NetworkException')) {
       return 'No internet connection. Please check your network.';
     }
-    if (s.contains('TimeoutException')) {
+    if (s.contains('TimeoutException'))
       return 'Request timed out. Please try again.';
-    }
-    if (s.contains('500') || s.contains('502')) {
+    if (s.contains('500') || s.contains('502'))
       return 'Server error. Please try again later.';
-    }
-    if (s.contains('401') || s.contains('403')) {
+    if (s.contains('401') || s.contains('403'))
       return 'Authentication failed. Please log in again.';
-    }
     return 'Something went wrong. Please try again.';
   }
 
   void reset() => state = const CustomOrderState();
-
   void clearError() => state = state.copyWith(clearError: true);
 }

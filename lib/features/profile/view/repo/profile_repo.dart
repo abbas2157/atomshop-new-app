@@ -1,3 +1,4 @@
+import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/network/network_manager.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -31,8 +32,13 @@ class ProfileRepository {
     if (address != null) body['address'] = address;
     if (cityId != null) body['city_id'] = cityId;
     if (areaId != null) body['area_id'] = areaId;
+    final token = await SessionManager.getToken();
 
     // ⚠️  Replace ApiEndpoints.updateProfile with your real endpoint constant
-    return await _network.postRequest(ApiEndpoints.updateProfile, body);
+    return await _network.postRequest(
+      ApiEndpoints.updateProfile,
+      body,
+      token: token,
+    );
   }
 }

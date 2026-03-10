@@ -4,7 +4,6 @@ import 'package:atompro/core/routes/app_route_constants.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/city_area_selector/model/area_model.dart';
 import 'package:atompro/features/city_area_selector/model/city_model.dart';
-import 'package:atompro/features/city_area_selector/viewmodel/city_area_viewmodel.dart';
 import 'package:atompro/features/profile/view/repo/profile_repo.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

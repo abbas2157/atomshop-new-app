@@ -4,7 +4,6 @@ import 'package:atompro/features/auth/repository/auth_repo.dart';
 import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
-import 'package:atompro/features/profile/viewmodel/profile_viewmodel.dart';
 
 part 'auth_viewmodel.g.dart';
 
@@ -26,7 +25,6 @@ class AuthViewModel extends _$AuthViewModel {
         final user = data['user'];
 
         if (user['email_verified'] == true) {
-          // ── Save session ─────────────────────────────────────────────────
           await SessionManager.saveUserSession(
             token: data['token'] != null
                 ? data['token'].toString()
@@ -42,20 +40,9 @@ class AuthViewModel extends _$AuthViewModel {
           );
 
           state = const AsyncValue.data(null);
-
-          // ── Profile completion check ─────────────────────────────────────
-          // We check directly from the login response (most up-to-date).
-          if (isProfileIncomplete(user)) {
-            SnackbarService().showSuccessSnackBar(
-              'Welcome! Please complete your profile.',
-            );
-            AppNavigator.goToEditProfile(isCompletionFlow: true);
-          } else {
-            SnackbarService().showSuccessSnackBar('Welcome back!');
-            AppNavigator.clearStackAndPush(AppRoutes.homePage);
-          }
+          SnackbarService().showSuccessSnackBar('Welcome back!');
+          AppNavigator.clearStackAndPush(AppRoutes.homePage);
         } else {
-          // Email not verified — go to OTP screen
           state = const AsyncValue.data(null);
           AppNavigator.pushNamed(
             AppRoutes.verifyOTP,
@@ -113,7 +100,7 @@ class AuthViewModel extends _$AuthViewModel {
     }
   }
 
-  // ── OTP VERIFICATION (signup) ──────────────────────────────────────────────
+  // ── OTP VERIFICATION ───────────────────────────────────────────────────────
   Future<void> verifyOtp(String userId, String code) async {
     state = const AsyncValue.loading();
     try {
@@ -139,7 +126,7 @@ class AuthViewModel extends _$AuthViewModel {
     }
   }
 
-  // ── RESEND OTP (signup) ────────────────────────────────────────────────────
+  // ── RESEND OTP ─────────────────────────────────────────────────────────────
   Future<void> resendOtp(String email) async {
     try {
       await ref.read(authRepositoryProvider).resendOtp(email);
@@ -154,7 +141,7 @@ class AuthViewModel extends _$AuthViewModel {
     }
   }
 
-  // ── FORGOT — STEP 1: Send OTP ──────────────────────────────────────────────
+  // ── FORGOT — STEP 1 ────────────────────────────────────────────────────────
   Future<String> sendForgotPasswordOtp(String email) async {
     state = const AsyncValue.loading();
     try {
@@ -183,7 +170,7 @@ class AuthViewModel extends _$AuthViewModel {
     }
   }
 
-  // ── FORGOT — STEP 2: Verify OTP ───────────────────────────────────────────
+  // ── FORGOT — STEP 2 ────────────────────────────────────────────────────────
   Future<void> verifyForgotPasswordOtp(String uuid, String code) async {
     state = const AsyncValue.loading();
     try {
@@ -210,7 +197,7 @@ class AuthViewModel extends _$AuthViewModel {
     }
   }
 
-  // ── FORGOT — STEP 3: Set New Password ─────────────────────────────────────
+  // ── FORGOT — STEP 3 ────────────────────────────────────────────────────────
   Future<void> setNewPassword({
     required String uuid,
     required String password,

@@ -1,11 +1,14 @@
+import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/common/widgets/app_bar.dart';
 import 'package:atompro/core/common/widgets/custom_button.dart';
 import 'package:atompro/core/common/widgets/custom_drop_down.dart';
 import 'package:atompro/core/common/widgets/custom_text_field.dart';
+import 'package:atompro/core/routes/app_navigator.dart';
+import 'package:atompro/core/routes/app_route_constants.dart';
 import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
-import 'package:atompro/core/style/extensions.dart';
 import 'package:atompro/features/city_area_selector/view/city_area_selector_view.dart';
+import 'package:atompro/features/city_area_selector/viewmodel/city_area_viewmodel.dart';
 import 'package:atompro/features/custom_order/viewmodel/custom_order_viewmodel.dart';
 import 'package:atompro/features/drawer/view/drawer.dart';
 import 'package:atompro/features/home/view/home_page.dart';
@@ -29,7 +32,6 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
 
   _Phase _phase = _Phase.calculator;
 
-  // Controllers — owned here, never recreated
   final _titleCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _advanceCtrl = TextEditingController();
@@ -80,7 +82,41 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
       setState(() => _phase = next);
       _scrollCtrl.jumpTo(0);
       _fadeCtrl.forward();
+
+      // Load user details when entering Phase 3
+      if (next == _Phase.personalDetails) {
+        ref.read(customOrderViewModelProvider.notifier).loadUserDetails().then((
+          _,
+        ) {
+          _syncControllersFromState();
+        });
+      }
     });
+  }
+
+  /// Sync text controllers with whatever the viewmodel loaded from session
+  void _syncControllersFromState() {
+    final s = ref.read(customOrderViewModelProvider);
+    if (_nameCtrl.text.isEmpty && (s.fullName?.isNotEmpty ?? false)) {
+      _nameCtrl.text = s.fullName!;
+    }
+    if (_phoneCtrl.text.isEmpty && (s.phoneNumber?.isNotEmpty ?? false)) {
+      _phoneCtrl.text = s.phoneNumber!;
+    }
+    if (_addressCtrl.text.isEmpty && (s.address?.isNotEmpty ?? false)) {
+      _addressCtrl.text = s.address!;
+    }
+  }
+
+  /// Called when returning from EditProfilePage — refresh session data
+  Future<void> _onReturnFromEditProfile() async {
+    await ref.read(customOrderViewModelProvider.notifier).refreshUserDetails();
+    _nameCtrl.text =
+        ref.read(customOrderViewModelProvider).fullName ?? _nameCtrl.text;
+    _phoneCtrl.text =
+        ref.read(customOrderViewModelProvider).phoneNumber ?? _phoneCtrl.text;
+    _addressCtrl.text =
+        ref.read(customOrderViewModelProvider).address ?? _addressCtrl.text;
   }
 
   void _calculatePlan() {
@@ -230,13 +266,21 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
           refCtrl: _refCtrl,
           onBack: () => _goToPhase(_Phase.planReview),
           onSubmit: _submitOrder,
+          onEditDetails: () async {
+            // Push to EditProfilePage and refresh when user comes back
+            await AppNavigator.pushNamed(
+              AppRoutes.editProfile,
+              arguments: {'isCompletionFlow': false},
+            );
+            await _onReturnFromEditProfile();
+          },
         );
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase Indicator
+// Phase Indicator  (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _PhaseIndicator extends StatelessWidget {
@@ -329,7 +373,7 @@ class _PhaseIndicator extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 1 — Calculator
+// Phase 1 — Calculator  (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _CalculatorPhase extends ConsumerWidget {
@@ -373,7 +417,6 @@ class _CalculatorPhase extends ConsumerWidget {
           textAlign: TextAlign.center,
         ),
         SizedBox(height: 20.h),
-
         _Card(
           children: [
             _SectionHeader(
@@ -447,7 +490,6 @@ class _CalculatorPhase extends ConsumerWidget {
             ),
           ],
         ),
-
         SizedBox(height: 16.h),
         const _ByProceedingWidget(),
         SizedBox(height: 24.h),
@@ -460,7 +502,7 @@ class _CalculatorPhase extends ConsumerWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 2 — Plan Review
+// Phase 2 — Plan Review  (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _PlanReviewPhase extends StatelessWidget {
@@ -484,7 +526,6 @@ class _PlanReviewPhase extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Product recap pill
         Container(
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
           decoration: BoxDecoration(
@@ -525,9 +566,7 @@ class _PlanReviewPhase extends StatelessWidget {
             ],
           ),
         ),
-
         SizedBox(height: 16.h),
-
         _Card(
           children: [
             _SectionHeader(
@@ -536,8 +575,6 @@ class _PlanReviewPhase extends StatelessWidget {
               color: ColorPalette.secondary,
             ),
             SizedBox(height: 20.h),
-
-            // Gradient monthly amount
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(20.w),
@@ -615,7 +652,6 @@ class _PlanReviewPhase extends StatelessWidget {
                 ],
               ),
             ),
-
             SizedBox(height: 20.h),
             _SummaryRow(
               label: 'Product Price',
@@ -627,7 +663,6 @@ class _PlanReviewPhase extends StatelessWidget {
               value: 'Rs. ${state.advancePrice.toStringAsFixed(0)}',
             ),
             const _Divider(),
-            // Sourcing fee row — shows rate clearly
             _SummaryRow(
               label: 'Sourcing Agent Fee ($feeLabel)',
               value: 'Rs. ${state.sourcingFee.toStringAsFixed(0)}',
@@ -639,13 +674,10 @@ class _PlanReviewPhase extends StatelessWidget {
               value: 'Rs. ${state.totalPayable.toStringAsFixed(0)}',
               isTotal: true,
             ),
-
-            // Discount badge if active
             if (state.hasDiscount) ...[
               SizedBox(height: 12.h),
               _DiscountBadge(),
             ],
-
             SizedBox(height: 24.h),
             CustomButton(
               title: 'Proceed to Personal Details',
@@ -662,7 +694,6 @@ class _PlanReviewPhase extends StatelessWidget {
             ),
           ],
         ),
-
         SizedBox(height: 16.h),
         const _ByProceedingWidget(),
       ],
@@ -671,16 +702,17 @@ class _PlanReviewPhase extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 3 — Personal Details + Order Summary
+// Phase 3 — Personal Details  (UPDATED)
 // ═══════════════════════════════════════════════════════════════════════════
 
-class _PersonalPhase extends ConsumerWidget {
+class _PersonalPhase extends ConsumerStatefulWidget {
   final TextEditingController nameCtrl;
   final TextEditingController phoneCtrl;
   final TextEditingController addressCtrl;
   final TextEditingController refCtrl;
   final VoidCallback onBack;
   final VoidCallback onSubmit;
+  final Future<void> Function() onEditDetails; // ← NEW
 
   const _PersonalPhase({
     required this.nameCtrl,
@@ -689,11 +721,41 @@ class _PersonalPhase extends ConsumerWidget {
     required this.refCtrl,
     required this.onBack,
     required this.onSubmit,
+    required this.onEditDetails,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Granular selects — only rebuild what changes
+  ConsumerState<_PersonalPhase> createState() => _PersonalPhaseState();
+}
+
+class _PersonalPhaseState extends ConsumerState<_PersonalPhase> {
+  bool _isLoggedIn = false;
+  bool _isEditingDetails = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLogin();
+  }
+
+  Future<void> _checkLogin() async {
+    final loggedIn = await SessionManager.isLoggedIn();
+    if (mounted) setState(() => _isLoggedIn = loggedIn);
+  }
+
+  /// Returns true when all required delivery fields are loaded and non-empty.
+  bool _isProfileComplete(CustomOrderState s) {
+    bool blank(String? v) => v == null || v.trim().isEmpty || v == 'null';
+    final cityArea = ref.read(cityAreaViewModelProvider);
+    return !blank(s.fullName) &&
+        !blank(s.phoneNumber) &&
+        !blank(s.address) &&
+        cityArea.selectedCity != null &&
+        cityArea.selectedArea != null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isSubmitting = ref.watch(
       customOrderViewModelProvider.select((s) => s.isSubmitting),
     );
@@ -708,13 +770,14 @@ class _PersonalPhase extends ConsumerWidget {
     );
     final state = ref.watch(customOrderViewModelProvider);
     final vm = ref.read(customOrderViewModelProvider.notifier);
+    final cityAreaState = ref.watch(cityAreaViewModelProvider);
 
     final feeLabel = hasDiscount ? '0.5% (Ref Discount)' : '1% (Standard)';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Plan recap banner ──────────────────────────────────────────────
+        // ── Plan recap banner ────────────────────────────────────────────
         if (state.plans.isNotEmpty)
           Container(
             padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
@@ -759,7 +822,7 @@ class _PersonalPhase extends ConsumerWidget {
                     ),
                     SizedBox(height: 4.h),
                     GestureDetector(
-                      onTap: onBack,
+                      onTap: widget.onBack,
                       child: Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: 10.w,
@@ -786,88 +849,156 @@ class _PersonalPhase extends ConsumerWidget {
 
         SizedBox(height: 16.h),
 
-        // ── Personal Details ───────────────────────────────────────────────
+        // ══════════════════════════════════════════════════════════════════
+        // PERSONAL DETAILS CARD
+        // ══════════════════════════════════════════════════════════════════
         _Card(
           children: [
-            _SectionHeader(
-              icon: Icons.person_outline,
-              title: 'Personal Details',
-              color: ColorPalette.secondary,
-            ),
-            SizedBox(height: 20.h),
-            CustomTextField(
-              controller: nameCtrl,
-              labelText: 'FULL NAME',
-              hintText: 'Enter your full name',
-              onChanged: vm.updateFullName,
-            ),
-            SizedBox(height: 16.h),
-            CustomTextField(
-              controller: phoneCtrl,
-              labelText: 'PHONE NUMBER',
-              hintText: '03xx-xxxxxxx',
-              keyboardType: TextInputType.phone,
-              onChanged: vm.updatePhone,
-            ),
-            SizedBox(height: 16.h),
-            const CityAreaWidget(),
-            SizedBox(height: 16.h),
-            CustomTextField(
-              controller: addressCtrl,
-              labelText: 'RESIDENTIAL ADDRESS',
-              hintText: 'House #, Street #, Sector',
-              onChanged: vm.updateAddress,
-            ),
-            SizedBox(height: 16.h),
-
-            // ── Ref code field with live validation indicator ───────────────
-            Text(
-              'SUPPLIER REFERENCE',
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Stack(
+            // Header row with "Edit Details" button for logged-in users
+            Row(
               children: [
-                CustomTextField(
-                  controller: refCtrl,
-                  hintText: 'Optional — reduces sourcing fee to 0.5%',
-                  onChanged: vm.updateRefCode, // debounced inside vm
-                ),
-                // Validation status icon overlaid on the right
-                Positioned(
-                  right: 14,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: _RefCodeStatus(
-                      isValidating: isValidating,
-                      isValid: isRefValid,
-                      hasText: refCtrl.text.isNotEmpty,
-                    ),
+                Expanded(
+                  child: _SectionHeader(
+                    icon: Icons.person_outline,
+                    title: 'Personal Details',
+                    color: ColorPalette.secondary,
                   ),
                 ),
+                if (_isLoggedIn)
+                  GestureDetector(
+                    onTap: _isEditingDetails
+                        ? null
+                        : () async {
+                            setState(() => _isEditingDetails = true);
+                            await widget.onEditDetails();
+                            if (mounted) {
+                              setState(() => _isEditingDetails = false);
+                            }
+                          },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 6.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ColorPalette.secondary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8.r),
+                        border: Border.all(
+                          color: ColorPalette.secondary.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _isEditingDetails
+                              ? SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: ColorPalette.secondary,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.edit_outlined,
+                                  size: 13,
+                                  color: ColorPalette.secondary,
+                                ),
+                          SizedBox(width: 5.w),
+                          Text(
+                            _isEditingDetails ? 'Opening...' : 'Edit Details',
+                            style: AppTextStyles.caption.copyWith(
+                              color: ColorPalette.secondary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
 
-            // Result feedback below field
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: !isValidating && refCtrl.text.isNotEmpty
-                  ? Padding(
-                      key: ValueKey(isRefValid),
-                      padding: EdgeInsets.only(top: 8.h),
-                      child: isRefValid ? _DiscountBadge() : _InvalidRefBadge(),
-                    )
-                  : const SizedBox.shrink(),
-            ),
+            SizedBox(height: 16.h),
+
+            // ── Branch on login + profile completeness ───────────────
+            if (_isLoggedIn && _isProfileComplete(state)) ...[
+              // ── COMPLETE: show read-only prefilled card ──────────────
+              _PrefilledInfoCard(
+                name: state.fullName,
+                phone: state.phoneNumber,
+                address: state.address,
+                city: cityAreaState.selectedCity?.title,
+                area: cityAreaState.selectedArea?.title,
+              ),
+              SizedBox(height: 16.h),
+              _RefCodeSection(
+                refCtrl: widget.refCtrl,
+                isValidating: isValidating,
+                isRefValid: isRefValid,
+                hasDiscount: hasDiscount,
+                vm: vm,
+              ),
+            ] else if (_isLoggedIn && !_isProfileComplete(state)) ...[
+              // ── INCOMPLETE: nudge to complete profile ────────────────
+              _IncompleteDetailsNudge(
+                onTap: _isEditingDetails
+                    ? null
+                    : () async {
+                        setState(() => _isEditingDetails = true);
+                        await widget.onEditDetails();
+                        if (mounted) setState(() => _isEditingDetails = false);
+                      },
+                isLoading: _isEditingDetails,
+              ),
+              SizedBox(height: 16.h),
+              _RefCodeSection(
+                refCtrl: widget.refCtrl,
+                isValidating: isValidating,
+                isRefValid: isRefValid,
+                hasDiscount: hasDiscount,
+                vm: vm,
+              ),
+            ] else ...[
+              // ── GUEST: editable fields ───────────────────────────────
+              CustomTextField(
+                controller: widget.nameCtrl,
+                labelText: 'FULL NAME',
+                hintText: 'Enter your full name',
+                onChanged: vm.updateFullName,
+              ),
+              SizedBox(height: 16.h),
+              CustomTextField(
+                controller: widget.phoneCtrl,
+                labelText: 'PHONE NUMBER',
+                hintText: '03xx-xxxxxxx',
+                keyboardType: TextInputType.phone,
+                onChanged: vm.updatePhone,
+              ),
+              SizedBox(height: 16.h),
+              const CityAreaWidget(),
+              SizedBox(height: 16.h),
+              CustomTextField(
+                controller: widget.addressCtrl,
+                labelText: 'RESIDENTIAL ADDRESS',
+                hintText: 'House #, Street #, Sector',
+                onChanged: vm.updateAddress,
+              ),
+              SizedBox(height: 16.h),
+              _RefCodeSection(
+                refCtrl: widget.refCtrl,
+                isValidating: isValidating,
+                isRefValid: isRefValid,
+                hasDiscount: hasDiscount,
+                vm: vm,
+              ),
+            ],
           ],
         ),
 
         SizedBox(height: 16.h),
 
-        // ── Order Summary ──────────────────────────────────────────────────
+        // ── Order Summary ────────────────────────────────────────────────
         if (state.plans.isNotEmpty)
           _Card(
             children: [
@@ -942,14 +1073,14 @@ class _PersonalPhase extends ConsumerWidget {
               SizedBox(height: 24.h),
               CustomButton(
                 title: isSubmitting ? 'Confirming...' : 'Confirm Order',
-                onPressed: isSubmitting ? null : onSubmit,
+                onPressed: isSubmitting ? null : widget.onSubmit,
                 suffixIcon: Icons.check_circle_outline_rounded,
                 backgroundColor: ColorPalette.secondary,
               ),
               SizedBox(height: 12.h),
               OutlinedCustomButton(
                 title: 'Back to Plan Review',
-                onPressed: onBack,
+                onPressed: widget.onBack,
                 icon: Icons.arrow_back_rounded,
                 borderColor: ColorPalette.secondary,
               ),
@@ -964,13 +1095,241 @@ class _PersonalPhase extends ConsumerWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Ref code status icon
+// Incomplete details nudge — shown in Phase 3 when profile is missing fields
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _IncompleteDetailsNudge extends StatelessWidget {
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  const _IncompleteDetailsNudge({required this.onTap, this.isLoading = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8EC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFFB020).withOpacity(0.35)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB020).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.person_add_alt_1_outlined,
+                size: 20,
+                color: Color(0xFFFFB020),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Complete your profile first',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF7A4F00),
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Add phone, address & location to place this order.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFFAA7020),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            isLoading
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: Color(0xFFFFB020),
+                    ),
+                  )
+                : const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: Color(0xFFFFB020),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Prefilled info card — read-only summary for logged-in users
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _PrefilledInfoCard extends StatelessWidget {
+  final String? name;
+  final String? phone;
+  final String? address;
+  final String? city;
+  final String? area;
+
+  const _PrefilledInfoCard({
+    this.name,
+    this.phone,
+    this.address,
+    this.city,
+    this.area,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: ColorPalette.backgroundBlueLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ColorPalette.secondary.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          _row(Icons.person_outline_rounded, 'Name', name),
+          const SizedBox(height: 10),
+          _row(Icons.phone_outlined, 'Phone', phone),
+          const SizedBox(height: 10),
+          _row(
+            Icons.location_city_outlined,
+            'City',
+            [city, area].where((e) => e != null).join(', '),
+          ),
+          const SizedBox(height: 10),
+          _row(Icons.location_on_outlined, 'Address', address),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(IconData icon, String label, String? value) {
+    final isEmpty = value == null || value.trim().isEmpty;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: ColorPalette.secondary),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 52,
+          child: Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: ColorPalette.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            isEmpty ? '—' : value!,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: isEmpty
+                  ? ColorPalette.textSecondary
+                  : ColorPalette.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Ref code section — extracted for reuse in both logged-in and guest paths
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _RefCodeSection extends StatelessWidget {
+  final TextEditingController refCtrl;
+  final bool isValidating;
+  final bool isRefValid;
+  final bool hasDiscount;
+  final CustomOrderViewModel vm;
+
+  const _RefCodeSection({
+    required this.refCtrl,
+    required this.isValidating,
+    required this.isRefValid,
+    required this.hasDiscount,
+    required this.vm,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'SUPPLIER REFERENCE',
+          style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+        ),
+        SizedBox(height: 8.h),
+        Stack(
+          children: [
+            CustomTextField(
+              controller: refCtrl,
+              hintText: 'Optional — reduces sourcing fee to 0.5%',
+              onChanged: vm.updateRefCode,
+            ),
+            Positioned(
+              right: 14,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: _RefCodeStatus(
+                  isValidating: isValidating,
+                  isValid: isRefValid,
+                  hasText: refCtrl.text.isNotEmpty,
+                ),
+              ),
+            ),
+          ],
+        ),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: !isValidating && refCtrl.text.isNotEmpty
+              ? Padding(
+                  key: ValueKey(isRefValid),
+                  padding: EdgeInsets.only(top: 8.h),
+                  child: isRefValid ? _DiscountBadge() : _InvalidRefBadge(),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Ref code status icon  (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _RefCodeStatus extends StatelessWidget {
   final bool isValidating;
   final bool isValid;
   final bool hasText;
+
   const _RefCodeStatus({
     required this.isValidating,
     required this.isValid,
@@ -999,7 +1358,7 @@ class _RefCodeStatus extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Shared micro-widgets
+// Shared micro-widgets  (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════
 
 class _Card extends StatelessWidget {
@@ -1226,8 +1585,6 @@ class _ByProceedingWidget extends StatelessWidget {
     ),
   );
 }
-
-// ── Static info sections ───────────────────────────────────────────────────
 
 class _WhyChooseUsSection extends StatelessWidget {
   @override

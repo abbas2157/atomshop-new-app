@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDgDIG1qpf45rGz9JIJxL2tVAIC2NXoqlU',
-    appId: '1:57608184676:android:1b78c26bdf63115b7a5071',
+    appId: '1:57608184676:android:a2eea14de41884ec7a5071',
     messagingSenderId: '57608184676',
     projectId: 'atomshop-2ae74',
     storageBucket: 'atomshop-2ae74.firebasestorage.app',
@@ -65,4 +65,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'atomshop-2ae74.firebasestorage.app',
     iosBundleId: 'com.example.atompro',
   );
+
 }

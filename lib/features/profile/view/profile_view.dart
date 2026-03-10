@@ -1,25 +1,26 @@
 import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
+import 'package:atompro/features/profile/viewmodel/profile_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:atompro/core/style/color_palette.dart';
 
-// ══════════════════════════════════════════════════════════════════════════════
-
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage>
+class _ProfilePageState extends ConsumerState<ProfilePage>
     with TickerProviderStateMixin {
   bool _isLoggedIn = false;
   bool _loading = true;
   String? _userName;
   String? _initials;
+  bool _profileIncomplete = false; // ← NEW
 
   late final AnimationController _entryCtrl;
   late final Animation<double> _fadeIn;
@@ -43,15 +44,28 @@ class _ProfilePageState extends State<ProfilePage>
   Future<void> _loadSession() async {
     final loggedIn = await SessionManager.isLoggedIn();
     String? name, initials;
+    bool incomplete = false;
     if (loggedIn) {
       name = await SessionManager.getUserName();
       initials = await SessionManager.getUserNameTwoCharchters();
+
+      // Check if any required field is missing
+      final phone = await SessionManager.getPhone();
+      final address = await SessionManager.getAddress();
+      final cityId = await SessionManager.getCityId();
+      final areaId = await SessionManager.getAreaId();
+
+      bool _blank(String? v) => v == null || v.trim().isEmpty || v == 'null';
+
+      incomplete =
+          _blank(phone) || _blank(address) || _blank(cityId) || _blank(areaId);
     }
     if (mounted) {
       setState(() {
         _isLoggedIn = loggedIn;
         _userName = name;
         _initials = initials;
+        _profileIncomplete = incomplete;
         _loading = false;
       });
       _entryCtrl.forward();
@@ -68,17 +82,25 @@ class _ProfilePageState extends State<ProfilePage>
           _isLoggedIn = false;
           _userName = null;
           _initials = null;
+          _profileIncomplete = false;
         });
         _entryCtrl.forward();
       }
     } catch (e) {
-      // Handle logout errors if necessary
+      // ignore
     }
   }
 
-  void _simulateLogin() {
-    // In real app → Navigator.push(context, MaterialPageRoute(builder: (_) => LoginPage()))
-    AppNavigator.goToAuthPage();
+  void _simulateLogin() => AppNavigator.goToAuthPage();
+
+  // Re-check session when returning from Edit Profile
+  Future<void> _goToEditProfile() async {
+    await AppNavigator.pushNamed(
+      AppRoutes.editProfile,
+      arguments: {'isCompletionFlow': false},
+    );
+    // Refresh incomplete status after returning
+    await _loadSession();
   }
 
   @override
@@ -113,9 +135,9 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
   //  LOGGED-IN
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
   Widget _buildLoggedIn() {
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -125,6 +147,12 @@ class _ProfilePageState extends State<ProfilePage>
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 48),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
+              // ── Incomplete profile banner ──────────────────────────────
+              if (_profileIncomplete) ...[
+                _IncompleteProfileBanner(onTap: _goToEditProfile),
+                const SizedBox(height: 20),
+              ],
+
               _label('My Account'),
               const SizedBox(height: 10),
               _group([
@@ -151,25 +179,31 @@ class _ProfilePageState extends State<ProfilePage>
               _label('Legal & Info'),
               const SizedBox(height: 10),
               _group([
-                _tile(Icons.info_outline_rounded, 'About Us', () {
-                  AppNavigator.goToAboutUs();
-                }),
+                _tile(
+                  Icons.info_outline_rounded,
+                  'About Us',
+                  () => AppNavigator.goToAboutUs(),
+                ),
                 _tile(
                   Icons.assignment_return_outlined,
                   'Return & Refund Policy',
-                  () {
-                    AppNavigator.goToReturnRefundPolicy();
-                  },
+                  () => AppNavigator.goToReturnRefundPolicy(),
                 ),
-                _tile(Icons.privacy_tip_outlined, 'Privacy Policy', () {
-                  AppNavigator.goToPrivacyPolicy();
-                }),
-                _tile(Icons.description_outlined, 'Terms & Conditions', () {
-                  AppNavigator.goToTermsAndConditions();
-                }),
-                _tile(Icons.article_outlined, 'Terms of Use (EULA)', () {
-                  AppNavigator.gotTermsOfUse();
-                }),
+                _tile(
+                  Icons.privacy_tip_outlined,
+                  'Privacy Policy',
+                  () => AppNavigator.goToPrivacyPolicy(),
+                ),
+                _tile(
+                  Icons.description_outlined,
+                  'Terms & Conditions',
+                  () => AppNavigator.goToTermsAndConditions(),
+                ),
+                _tile(
+                  Icons.article_outlined,
+                  'Terms of Use (EULA)',
+                  () => AppNavigator.gotTermsOfUse(),
+                ),
               ]),
               const SizedBox(height: 30),
               _ActionButton(
@@ -209,7 +243,7 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  // ── Header without a wasteful blue block ──────────────────────────────────
+  // ── Header ─────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return SafeArea(
       bottom: false,
@@ -218,13 +252,10 @@ class _ProfilePageState extends State<ProfilePage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top bar
             Row(
               children: [
-                _iconBtn(Icons.arrow_back_ios, () {
-                  AppNavigator.getBack();
-                }),
-                SizedBox(width: 30),
+                _iconBtn(Icons.arrow_back_ios, () => AppNavigator.getBack()),
+                const SizedBox(width: 30),
                 const Text(
                   'AtomShop',
                   style: TextStyle(
@@ -235,11 +266,10 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                 ),
                 const Spacer(),
-                _iconBtn(Icons.notifications_none_rounded, () {
-                  AppNavigator.goToNotifications();
-                }),
-                // const SizedBox(width: 8),
-                // _iconBtn(Icons.settings_outlined, () {}),
+                _iconBtn(
+                  Icons.notifications_none_rounded,
+                  () => AppNavigator.goToNotifications(),
+                ),
               ],
             ),
             const SizedBox(height: 18),
@@ -305,26 +335,33 @@ class _ProfilePageState extends State<ProfilePage>
                         const SizedBox(height: 5),
                         Row(
                           children: [
+                            // Dot — orange if incomplete, green if complete
                             Container(
                               width: 7,
                               height: 7,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF50FAB0),
+                                color: _profileIncomplete
+                                    ? const Color(0xFFFFB020)
+                                    : const Color(0xFF50FAB0),
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFF50FAB0,
-                                    ).withOpacity(0.7),
+                                    color:
+                                        (_profileIncomplete
+                                                ? const Color(0xFFFFB020)
+                                                : const Color(0xFF50FAB0))
+                                            .withOpacity(0.7),
                                     blurRadius: 6,
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 6),
-                            const Text(
-                              'Active Account',
-                              style: TextStyle(
+                            Text(
+                              _profileIncomplete
+                                  ? 'Profile incomplete'
+                                  : 'Active Account',
+                              style: const TextStyle(
                                 fontSize: 11.5,
                                 color: Colors.white70,
                                 fontWeight: FontWeight.w500,
@@ -337,9 +374,7 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                   // Edit pill
                   GestureDetector(
-                    onTap: () {
-                      AppNavigator.goToEditProfile();
-                    },
+                    onTap: _goToEditProfile,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 13,
@@ -382,9 +417,9 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  GUEST / LOGGED-OUT
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
+  //  GUEST
+  // ════════════════════════════════════════════════════════════════════════
   Widget _buildGuest() {
     return SafeArea(
       child: Padding(
@@ -392,13 +427,10 @@ class _ProfilePageState extends State<ProfilePage>
         child: Column(
           children: [
             const SizedBox(height: 16),
-            // Top bar
             Row(
               children: [
-                _iconBtn(Icons.arrow_back_ios, () {
-                  AppNavigator.getBack();
-                }),
-                SizedBox(width: 30),
+                _iconBtn(Icons.arrow_back_ios, () => AppNavigator.getBack()),
+                const SizedBox(width: 30),
                 const Text(
                   'Profile',
                   style: TextStyle(
@@ -411,7 +443,6 @@ class _ProfilePageState extends State<ProfilePage>
               ],
             ),
             const Spacer(flex: 2),
-            // Illustration
             Container(
               width: 88,
               height: 88,
@@ -469,25 +500,31 @@ class _ProfilePageState extends State<ProfilePage>
             _label('Information'),
             const SizedBox(height: 10),
             _group([
-              _tile(Icons.info_outline_rounded, 'About Us', () {
-                AppNavigator.goToAboutUs();
-              }),
+              _tile(
+                Icons.info_outline_rounded,
+                'About Us',
+                () => AppNavigator.goToAboutUs(),
+              ),
               _tile(
                 Icons.assignment_return_outlined,
                 'Return & Refund Policy',
-                () {
-                  AppNavigator.goToReturnRefundPolicy();
-                },
+                () => AppNavigator.goToReturnRefundPolicy(),
               ),
-              _tile(Icons.privacy_tip_outlined, 'Privacy Policy', () {
-                AppNavigator.goToPrivacyPolicy();
-              }),
-              _tile(Icons.description_outlined, 'Terms & Conditions', () {
-                AppNavigator.goToTermsAndConditions();
-              }),
-              _tile(Icons.article_outlined, 'Terms of Use (EULA)', () {
-                AppNavigator.gotTermsOfUse();
-              }),
+              _tile(
+                Icons.privacy_tip_outlined,
+                'Privacy Policy',
+                () => AppNavigator.goToPrivacyPolicy(),
+              ),
+              _tile(
+                Icons.description_outlined,
+                'Terms & Conditions',
+                () => AppNavigator.goToTermsAndConditions(),
+              ),
+              _tile(
+                Icons.article_outlined,
+                'Terms of Use (EULA)',
+                () => AppNavigator.gotTermsOfUse(),
+              ),
             ]),
             const SizedBox(height: 24),
           ],
@@ -496,9 +533,9 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
   //  SHARED COMPONENTS
-  // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(left: 2),
@@ -652,9 +689,87 @@ class _ProfilePageState extends State<ProfilePage>
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  ACTION BUTTON  (press-scale micro-interaction)
-// ══════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════════
+//  INCOMPLETE PROFILE BANNER
+// ════════════════════════════════════════════════════════════════════════════
+class _IncompleteProfileBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _IncompleteProfileBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8EC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFFFB020).withOpacity(0.4)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFFB020).withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB020).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.person_add_alt_1_outlined,
+                size: 18,
+                color: Color(0xFFFFB020),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Complete your profile',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF7A4F00),
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Add phone, address & location to place orders.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFFAA7020),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 13,
+              color: Color(0xFFFFB020),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  ACTION BUTTON
+// ════════════════════════════════════════════════════════════════════════════
 class _ActionButton extends StatefulWidget {
   final String label;
   final IconData icon;
@@ -682,7 +797,6 @@ class _ActionButtonState extends State<_ActionButton> {
   @override
   Widget build(BuildContext context) {
     final isGradient = widget.filled;
-
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
@@ -761,9 +875,9 @@ class _ActionButtonState extends State<_ActionButton> {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════════
 //  CONFIRM BOTTOM SHEET
-// ══════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════════
 class _ConfirmSheet extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -793,7 +907,6 @@ class _ConfirmSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Container(
             width: 34,
             height: 4,
