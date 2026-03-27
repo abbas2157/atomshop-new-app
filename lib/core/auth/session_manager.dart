@@ -13,6 +13,7 @@ class SessionManager {
   static const String _keyCity = "city_id";
   static const String _keyArea = "area_id";
   static const String _keyAddress = "address";
+  static const String _keyRole = "role";
 
   /// Save the session after Login/OTP success
   static Future<void> saveUserSession({
@@ -20,6 +21,7 @@ class SessionManager {
     required String userId,
     required String username,
     required String userUuid,
+    String? role,
     String? phone,
     String? email,
     String? cityId,
@@ -35,11 +37,24 @@ class SessionManager {
     await _storage.write(key: _keyCity, value: cityId);
     await _storage.write(key: _keyArea, value: areaId);
     await _storage.write(key: _keyAddress, value: address);
+    await _storage.write(key: _keyRole, value: role);
   }
 
   /// Retrieve the token for API headers
   static Future<String?> getToken() async {
     return await _storage.read(key: _keyToken);
+  }
+
+  /// Retrieve the user's role
+  /// This can be used for role-based access control in the app
+  static Future<String?> getUserRole() async {
+    return await _storage.read(key: _keyRole);
+  }
+
+  // is-Agent
+  static Future<bool> isAgent() async {
+    String? role = await getUserRole();
+    return role != null && role.toLowerCase() == 'agent';
   }
 
   /// Retrieve user ID

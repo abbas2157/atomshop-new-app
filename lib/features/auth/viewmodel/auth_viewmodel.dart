@@ -32,6 +32,7 @@ class AuthViewModel extends _$AuthViewModel {
             userId: user['id'].toString(),
             username: user['name'].toString(),
             userUuid: user['uuid'].toString(),
+            role: user['role'].toString(),
             phone: user['phone']?.toString(),
             email: user['email'].toString(),
             cityId: user['city_id']?.toString(),

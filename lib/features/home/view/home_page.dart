@@ -1,3 +1,4 @@
+import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/common/images/app_images.dart';
 import 'package:atompro/core/common/widgets/app_bar.dart';
 import 'package:atompro/core/common/widgets/app_cached_image.dart';
@@ -28,9 +29,19 @@ class _HomePageState extends State<HomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
+  bool _isAgent = false;
+
+  void checkAgentStatus() async {
+    bool isAgent = await SessionManager.isAgent();
+    setState(() {
+      _isAgent = isAgent;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    checkAgentStatus();
 
     _scrollController.addListener(() {
       if (_scrollController.offset > 500) {
@@ -171,7 +182,7 @@ class _HomePageState extends State<HomePage> {
             ).paddingHorizontal(30),
             SizedBox(height: context.h(10)),
 
-            _buildSmartSellerSection(context),
+            _buildSmartSellerSection(context, _isAgent),
 
             SizedBox(height: context.h(30)),
             Text(
@@ -390,7 +401,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Container _buildSmartSellerSection(BuildContext context) {
+  Container _buildSmartSellerSection(BuildContext context, bool isAgent) {
+    // Assuming this is a synchronous call for simplicity
     return Container(
       width: double.infinity,
       color: Color(0xFFF9F9F9),
@@ -468,9 +480,13 @@ class _HomePageState extends State<HomePage> {
                 SizedBox(height: 30),
                 CustomButton(
                   textColor: ColorPalette.secondary,
-                  title: "Register Now",
+                  title: isAgent ? "Add Seller" : "Register Now",
                   onPressed: () {
-                    AppNavigator.goToSmartSellerHome();
+                    if (isAgent) {
+                      AppNavigator.goToSmartSellerForm();
+                    } else {
+                      AppNavigator.goToSmartSellerHome();
+                    }
                   },
                   backgroundColor: Colors.white,
                   width: context.w(180),

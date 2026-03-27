@@ -1,3 +1,4 @@
+import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/features/city_area_selector/viewmodel/city_area_viewmodel.dart';
 import 'package:atompro/features/smart_seller/repository/smart_seller_repo.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -177,7 +178,6 @@ class SmartSellerViewmodel extends _$SmartSellerViewmodel {
   // ── Submit ────────────────────────────────────────────────────────────────
 
   Future<void> submit() async {
-    print("api called");
     final cityArea = ref.read(cityAreaViewModelProvider);
 
     if (cityArea.selectedCity == null || cityArea.selectedArea == null) {
@@ -186,9 +186,12 @@ class SmartSellerViewmodel extends _$SmartSellerViewmodel {
     }
 
     state = state.copyWith(isSubmitting: true, clearError: true);
+    bool isAgent = await SessionManager.isAgent();
+    String? agentuuid = await SessionManager.getUserUuid();
 
     try {
       final data = <String, dynamic>{
+        'added_by': isAgent ? agentuuid : null,
         'name': state.name.trim(),
         'email': state.email.trim(),
         'phone': state.phone.trim(),
@@ -209,10 +212,10 @@ class SmartSellerViewmodel extends _$SmartSellerViewmodel {
         'fulfillment': 'Seller',
       };
 
-      print(data);
+      print("seller data: $data");
 
       final response = await ref.read(smartSellerRepoProvider).submit(data);
-      print(response);
+      print("seller response: $response");
       if (response['success'] == true) {
         final d = (response['data'] as Map<String, dynamic>? ?? {});
         state = state.copyWith(

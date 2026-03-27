@@ -106,6 +106,7 @@ class ProfileViewModel extends _$ProfileViewModel {
     required String phone,
     required String email,
     required String address,
+
     required CityModel? selectedCity,
     required AreaModel? selectedArea,
     required bool isCompletionFlow,
