@@ -203,19 +203,16 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      floatingActionButton: _showScrollToTop
-          ? FloatingActionButton(
-              backgroundColor: ColorPalette.primary,
-              onPressed: () {
-                _scrollController.animateTo(
-                  0,
-                  duration: Duration(milliseconds: 500),
-                  curve: Curves.easeInOut,
-                );
-              },
-              child: Icon(Icons.arrow_upward),
-            )
-          : null,
+      floatingActionButton: _FabSwitcher(
+        isAgent: _isAgent,
+        showScrollToTop: _showScrollToTop,
+        onScrollToTop: () => _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        ),
+        onAddSeller: () => AppNavigator.goToSmartSellerForm(),
+      ),
     );
   }
 
@@ -916,6 +913,150 @@ class _HomePageState extends State<HomePage> {
 
           Text(urduTitle, style: AppTextStyles.h6, textAlign: .center),
         ],
+      ),
+    );
+  }
+}
+
+// Replace AnimatedSwitcher with this stateful wrapper
+class _FabSwitcher extends StatefulWidget {
+  final bool showScrollToTop;
+  final bool isAgent;
+
+  final VoidCallback onScrollToTop;
+  final VoidCallback onAddSeller;
+
+  const _FabSwitcher({
+    required this.showScrollToTop,
+    required this.isAgent,
+
+    required this.onScrollToTop,
+    required this.onAddSeller,
+  });
+
+  @override
+  State<_FabSwitcher> createState() => _FabSwitcherState();
+}
+
+class _FabSwitcherState extends State<_FabSwitcher>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+  late Animation<Offset> _slide;
+
+  bool _currentShowScrollToTop = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentShowScrollToTop = widget.showScrollToTop;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(_FabSwitcher old) {
+    super.didUpdateWidget(old);
+    if (old.showScrollToTop != widget.showScrollToTop) {
+      _runTransition();
+    }
+  }
+
+  Future<void> _runTransition() async {
+    // Phase 1: exit (fast)
+    await _controller.animateTo(
+      0,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeIn,
+    );
+    setState(() => _currentShowScrollToTop = widget.showScrollToTop);
+    // Phase 2: enter (springy)
+    _slide = Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: Curves.easeOutBack, // spring overshoot
+          ),
+        );
+    await _controller.animateTo(
+      1,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget? child;
+
+    if (_currentShowScrollToTop) {
+      // Always show scroll-to-top when triggered, regardless of isAgent
+      child = FloatingActionButton(
+        backgroundColor: ColorPalette.primary,
+        onPressed: widget.onScrollToTop,
+        child: const Icon(Icons.arrow_upward),
+      );
+    } else if (widget.isAgent) {
+      // Only show Add Seller as default if isAgent
+      child = _buildAddSellerButton(widget.onAddSeller);
+    } else {
+      // Not agent, not scrolled — show nothing
+      child = const SizedBox.shrink();
+    }
+
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(position: _slide, child: child),
+    );
+  }
+
+  Widget _buildAddSellerButton(VoidCallback onTap) {
+    return GestureDetector(
+      key: ValueKey("addSeller"),
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: ColorPalette.secondaryDark,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_add, color: Colors.white),
+            SizedBox(width: 8),
+            Text(
+              "Add Seller",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

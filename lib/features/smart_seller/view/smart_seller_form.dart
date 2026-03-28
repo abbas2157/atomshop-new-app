@@ -3,6 +3,7 @@ import 'package:atompro/core/common/widgets/custom_text_field.dart';
 import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
 import 'package:atompro/features/city_area_selector/view/city_area_selector_view.dart';
+import 'package:atompro/features/home/view/home_page.dart';
 import 'package:atompro/features/smart_seller/viewmodel/smart_seller_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -342,10 +343,17 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
               padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 0),
               child: Row(
                 children: [
-                  _navIconBtn(
-                    Icons.arrow_back_ios_new_rounded,
-                    () => Navigator.pop(context),
-                  ),
+                  _navIconBtn(Icons.arrow_back_ios_new_rounded, () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    } else {
+                      Future.delayed(Duration(seconds: 1), () {});
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => HomePage()),
+                      );
+                    }
+                  }),
                   SizedBox(width: 12.w),
                   Text(
                     'Smart Seller Program',

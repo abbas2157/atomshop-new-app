@@ -48,19 +48,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _navigateToNext() async {
-    // Wait for animation + a small delay for branding
-    await Future.delayed(const Duration(milliseconds: 1800));
+    await Future.delayed(const Duration(milliseconds: 1500));
 
-    // PROFESSIONAL AUTH CHECK
     final bool loggedIn = await SessionManager.isLoggedIn();
+    if (!mounted) return;
 
-    if (mounted) {
-      if (loggedIn) {
-        AppNavigator.clearStackAndPush(AppRoutes.homePage);
-      } else {
-        AppNavigator.clearStackAndPush(AppRoutes.homePage);
+    if (loggedIn) {
+      final bool isAgent = await SessionManager.isAgent();
+      if (!mounted) return;
+
+      if (isAgent) {
+        AppNavigator.clearStackAndPush(AppRoutes.smartsellerform);
+        return;
       }
     }
+
+    AppNavigator.clearStackAndPush(AppRoutes.homePage);
   }
 
   @override

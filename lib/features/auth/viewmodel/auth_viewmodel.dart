@@ -41,8 +41,14 @@ class AuthViewModel extends _$AuthViewModel {
           );
 
           state = const AsyncValue.data(null);
+          bool isAgent = await SessionManager.isAgent();
+
           SnackbarService().showSuccessSnackBar('Welcome back!');
-          AppNavigator.clearStackAndPush(AppRoutes.homePage);
+          if (isAgent) {
+            AppNavigator.clearStackAndPush(AppRoutes.smartsellerform);
+          } else {
+            AppNavigator.clearStackAndPush(AppRoutes.homePage);
+          }
         } else {
           state = const AsyncValue.data(null);
           AppNavigator.pushNamed(
