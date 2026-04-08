@@ -1,12 +1,11 @@
 import 'package:atompro/core/auth/session_manager.dart';
+import 'package:atompro/core/common/constants.dart';
 import 'package:atompro/core/common/images/app_images.dart';
-import 'package:atompro/core/common/widgets/app_bar.dart';
 import 'package:atompro/core/common/widgets/app_cached_image.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
 import 'package:atompro/core/style/extensions.dart';
-import 'package:atompro/features/drawer/view/drawer.dart';
 import 'package:atompro/features/home/model/category_model.dart';
 import 'package:atompro/features/home/utils/home_utils.dart';
 import 'package:atompro/features/home/widgets/faq_widget.dart';
@@ -17,7 +16,9 @@ import 'package:atompro/core/common/widgets/custom_button.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final VoidCallback? onOpenDrawer; // ← add this
+  final VoidCallback? orderNow; // ← add this
+  const HomePage({super.key, this.onOpenDrawer, this.orderNow});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -26,7 +27,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final GlobalKey _leadFormKey = GlobalKey();
 
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
   bool _isAgent = false;
@@ -59,14 +59,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey,
       backgroundColor: ColorPalette.background,
-      appBar: buildAppBar(context, () {
-        _scaffoldKey.currentState
-            ?.openDrawer(); // <--- Use the key instead of context
-      }),
-      drawer: AppDrawer(),
 
+      // appBar: buildAppBar(context, widget.onOpenDrawer ?? () {}, false),
       body: SingleChildScrollView(
         controller: _scrollController,
         child: Column(
@@ -96,7 +91,10 @@ class _HomePageState extends State<HomePage> {
             CustomButton(
               title: "Order Now",
               onPressed: () {
-                AppNavigator.goToCustomOrder();
+                // AppNavigator.goToCustomOrder();
+                if (widget.orderNow != null) {
+                  widget.orderNow!();
+                }
               },
             ).paddingHorizontal(16),
             SizedBox(height: context.h(40)),
@@ -109,7 +107,10 @@ class _HomePageState extends State<HomePage> {
             CustomButton(
               title: "Go to Calculator",
               onPressed: () {
-                AppNavigator.goToCustomOrder();
+                //  AppNavigator.goToCustomOrder();
+                if (widget.orderNow != null) {
+                  widget.orderNow!();
+                }
               },
             ).paddingHorizontal(16),
             SizedBox(height: context.h(40)),
@@ -137,7 +138,10 @@ class _HomePageState extends State<HomePage> {
                       CustomButton(
                         title: "Make Custom Order",
                         onPressed: () {
-                          AppNavigator.goToCustomOrder();
+                          // AppNavigator.goToCustomOrder();
+                          if (widget.orderNow != null) {
+                            widget.orderNow!();
+                          }
                         },
                       ),
                     ],
@@ -203,15 +207,19 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      floatingActionButton: _FabSwitcher(
-        isAgent: _isAgent,
-        showScrollToTop: _showScrollToTop,
-        onScrollToTop: () => _scrollController.animateTo(
-          0,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
+
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: AppDimens.bottomClearance),
+        child: _FabSwitcher(
+          isAgent: _isAgent,
+          showScrollToTop: _showScrollToTop,
+          onScrollToTop: () => _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          ),
+          onAddSeller: () => AppNavigator.goToSmartSellerForm(),
         ),
-        onAddSeller: () => AppNavigator.goToSmartSellerForm(),
       ),
     );
   }
@@ -827,6 +835,14 @@ class _HomePageState extends State<HomePage> {
 
         Text(
           "Shop thousands of items today and split the cost into easy, manageable monthly payments.",
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: ColorPalette.textPrimary,
+          ),
+        ),
+        SizedBox(height: context.h(5)),
+
+        Text(
+          "آج ہی ہزاروں چیزیں خریدیں اور ان کی قیمت آسان ماہانہ اقساط میں ادا کریں۔",
           style: AppTextStyles.bodyMedium.copyWith(
             color: ColorPalette.textPrimary,
           ),

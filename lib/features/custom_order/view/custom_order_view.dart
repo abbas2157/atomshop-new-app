@@ -11,7 +11,6 @@ import 'package:atompro/features/city_area_selector/view/city_area_selector_view
 import 'package:atompro/features/city_area_selector/viewmodel/city_area_viewmodel.dart';
 import 'package:atompro/features/custom_order/viewmodel/custom_order_viewmodel.dart';
 import 'package:atompro/features/drawer/view/drawer.dart';
-import 'package:atompro/features/home/view/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
@@ -195,10 +194,9 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
               title: 'Back to Home',
               onPressed: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => HomePage()),
-                  (route) => false,
-                );
+                Navigator.of(
+                  context,
+                ).pushReplacementNamed(AppRoutes.bottomnavbar);
               },
               backgroundColor: ColorPalette.secondary,
             ),
@@ -213,11 +211,12 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: ColorPalette.backgroundGray,
-      drawer: AppDrawer(),
-      appBar: buildAppBar(
-        context,
-        () => _scaffoldKey.currentState?.openDrawer(),
-      ),
+      // drawer: AppDrawer(),
+      // appBar: buildAppBar(
+      //   context,
+      //   () => _scaffoldKey.currentState?.openDrawer(),
+      //   true,
+      // ),
       body: Column(
         children: [
           _PhaseIndicator(phase: _phase),
@@ -249,7 +248,7 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
         );
       case _Phase.planReview:
         return Consumer(
-          builder: (_, ref, __) {
+          builder: (_, ref, _) {
             final state = ref.watch(customOrderViewModelProvider);
             return _PlanReviewPhase(
               state: state,
@@ -496,6 +495,7 @@ class _CalculatorPhase extends ConsumerWidget {
         _WhyChooseUsSection(),
         SizedBox(height: 16.h),
         _ConvenienceSection(),
+        SizedBox(height: 80.h),
       ],
     );
   }
@@ -696,6 +696,7 @@ class _PlanReviewPhase extends StatelessWidget {
         ),
         SizedBox(height: 16.h),
         const _ByProceedingWidget(),
+        SizedBox(height: 50.h),
       ],
     );
   }
@@ -1089,6 +1090,7 @@ class _PersonalPhaseState extends ConsumerState<_PersonalPhase> {
 
         SizedBox(height: 16.h),
         const _ByProceedingWidget(),
+        SizedBox(height: 50.h),
       ],
     );
   }

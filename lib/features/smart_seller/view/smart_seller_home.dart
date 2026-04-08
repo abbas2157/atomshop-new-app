@@ -21,7 +21,7 @@ class SmartSellerHome extends StatelessWidget {
       appBar: buildAppBar(context, () {
         _scaffoldKey.currentState
             ?.openDrawer(); // <--- Use the key instead of context
-      }),
+      }, true),
       drawer: AppDrawer(),
       body: SingleChildScrollView(
         child: Column(

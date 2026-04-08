@@ -61,12 +61,12 @@ class _LeadFormState extends ConsumerState<LeadForm> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: ColorPalette.accentRed.withOpacity(0.1),
+                color: ColorPalette.accentGreen.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.check_circle_outline,
-                color: ColorPalette.accentRed,
+                color: ColorPalette.accentGreen,
                 size: 60,
               ),
             ),
@@ -85,7 +85,7 @@ class _LeadFormState extends ConsumerState<LeadForm> {
             CustomButton(
               title: "Done",
               onPressed: () => Navigator.pop(context),
-              backgroundColor: ColorPalette.accentRed,
+              backgroundColor: ColorPalette.accentGreen,
             ),
           ],
         ),
@@ -174,7 +174,12 @@ class _LeadFormState extends ConsumerState<LeadForm> {
                     size: 20,
                   ),
                 ),
-
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: leadState.isWhatsapp,
+                  onChanged: leadVm.toggleWhatsapp,
+                  title: Text("Available on WhatsApp"),
+                ),
                 SizedBox(height: context.h(10)),
                 const CityAreaWidget(), // Handled by CityAreaViewModel internally
 
@@ -217,9 +222,7 @@ class _LeadFormState extends ConsumerState<LeadForm> {
                                 top: 8,
                                 right: 8,
                                 child: GestureDetector(
-                                  onTap: () => leadVm.setImage(
-                                    null as dynamic,
-                                  ), // Reset image
+                                  onTap: leadVm.clearImage, // Reset image
                                   child: CircleAvatar(
                                     radius: 14,
                                     backgroundColor: Colors.black54,

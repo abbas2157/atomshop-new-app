@@ -2,7 +2,6 @@ import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/common/images/app_images.dart';
 import 'package:atompro/core/common/utils/utils.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
-import 'package:atompro/core/routes/app_route_constants.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,7 +17,15 @@ const _kFacebook = Color(0xFF1877F2);
 const _kInstagram = Color(0xFFE1306C);
 
 class AppDrawer extends StatefulWidget {
-  const AppDrawer({super.key});
+  final VoidCallback? onOrderNowTap;
+  final VoidCallback? onMakeOfferTap;
+  final VoidCallback? closeDrawer;
+  const AppDrawer({
+    super.key,
+    this.onOrderNowTap,
+    this.onMakeOfferTap,
+    this.closeDrawer,
+  });
 
   @override
   State<AppDrawer> createState() => _AppDrawerState();
@@ -33,24 +40,33 @@ class _AppDrawerState extends State<AppDrawer>
 
   int _hoveredIndex = -1;
 
-  final List<_NavItem> _navItems = [
+  List<_NavItem> get _navItems => [
     _NavItem(
       label: 'Home',
       subtitle: 'Back to home',
       icon: Icons.home_outlined,
-      onTap: () => AppNavigator.clearStackAndPush(AppRoutes.homePage),
+      onTap: () {
+        Navigator.of(context).pop(); // closes drawer
+        widget.closeDrawer?.call();
+      },
     ),
     _NavItem(
       label: 'Order Now',
       subtitle: 'Browse & buy instantly',
       icon: Icons.shopping_bag_outlined,
-      onTap: () => AppNavigator.goToCustomOrder(),
+      onTap: () {
+        Navigator.of(context).pop();
+        widget.onOrderNowTap?.call();
+      },
     ),
     _NavItem(
       label: 'Make Offer',
       subtitle: 'Negotiate your price',
       icon: Icons.local_offer_outlined,
-      onTap: () => AppNavigator.goToMakeOfferView(),
+      onTap: () {
+        Navigator.of(context).pop();
+        widget.onMakeOfferTap?.call();
+      },
     ),
     _NavItem(
       label: 'Smart Seller',
@@ -71,7 +87,6 @@ class _AppDrawerState extends State<AppDrawer>
       onTap: () => AppNavigator.goToWhyAtomshop(),
     ),
   ];
-
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {

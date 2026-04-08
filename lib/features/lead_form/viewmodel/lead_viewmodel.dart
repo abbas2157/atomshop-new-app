@@ -2,24 +2,33 @@ import 'dart:io';
 import 'package:atompro/features/city_area_selector/viewmodel/city_area_viewmodel.dart';
 import 'package:atompro/features/lead_form/repository/lead_form_repo.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 part 'lead_viewmodel.g.dart';
 
 class LeadState {
   final bool isSubmitting;
-  final File? productImages; // To store the selected image
+  final File? productImages;
   final String? errorMessage;
+  final bool isWhatsapp;
 
-  LeadState({this.isSubmitting = false, this.productImages, this.errorMessage});
+  LeadState({
+    this.isSubmitting = false,
+    this.productImages,
+    this.errorMessage,
+    this.isWhatsapp = false,
+  });
 
   LeadState copyWith({
     bool? isSubmitting,
     File? productImages,
     String? errorMessage,
+    bool? isWhatsapp,
   }) {
     return LeadState(
       isSubmitting: isSubmitting ?? this.isSubmitting,
-      productImages: productImages ?? this.productImages,
+      productImages: productImages,
       errorMessage: errorMessage,
+      isWhatsapp: isWhatsapp ?? this.isWhatsapp,
     );
   }
 }
@@ -29,13 +38,22 @@ class LeadViewModel extends _$LeadViewModel {
   @override
   LeadState build() => LeadState();
 
-  // Handle Image Selection
-  void setImage(File file) {
+  // ✅ Set Image
+  void setImage(File? file) {
     state = state.copyWith(productImages: file);
   }
 
-  // Submit Lead logic
-  // lead_viewmodel.dart
+  // ✅ Clear Image
+  void clearImage() {
+    state = state.copyWith(productImages: null);
+  }
+
+  // ✅ Toggle WhatsApp
+  void toggleWhatsapp(bool value) {
+    state = state.copyWith(isWhatsapp: value);
+  }
+
+  // ✅ Submit Lead
   Future<bool> submitLead({
     required String fullName,
     required String contactNumber,
@@ -43,9 +61,36 @@ class LeadViewModel extends _$LeadViewModel {
   }) async {
     final cityAreaState = ref.read(cityAreaViewModelProvider);
 
-    if (cityAreaState.selectedCity == null ||
-        cityAreaState.selectedArea == null) {
-      state = state.copyWith(errorMessage: "Please select city and area");
+    fullName = fullName.trim();
+    contactNumber = contactNumber.trim();
+    productTitle = productTitle.trim();
+
+    List<String> errors = [];
+
+    if (fullName.isEmpty) {
+      errors.add("Please enter your full name");
+    }
+
+    if (contactNumber.isEmpty) {
+      errors.add("Please enter your contact number");
+    } else if (contactNumber.length < 11) {
+      errors.add("Please enter a valid phone number");
+    }
+
+    if (productTitle.isEmpty) {
+      errors.add("Please enter product title");
+    }
+
+    if (cityAreaState.selectedCity == null) {
+      errors.add("Please select a city");
+    }
+
+    if (cityAreaState.selectedArea == null) {
+      errors.add("Please select an area");
+    }
+
+    if (errors.isNotEmpty) {
+      state = state.copyWith(errorMessage: errors.join("\n"));
       return false;
     }
 
@@ -54,16 +99,15 @@ class LeadViewModel extends _$LeadViewModel {
     try {
       final repo = ref.read(leadFormRepoProvider);
 
-      // TEXT DATA
       final data = {
         "full_name": fullName,
         "contact_number": contactNumber,
         "city_id": cityAreaState.selectedCity!.id,
         "area_id": cityAreaState.selectedArea!.id,
         "product_title": productTitle,
+        "available_on_whatsapp": state.isWhatsapp ? 1 : 0,
       };
 
-      // FILE DATA (only if image exists)
       final Map<String, File> files = {};
 
       if (state.productImages != null) {
@@ -72,15 +116,18 @@ class LeadViewModel extends _$LeadViewModel {
 
       await repo.submitLead(data, files);
 
-      state = state.copyWith(isSubmitting: false);
+      state = LeadState(); // reset state
       return true;
     } catch (e) {
-      state = state.copyWith(isSubmitting: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: "Something went wrong. Please try again.",
+      );
       return false;
     }
   }
 
   void reset() {
-    state = LeadState(); // Returns to initial state (null image, false loading)
+    state = LeadState();
   }
 }

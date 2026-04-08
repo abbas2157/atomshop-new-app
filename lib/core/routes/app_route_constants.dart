@@ -1,5 +1,6 @@
 class AppRoutes {
   static const String splash = '/splash';
+  static const String bottomnavbar = '/bottomnavbar';
   static const String homePage = '/homepage';
   static const String customOrder = '/customOrder';
   static const String verifyOTP = '/verifyOTP';

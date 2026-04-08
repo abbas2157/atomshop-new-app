@@ -1,19 +1,20 @@
 import 'dart:ui';
 
 import 'package:atompro/core/common/images/app_images.dart';
-import 'package:atompro/core/common/widgets/app_bar.dart';
 import 'package:atompro/core/common/widgets/app_cached_image.dart';
 import 'package:atompro/core/common/widgets/custom_button.dart';
+import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
 import 'package:atompro/core/style/extensions.dart';
-import 'package:atompro/features/drawer/view/drawer.dart';
 import 'package:atompro/features/lead_form/lead_form.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
 
 class MakeOfferView extends StatefulWidget {
-  const MakeOfferView({super.key});
+  final VoidCallback? orderNow; // ← add this
+
+  const MakeOfferView({super.key, this.orderNow}); // ← modify constructor
 
   @override
   State<MakeOfferView> createState() => _MakeOfferViewState();
@@ -30,11 +31,11 @@ class _MakeOfferViewState extends State<MakeOfferView> {
       key: _scaffoldKey,
       backgroundColor: ColorPalette.background,
 
-      appBar: buildAppBar(context, () {
-        _scaffoldKey.currentState
-            ?.openDrawer(); // <--- Use the key instead of context
-      }),
-      drawer: AppDrawer(),
+      // appBar: buildAppBar(context, () {
+      //   _scaffoldKey.currentState
+      //       ?.openDrawer(); // <--- Use the key instead of context
+      // }, true),
+      // drawer: AppDrawer(),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -151,14 +152,17 @@ class _MakeOfferViewState extends State<MakeOfferView> {
                   CustomButton(
                     textColor: Colors.black,
                     title: "Calculate Installments",
-                    onPressed: () {},
+                    onPressed: () {
+                      // AppNavigator.goToCustomOrder();
+                      widget.orderNow?.call(); // ← call the callback
+                    },
                     backgroundColor: Colors.white,
-                    width: 200.w,
+                    width: 210.w,
                   ),
                 ],
               ),
             ).paddingHorizontal(16),
-            SizedBox(height: context.h(50)),
+            SizedBox(height: context.h(100)),
           ],
         ),
       ),

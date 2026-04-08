@@ -1,5 +1,6 @@
 import 'package:atompro/core/common/widgets/custom_button.dart';
 import 'package:atompro/core/common/widgets/custom_text_field.dart';
+import 'package:atompro/core/routes/app_route_constants.dart';
 import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
 import 'package:atompro/features/city_area_selector/view/city_area_selector_view.dart';
@@ -348,9 +349,9 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                       Navigator.pop(context);
                     } else {
                       Future.delayed(Duration(seconds: 1), () {});
-                      Navigator.pushReplacement(
+                      Navigator.pushReplacementNamed(
                         context,
-                        MaterialPageRoute(builder: (_) => HomePage()),
+                        AppRoutes.bottomnavbar,
                       );
                     }
                   }),

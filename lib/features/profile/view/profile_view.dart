@@ -1,7 +1,6 @@
 import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
-import 'package:atompro/features/profile/viewmodel/profile_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -236,6 +235,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                   action: _logout,
                 ),
               ),
+              const SizedBox(height: 100),
             ]),
           ),
         ),
@@ -254,8 +254,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
           children: [
             Row(
               children: [
-                _iconBtn(Icons.arrow_back_ios, () => AppNavigator.getBack()),
-                const SizedBox(width: 30),
+                // _iconBtn(Icons.arrow_back_ios, () => AppNavigator.getBack()),
+                // const SizedBox(width: 30),
                 const Text(
                   'AtomShop',
                   style: TextStyle(
@@ -265,11 +265,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                     letterSpacing: -0.6,
                   ),
                 ),
-                const Spacer(),
-                _iconBtn(
-                  Icons.notifications_none_rounded,
-                  () => AppNavigator.goToNotifications(),
-                ),
+                //  const Spacer(),
+                // _iconBtn(
+                //   Icons.notifications_none_rounded,
+                //   () => AppNavigator.goToNotifications(),
+                // ),
               ],
             ),
             const SizedBox(height: 18),
@@ -429,8 +429,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
             const SizedBox(height: 16),
             Row(
               children: [
-                _iconBtn(Icons.arrow_back_ios, () => AppNavigator.getBack()),
-                const SizedBox(width: 30),
+                // _iconBtn(Icons.arrow_back_ios, () => AppNavigator.getBack()),
+                //  const SizedBox(width: 30),
                 const Text(
                   'Profile',
                   style: TextStyle(
@@ -442,17 +442,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                 ),
               ],
             ),
-            const Spacer(flex: 2),
+            // const Spacer(flex: 1),
             Container(
-              width: 88,
-              height: 88,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: ColorPalette.secondaryGradient,
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(26),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: ColorPalette.secondary.withOpacity(0.3),
@@ -464,10 +464,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
               child: const Icon(
                 Icons.person_outline_rounded,
                 color: Colors.white,
-                size: 44,
+                size: 30,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
             const Text(
               'You\'re not logged in',
               style: TextStyle(
@@ -487,7 +487,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                 height: 1.6,
               ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
             _ActionButton(
               label: 'Login to your Account',
               icon: Icons.login_rounded,
@@ -496,9 +496,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
               color: ColorPalette.secondary,
               onTap: _simulateLogin,
             ),
-            const Spacer(flex: 2),
+            const SizedBox(height: 20),
+
+            //const Spacer(flex: 1),
             _label('Information'),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
             _group([
               _tile(
                 Icons.info_outline_rounded,

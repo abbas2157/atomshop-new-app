@@ -5,6 +5,7 @@ import 'package:atompro/features/auth/view/login_signup_view.dart';
 import 'package:atompro/features/auth/view/otp_verify_view.dart';
 import 'package:atompro/features/custom_order/view/custom_order_view.dart';
 import 'package:atompro/features/custom_order/view/my_orders.dart';
+import 'package:atompro/features/home/view/bottom_nav_bar/bottom_nav_bar.dart';
 import 'package:atompro/features/home/view/home_page.dart';
 import 'package:atompro/features/make_offer/view/make_offer_view.dart';
 import 'package:atompro/features/notifications/notifications_view.dart';
@@ -47,6 +48,8 @@ class AppRouteGenerator {
         return MaterialPageRoute(builder: (_) => MyOrdersPage());
       case AppRoutes.homePage:
         return MaterialPageRoute(builder: (_) => HomePage());
+      case AppRoutes.bottomnavbar:
+        return MaterialPageRoute(builder: (_) => BottomBarPage());
       case AppRoutes.customOrder:
         return MaterialPageRoute(builder: (_) => CustomOrderView());
       case AppRoutes.makeoffer:

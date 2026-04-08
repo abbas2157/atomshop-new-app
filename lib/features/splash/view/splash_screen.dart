@@ -63,7 +63,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       }
     }
 
-    AppNavigator.clearStackAndPush(AppRoutes.homePage);
+    AppNavigator.clearStackAndPush(AppRoutes.bottomnavbar);
   }
 
   @override

@@ -21,7 +21,7 @@ class WhyAtomshopView extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: buildAppBar(context, () {
         _scaffoldKey.currentState?.openDrawer();
-      }),
+      }, true),
       drawer: const AppDrawer(),
       body: SingleChildScrollView(
         child: Column(

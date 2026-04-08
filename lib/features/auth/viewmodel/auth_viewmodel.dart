@@ -47,7 +47,7 @@ class AuthViewModel extends _$AuthViewModel {
           if (isAgent) {
             AppNavigator.clearStackAndPush(AppRoutes.smartsellerform);
           } else {
-            AppNavigator.clearStackAndPush(AppRoutes.homePage);
+            AppNavigator.clearStackAndPush(AppRoutes.bottomnavbar);
           }
         } else {
           state = const AsyncValue.data(null);
