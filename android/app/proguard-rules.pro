@@ -12,3 +12,7 @@
 
 # Don't warn about Flutter
 -dontwarn io.flutter.embedding.**
+
+# Facebook SDK rules
+-keep class com.facebook.** { *; }
+-keepattributes Signature

@@ -9,7 +9,6 @@ class AppRoutes {
   static const String whyatomshop = '/whyatomshop';
   static const String smartsellerhome = '/smartsellerhome';
   static const String smartsellerform = '/smartsellerform';
-  // supplier
   static const String smartsupllierhome = '/smartsupllierhome';
   static const String smartsupllierform = '/smartsupllierform';
   static const String profile = '/profile';
@@ -21,5 +20,9 @@ class AppRoutes {
   static const String myOrders = '/my_orders';
   static const String changePassword = '/change_password';
   static const String notifications = '/notifications';
-  static const String editProfile = '/edit-profile'; // ← ADD THIS
+  static const String editProfile = '/edit-profile';
+
+  static const String sellerMode = '/seller';
+  static const String sellerLogin = '/seller/login';
+  static const String sellerShell = '/seller/shell';
 }

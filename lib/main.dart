@@ -2,24 +2,27 @@ import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_generator.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/core/theme/app_theme.dart';
-import 'package:atompro/features/splash/view/splash_screen.dart';
+import 'package:atompro/features/customer/splash/view/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'package:device_preview/device_preview.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Enable edge-to-edge mode
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  // Optional: Customize status & navigation bar appearance
   SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark, // dark icons on white bg
+    SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent, // content behind status bar
+      systemNavigationBarColor: Colors.transparent, // content behind nav bar
+      statusBarIconBrightness: Brightness.dark, // light/dark icons
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
 

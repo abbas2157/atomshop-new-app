@@ -56,4 +56,7 @@ class AppNavigator {
   static void goToReturnRefundPolicy() => pushTo(AppRoutes.returnRefundPolicy);
   static void goToMyOrders() => pushTo(AppRoutes.myOrders);
   static void goToNotifications() => pushTo(AppRoutes.notifications);
+  static void goToSellerMode() => pushTo(AppRoutes.sellerMode);
+  static void goToSellerLogin() => pushTo(AppRoutes.sellerLogin);
+  static void goToSellerShell() => pushTo(AppRoutes.sellerShell);
 }

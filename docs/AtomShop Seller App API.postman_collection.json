@@ -1,0 +1,2426 @@
+{
+  "info": {
+    "_postman_id": "e20ea770-b0ca-42a7-98ab-e3ade4ed68ac",
+    "name": "AtomShop Seller App API",
+    "description": "Complete API collection for AtomShop Seller Mobile App including all sub-routes and filters",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "30288211"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Parse response JSON\r",
+                  "let res = pm.response.json();\r",
+                  "\r",
+                  "// Save seller token to collection variable\r",
+                  "if (res.success && res.data && res.data.token) {\r",
+                  "    pm.collectionVariables.set(\"token\", res.data.token);\r",
+                  "    console.log(\"Seller token saved:\", res.data.token);\r",
+                  "} else {\r",
+                  "    console.log(\"Seller token not found\");\r",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"zakabrothers206@gmail.com\",\n    \"password\": \"AtomShop@221\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Dashboard Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "dashboard"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sales Revenue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/sales-revenue",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "sales-revenue"
+              ],
+              "query": [
+                {
+                  "key": "range",
+                  "value": "month",
+                  "description": "week, month, ytd, 30, 90",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Jane Doe\",\n    \"email\": \"seller@example.com\",\n    \"phone\": \"03001234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/profile/update",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "profile",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile Picture",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "value": null
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/profile/picture/update",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "profile",
+                "picture",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"current_password\": \"password\",\n    \"new_password\": \"new_password\",\n    \"confirm_new_password\": \"new_password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/profile/change/password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "profile",
+                "change",
+                "password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Seller Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/profile/seller-info",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "profile",
+                "seller-info"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Seller Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Seller Name\",\n    \"cnic_number\": \"12345-1234567-1\",\n    \"website\": \"www.example.com\",\n    \"fee_charge_type\": \"percentage\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/profile/seller-info",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "profile",
+                "seller-info"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Business Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/profile/business-info",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "profile",
+                "business-info"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Business Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"business_name\": \"My Shop\",\n    \"investment_capacity\": \"1000000\",\n    \"previous_experience\": \"5 years\",\n    \"city_id\": \"1\",\n    \"address\": \"Shop #1, Street #1\",\n    \"area_id\": [1, 2, 3]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/profile/business-info",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "profile",
+                "business-info"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "All Area Customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "All",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My Customers (with Orders)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/my",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "my"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "All",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Other Platform Customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/other",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "other"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "All",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Store Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "John Doe"
+                },
+                {
+                  "key": "phone",
+                  "value": "03001234567"
+                },
+                {
+                  "key": "email",
+                  "value": "john@example.com"
+                },
+                {
+                  "key": "father_name",
+                  "value": "Father Name"
+                },
+                {
+                  "key": "cnic_no",
+                  "value": "12345-1234567-1"
+                },
+                {
+                  "key": "city_id",
+                  "value": "1"
+                },
+                {
+                  "key": "area_id",
+                  "value": "1"
+                },
+                {
+                  "key": "address",
+                  "value": "House #1"
+                },
+                {
+                  "key": "id_card_front_side",
+                  "type": "file",
+                  "value": null
+                },
+                {
+                  "key": "id_card_back_side",
+                  "type": "file",
+                  "value": null
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/store",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "store"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Import Customers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "value": null
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/import",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "import"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Download Sample",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/import/sample",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "import",
+                "sample"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customer Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/{{customer_uuid}}/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "{{customer_uuid}}",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customer Instalments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/{{customer_uuid}}/instalment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "{{customer_uuid}}",
+                "instalment"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customer Custom Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/{{customer_uuid}}/custom-orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "{{customer_uuid}}",
+                "custom-orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Notification Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/notification-count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "notification-count"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Areas by City",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/customers/areas?city_id=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "customers",
+                "areas"
+              ],
+              "query": [
+                {
+                  "key": "city_id",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "All",
+                  "disabled": true
+                },
+                {
+                  "key": "min_price",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "max_price",
+                  "value": "1000000",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Order Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/orders/show/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "orders",
+                "show",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"Delivered\",\n    \"recieved_by\": \"Customer Name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/orders/status/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "orders",
+                "status",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Download PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/orders/pdf/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "orders",
+                "pdf",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Store Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customer_id\": \"1\",\n    \"product_id\": \"1\",\n    \"area_id\": \"1\",\n    \"city_id\": \"1\",\n    \"min_advance_price\": \"1000\",\n    \"tenure_months\": \"6\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/orders/store",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "orders",
+                "store"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Custom Orders",
+      "item": [
+        {
+          "name": "List Custom Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "All",
+                  "disabled": true
+                },
+                {
+                  "key": "min_price",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "max_price",
+                  "value": "1000000",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Store Custom Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\": \"1\",\n    \"product_id\": \"1\",\n    \"total_deal_price\": \"50000\",\n    \"advance_price\": \"5000\",\n    \"per_month_percentage\": \"4\",\n    \"tenure\": \"12\",\n    \"area_id\": \"1\",\n    \"city_id\": \"1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/store",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "store"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Order Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/show/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "show",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"Delivered\",\n    \"recieved_by\": \"Customer Name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/status/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "status",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Close Deal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"total_deal_price\": \"50000\",\n    \"advance_price\": \"10000\",\n    \"installment_tenure\": \"12\",\n    \"per_month_percentage\": \"4\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/close-deal/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "close-deal",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Download PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/{{order_uuid}}/pdf",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "{{order_uuid}}",
+                "pdf"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Guarantor",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/guarantor/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "guarantor",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Store Guarantor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Guarantor Name\",\n    \"phone\": \"03123456789\",\n    \"cnic\": \"12345-1234567-1\",\n    \"address\": \"Guarantor Address\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/guarantor/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "guarantor",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pending Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/pending-count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "pending-count"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Status Counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/custom-orders/status-counts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "custom-orders",
+                "status-counts"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Instalments",
+      "item": [
+        {
+          "name": "List Instalments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/instalment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "instalment"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "All",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pay Instalment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "order_id",
+                  "value": "1"
+                },
+                {
+                  "key": "instalment_price",
+                  "value": "5000"
+                },
+                {
+                  "key": "payment_method",
+                  "value": "Cash"
+                },
+                {
+                  "key": "instalment_pictrue",
+                  "type": "file",
+                  "value": null
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/instalment/pay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "instalment",
+                "pay"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Export Instalments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/instalment/export?status=Unpaid",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "instalment",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Unpaid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Topup PDF URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/instalment/topup-pdf",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "instalment",
+                "topup-pdf"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Invoice URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/instalment/invoice/{{order_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "instalment",
+                "invoice",
+                "{{order_uuid}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Leads",
+      "item": [
+        {
+          "name": "My Leads",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "All",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Other Leads",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads/others",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads",
+                "others"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lead Status Counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads/status-counts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads",
+                "status-counts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Others Status Counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads/others-status-counts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads",
+                "others-status-counts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "New Leads Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads/count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads",
+                "count"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Import Leads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "value": null
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads/import",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads",
+                "import"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Download Sample",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads/sample",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads",
+                "sample"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"Contacted\",\n    \"comments\": \"Call back later\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads/update/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads",
+                "update",
+                "{{lead_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Custom Order from Lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_type\": \"individual\",\n    \"product_price\": \"45000\",\n    \"advance_price\": \"5000\",\n    \"installments\": \"12\",\n    \"per_month_percentage\": \"4\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/leads/custom-order/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "leads",
+                "custom-order",
+                "{{lead_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sales Team",
+      "item": [
+        {
+          "name": "List Team",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/sales-team",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "sales-team"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "member_type",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Store Member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Sales Person\",\n    \"email\": \"sales@example.com\",\n    \"phone\": \"03112233445\",\n    \"member_type\": \"sales\",\n    \"city_id\": \"1\",\n    \"area_id\": \"1\",\n    \"status\": \"1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/sales-team/store",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "sales-team",
+                "store"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Edit Member",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/sales-team/{{member_uuid}}/edit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "sales-team",
+                "{{member_uuid}}",
+                "edit"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Sales Person Updated\",\n    \"phone\": \"03112233445\",\n    \"member_type\": \"sales\",\n    \"city_id\": \"1\",\n    \"area_id\": \"1\",\n    \"status\": \"1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/sales-team/{{member_uuid}}/update",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "sales-team",
+                "{{member_uuid}}",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Performance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/sales-team/{{member_uuid}}/performance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "sales-team",
+                "{{member_uuid}}",
+                "performance"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Fee Charge",
+      "item": [
+        {
+          "name": "Fee Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/fee-charge",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "fee-charge"
+              ],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pay Fee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "amount",
+                  "value": "1000"
+                },
+                {
+                  "key": "payment_method",
+                  "value": "Bank Transfer"
+                },
+                {
+                  "key": "receipt",
+                  "type": "file",
+                  "value": null
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/fee-charge/pay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "fee-charge",
+                "pay"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Investments",
+      "item": [
+        {
+          "name": "List Investments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/investments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "investments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Investment Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/investments/{{investment_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "investments",
+                "{{investment_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/seller-app/investments/{{investment_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "seller-app",
+                "investments",
+                "{{investment_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "777|5Kq7xTW9tcqym7l5uDCYIx3Imb70n8eV4sg2SjIx6dcb4f92",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}

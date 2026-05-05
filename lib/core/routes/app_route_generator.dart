@@ -1,25 +1,28 @@
 import 'package:atompro/core/routes/app_route_constants.dart';
-import 'package:atompro/features/about_us/view/about_us_view.dart';
-import 'package:atompro/features/auth/view/change_password.dart';
-import 'package:atompro/features/auth/view/login_signup_view.dart';
-import 'package:atompro/features/auth/view/otp_verify_view.dart';
-import 'package:atompro/features/custom_order/view/custom_order_view.dart';
-import 'package:atompro/features/custom_order/view/my_orders.dart';
-import 'package:atompro/features/home/view/bottom_nav_bar/bottom_nav_bar.dart';
-import 'package:atompro/features/home/view/home_page.dart';
-import 'package:atompro/features/make_offer/view/make_offer_view.dart';
-import 'package:atompro/features/notifications/notifications_view.dart';
-import 'package:atompro/features/privacy_policy/view/privacy_policy_view.dart';
-import 'package:atompro/features/profile/view/edit_profile.dart';
-import 'package:atompro/features/profile/view/profile_view.dart';
-import 'package:atompro/features/return_refund_policy/return_refund_policy.dart';
-import 'package:atompro/features/smart_seller/view/smart_seller_form.dart';
-import 'package:atompro/features/smart_seller/view/smart_seller_home.dart';
-import 'package:atompro/features/smart_supplier/view/smart_supllier_form.dart';
-import 'package:atompro/features/smart_supplier/view/smart_supplier_home.dart';
-import 'package:atompro/features/terms_and_conditions/terms_and_conditions.dart';
-import 'package:atompro/features/terms_of_use/terms_of_use.dart';
-import 'package:atompro/features/why_atomshop/view/why_atomshop_view.dart';
+import 'package:atompro/features/customer/about_us/view/about_us_view.dart';
+import 'package:atompro/features/customer/auth/view/change_password.dart';
+import 'package:atompro/features/customer/auth/view/login_signup_view.dart';
+import 'package:atompro/features/customer/auth/view/otp_verify_view.dart';
+import 'package:atompro/features/customer/custom_order/view/custom_order_view.dart';
+import 'package:atompro/features/customer/custom_order/view/my_orders.dart';
+import 'package:atompro/features/customer/home/view/bottom_nav_bar/bottom_nav_bar.dart';
+import 'package:atompro/features/customer/home/view/home_page.dart';
+import 'package:atompro/features/customer/make_offer/view/make_offer_view.dart';
+import 'package:atompro/features/customer/notifications/notifications_view.dart';
+import 'package:atompro/features/customer/privacy_policy/view/privacy_policy_view.dart';
+import 'package:atompro/features/customer/profile/view/edit_profile.dart';
+import 'package:atompro/features/customer/profile/view/profile_view.dart';
+import 'package:atompro/features/customer/return_refund_policy/return_refund_policy.dart';
+import 'package:atompro/features/customer/smart_seller/view/smart_seller_form.dart';
+import 'package:atompro/features/customer/smart_seller/view/smart_seller_home.dart';
+import 'package:atompro/features/customer/smart_supplier/view/smart_supllier_form.dart';
+import 'package:atompro/features/customer/smart_supplier/view/smart_supplier_home.dart';
+import 'package:atompro/features/customer/terms_and_conditions/terms_and_conditions.dart';
+import 'package:atompro/features/customer/terms_of_use/terms_of_use.dart';
+import 'package:atompro/features/customer/why_atomshop/view/why_atomshop_view.dart';
+
+
+
 import 'package:flutter/material.dart';
 
 class AppRouteGenerator {
@@ -82,6 +85,7 @@ class AppRouteGenerator {
         return MaterialPageRoute(
           builder: (_) => EditProfilePage(isCompletionFlow: isCompletionFlow),
         );
+     
 
       default:
         return MaterialPageRoute(
