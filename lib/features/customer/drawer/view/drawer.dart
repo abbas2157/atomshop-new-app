@@ -68,15 +68,15 @@ class _AppDrawerState extends State<AppDrawer>
         widget.onMakeOfferTap?.call();
       },
     ),
-    // _NavItem(
-    //   label: 'Seller Mode',
-    //   subtitle: 'Manage sales and leads',
-    //   icon: Icons.workspace_premium_outlined,
-    //   onTap: () {
-    //     Navigator.of(context).pop();
-    //     AppNavigator.goToSellerMode();
-    //   },
-    // ),
+    _NavItem(
+      label: 'Seller Mode',
+      subtitle: 'Manage sales and leads',
+      icon: Icons.workspace_premium_outlined,
+      onTap: () {
+        Navigator.of(context).pop();
+        AppNavigator.goToSellerMode();
+      },
+    ),
     _NavItem(
       label: 'Smart Seller',
       subtitle: 'Become a Smart Seller',

@@ -1,3 +1,4 @@
+import 'package:atompro/core/mode/app_mode_manager.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
 import 'package:flutter/material.dart';
 
@@ -56,7 +57,16 @@ class AppNavigator {
   static void goToReturnRefundPolicy() => pushTo(AppRoutes.returnRefundPolicy);
   static void goToMyOrders() => pushTo(AppRoutes.myOrders);
   static void goToNotifications() => pushTo(AppRoutes.notifications);
-  static void goToSellerMode() => pushTo(AppRoutes.sellerMode);
+  static Future<void> goToCustomerMode() async {
+    await AppModeManager.switchToCustomer();
+    await clearStackAndPush(AppRoutes.bottomnavbar);
+  }
+
+  static Future<void> goToSellerMode() async {
+    await AppModeManager.switchToSeller();
+    await clearStackAndPush(AppRoutes.sellerMode);
+  }
+
   static void goToSellerLogin() => pushTo(AppRoutes.sellerLogin);
   static void goToSellerShell() => pushTo(AppRoutes.sellerShell);
 }
