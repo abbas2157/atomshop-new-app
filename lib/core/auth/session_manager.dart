@@ -118,6 +118,17 @@ class SessionManager {
 
   /// Wipe everything on Logout
   static Future<void> logout() async {
-    await _storage.deleteAll();
+    await Future.wait([
+      _storage.delete(key: _keyToken),
+      _storage.delete(key: _keyUserId),
+      _storage.delete(key: _keyUserUuid),
+      _storage.delete(key: _keyUserName),
+      _storage.delete(key: _keyPhone),
+      _storage.delete(key: _keyEmail),
+      _storage.delete(key: _keyCity),
+      _storage.delete(key: _keyArea),
+      _storage.delete(key: _keyAddress),
+      _storage.delete(key: _keyRole),
+    ]);
   }
 }

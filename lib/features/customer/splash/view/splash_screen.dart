@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +24,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
+  Timer? _navigationTimer;
 
   @override
   void initState() {
@@ -47,12 +50,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove(); // Native splash exits, your animation takes over
     });
-    _navigateToNext();
+    _scheduleNavigation();
+  }
+
+  void _scheduleNavigation() {
+    _navigationTimer = Timer(const Duration(milliseconds: 1500), () async {
+      await _navigateToNext();
+    });
   }
 
   Future<void> _navigateToNext() async {
-    await Future.delayed(const Duration(milliseconds: 1500));
-
     final mode = await AppModeManager.getMode();
     if (!mounted) return;
 
@@ -83,6 +90,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -97,19 +105,25 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           Positioned(
             top: -100,
             right: -50,
-            child: _buildCircle(200, ColorPalette.secondary.withOpacity(0.1)),
+            child: _buildCircle(
+              200,
+              ColorPalette.secondary.withValues(alpha: 0.1),
+            ),
           ),
           Positioned(
             bottom: -50,
             left: -80,
-            child: _buildCircle(250, ColorPalette.primary.withOpacity(0.05)),
+            child: _buildCircle(
+              250,
+              ColorPalette.primary.withValues(alpha: 0.05),
+            ),
           ),
           Positioned(
             top: 200,
             left: 20,
             child: _buildCircle(
               50,
-              ColorPalette.secondaryLight.withOpacity(0.15),
+              ColorPalette.secondaryLight.withValues(alpha: 0.15),
             ),
           ),
 
