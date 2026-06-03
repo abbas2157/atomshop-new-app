@@ -474,86 +474,72 @@ class _LeadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = _statusColors(lead.status);
     return Container(
-      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: _L.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _L.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
-      child: Column(
+      // ClipRRect keeps the left strip within the rounded corners
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Status-colored left accent strip
+              Container(width: 4, color: colors.fg),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+                  child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: colors.bg,
-                child: Icon(Icons.person_search_outlined, color: colors.fg),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lead.fullName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _L.text,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      lead.productTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _L.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _StatusPill(label: lead.status, fg: colors.fg, bg: colors.bg),
-            ],
-          ),
-          const SizedBox(height: 13),
-          Row(
-            children: [
-              Expanded(
-                child: _MiniInfo(icon: Icons.phone_outlined, label: lead.phone),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MiniInfo(
-                  icon: Icons.chat_outlined,
-                  label: lead.availableOnWhatsapp ? 'WhatsApp' : 'No WhatsApp',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
+          // ── Name + Status ───────────────────────────────────────────────
           Row(
             children: [
               Expanded(
                 child: Text(
-                  '${lead.portal} • Area ${lead.areaId} • ${lead.formattedCreatedAt}',
+                  lead.fullName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: _L.muted,
+                    color: _L.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _StatusPill(label: lead.status, fg: colors.fg, bg: colors.bg),
+            ],
+          ),
+          const SizedBox(height: 4),
+
+          // ── Product title with label ────────────────────────────────────
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.inventory_2_outlined,
+                size: 13,
+                color: _L.muted,
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                'Product: ',
+                style: TextStyle(
+                  color: _L.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  lead.productTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _L.text,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -561,19 +547,67 @@ class _LeadCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: _L.border),
+          const SizedBox(height: 10),
+
+          // ── Location ────────────────────────────────────────────────────
+          _InfoRow(
+            icon: Icons.location_on_outlined,
+            label: lead.location.isEmpty ? 'Location N/A' : lead.location,
+          ),
+          const SizedBox(height: 5),
+
+          // ── Phone ───────────────────────────────────────────────────────
+          _InfoRow(icon: Icons.phone_outlined, label: lead.phone),
+          const SizedBox(height: 5),
+
+          // ── Portal + Date ───────────────────────────────────────────────
+          Row(
+            children: [
+              const Icon(Icons.language_outlined, size: 13, color: _L.muted),
+              const SizedBox(width: 4),
+              Text(
+                lead.portal,
+                style: const TextStyle(
+                  color: _L.muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 13,
+                color: _L.muted,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                lead.formattedCreatedAt,
+                style: const TextStyle(
+                  color: _L.muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
+
+          // ── Actions ─────────────────────────────────────────────────────
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onStatus,
-                  icon: const Icon(Icons.edit_outlined, size: 17),
+                  icon: const Icon(Icons.edit_outlined, size: 15),
                   label: const Text('Status'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _L.brand,
                     side: const BorderSide(color: _L.border),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
@@ -582,12 +616,13 @@ class _LeadCard extends StatelessWidget {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: onCustomOrder,
-                  icon: const Icon(Icons.add_shopping_cart_outlined, size: 17),
+                  icon: const Icon(Icons.add_shopping_cart_outlined, size: 15),
                   label: const Text('Order'),
                   style: FilledButton.styleFrom(
                     backgroundColor: _L.brand,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
@@ -596,43 +631,41 @@ class _LeadCard extends StatelessWidget {
           ),
         ],
       ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _MiniInfo extends StatelessWidget {
+class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _MiniInfo({required this.icon, required this.label});
+  const _InfoRow({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: _L.surfaceAlt,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: _L.border),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: _L.brand),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _L.text,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: _L.muted),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _L.text,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
