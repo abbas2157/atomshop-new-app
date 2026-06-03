@@ -89,14 +89,18 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
               currentStatus: details.order.status,
               receivedBy: details.user.name,
             ),
-            onCloseDeal: details.order.dealClosed
-                ? null
-                : () => _showCloseDealSheet(
+            // Close Deal is only relevant once the order is on Instalments
+            onCloseDeal: (!details.order.dealClosed &&
+                    details.order.status
+                        .toLowerCase()
+                        .contains('instalment'))
+                ? () => _showCloseDealSheet(
                     context: context,
                     ref: ref,
                     orderUuid: orderUuid,
                     order: details.order,
-                  ),
+                  )
+                : null,
             onAddGuarantor: (initial) => _showGuarantorSheet(
               context: context,
               ref: ref,
@@ -153,6 +157,7 @@ class _DetailsContent extends StatelessWidget {
     final order = details.order;
     final user = details.user;
     final customer = user.customer;
+    final specs = order.product.customFieldsMap;
 
     return RefreshIndicator(
       color: _D.brand,
@@ -169,70 +174,87 @@ class _DetailsContent extends StatelessWidget {
             onCloseDeal: onCloseDeal,
           ),
           const SizedBox(height: 14),
-          _Section(
-            title: 'Customer',
-            icon: Icons.person_outline_rounded,
-            children: [
-              _KV('Name', user.name),
-              _KV('Phone', user.phone),
-              _KV('Email', user.email),
-              _KV('Status', user.status),
-              _KV('Joined through', user.joinedThrough),
-            ],
+
+          // ORDER DETAILS
+          _SectionCard(
+            title: 'Order Details',
+            icon: Icons.receipt_long_outlined,
+            child: _OrderDetailsContent(order: order),
           ),
-          const SizedBox(height: 12),
-          _Section(
-            title: 'Customer Verification',
-            icon: Icons.verified_user_outlined,
-            children: [
-              _KV('Identifier', customer.identifier),
-              _KV('KYC', customer.verified ? 'Verified' : 'Not verified'),
-              _KV('CNIC', customer.cnicNo),
-              _KV('Father name', customer.fatherName),
-              _KV('Residence phone', customer.residencePhone),
-              _KV('Address', customer.address),
-              _KV('Office address', customer.officeAddress),
-              _KV('Office phone', customer.officePhone),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _Section(
-            title: 'Product & Deal',
-            icon: Icons.inventory_2_outlined,
-            children: [
-              _KV('Product', order.product.title),
-              _KV('PR number', order.product.prNumber),
-              _KV('Product price', order.product.formattedPrice),
-              _KV('Product advance', order.product.formattedAdvancePrice),
-              _KV('Deal price', order.formattedTotalDealPrice),
-              _KV('Advance', order.formattedAdvancePrice),
-              _KV('Sourcing fee', order.formattedSourcingAgentFee),
-              _KV('Markup', '${order.perMonthPercentage}% per month'),
-              _KV('Tenure', '${order.tenure} months'),
-              _KV('Settlement', order.formattedSettlementAmount),
-              _KV(
-                'Outstanding principal',
-                'Rs ${details.outstandingPrincipal}',
-              ),
-              _KV('Deal closed', order.dealClosed ? 'Yes' : 'No'),
-            ],
-          ),
-          if (details.statusHistory.isNotEmpty) ...[
+
+          // PRODUCT SPECS (custom fields — only when present)
+          if (specs.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _StatusHistorySection(items: details.statusHistory),
+            _SectionCard(
+              title: 'Product Specifications',
+              icon: Icons.tune_outlined,
+              child: _SpecsGrid(specs: specs),
+            ),
           ],
+
+          // PRODUCT INFORMATION
+          const SizedBox(height: 12),
+          _SectionCard(
+            title: 'Product Information',
+            icon: Icons.inventory_2_outlined,
+            child: Column(
+              children: [
+                _GridRow('Product', order.product.title, 'PR Number', order.product.prNumber),
+                _GridRow('Product Price', order.product.formattedPrice, 'Advance Price', order.product.formattedAdvancePrice),
+              ],
+            ),
+          ),
+
+          // OTHER DETAILS
+          const SizedBox(height: 12),
+          _SectionCard(
+            title: 'Other Details',
+            icon: Icons.info_outline_rounded,
+            child: Column(
+              children: [
+                _GridRow('Outstanding', 'Rs ${details.outstandingPrincipal}', 'Settlement', order.formattedSettlementAmount),
+                _GridRow('Deal Closed', order.dealClosed ? 'Yes' : 'No', '', ''),
+              ],
+            ),
+          ),
+
+          // CUSTOMER DETAILS
+          const SizedBox(height: 12),
+          _SectionCard(
+            title: 'Customer Details',
+            icon: Icons.person_outline_rounded,
+            child: _CustomerContent(
+              user: user,
+              customer: customer,
+              hasCustomer: customer.hasData,
+            ),
+          ),
+
+          // INSTALMENT DETAILS
+          if (details.instalments.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _SectionCard(
+              title: 'Instalment Details',
+              icon: Icons.payments_outlined,
+              child: _InstalmentsContent(items: details.instalments),
+            ),
+          ],
+
+          // ORDER GUARANTORS
           const SizedBox(height: 12),
           _GuarantorSection(
             state: guarantorState,
             onAdd: () => onAddGuarantor(guarantorState.asData?.value),
           ),
-          if (details.instalments.isNotEmpty) ...[
+
+          // ORDER CHANGE HISTORY
+          if (details.statusHistory.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _InstalmentsSection(items: details.instalments),
-          ],
-          if (details.recoveryMembers.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _RecoveryMembersSection(items: details.recoveryMembers),
+            _SectionCard(
+              title: 'Order Change History',
+              icon: Icons.history_rounded,
+              child: _HistoryContent(items: details.statusHistory),
+            ),
           ],
         ],
       ),
@@ -314,17 +336,6 @@ class _HeroCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  order.uuid,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.72),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
                 const SizedBox(height: 18),
                 Row(
                   children: [
@@ -358,7 +369,7 @@ class _HeroCard extends StatelessWidget {
                       icon: Icons.calendar_month_outlined,
                       label: order.formattedCreatedAt,
                     ),
-                    _HeroChip(icon: Icons.sell_outlined, label: order.type),
+                    _HeroChip(icon: Icons.tag_outlined, label: order.product.prNumber),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -491,100 +502,217 @@ class _HeroChip extends StatelessWidget {
   }
 }
 
-class _Section extends StatelessWidget {
+// ── Reusable section container ───────────────────────────────────────────────
+class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
-  final List<Widget> children;
+  final Widget child;
 
-  const _Section({
+  const _SectionCard({
     required this.title,
     required this.icon,
-    required this.children,
+    required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _D.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _D.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: _D.brand.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: _D.brand, size: 18),
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+            decoration: BoxDecoration(
+              color: _D.brand.withValues(alpha: 0.05),
+              border: const Border(bottom: BorderSide(color: _D.border)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(13),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 15, color: _D.brand),
+                const SizedBox(width: 7),
+                Text(
+                  title.toUpperCase(),
                   style: const TextStyle(
                     color: _D.txt1,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.7,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          ...children,
+          Padding(padding: const EdgeInsets.all(14), child: child),
         ],
       ),
     );
   }
 }
 
-class _KV extends StatelessWidget {
-  final String label;
-  final String value;
+// ── 2-column grid row ─────────────────────────────────────────────────────────
+class _GridRow extends StatelessWidget {
+  final String label1;
+  final String value1;
+  final String label2;
+  final String value2;
 
-  const _KV(this.label, this.value);
+  const _GridRow(this.label1, this.value1, this.label2, this.value2);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 118,
+          Expanded(child: _Cell(label: label1, value: value1)),
+          const SizedBox(width: 12),
+          Expanded(child: _Cell(label: label2, value: value2)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Cell extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Cell({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _D.txt3,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value.isEmpty ? '—' : value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: _D.txt1,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Order details grid ────────────────────────────────────────────────────────
+class _OrderDetailsContent extends StatelessWidget {
+  final SellerCustomOrderDetailOrder order;
+  const _OrderDetailsContent({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _GridRow('Total Deal Amount', order.formattedTotalDealPrice, 'Advance Amount', order.formattedAdvancePrice),
+        _GridRow('Sourcing Agent Fee', order.formattedSourcingAgentFee, 'Installment Tenure', '${order.tenure} months'),
+        _GridRow('Monthly %', '${order.perMonthPercentage}% / mo', 'Order Date', order.formattedCreatedAt),
+      ],
+    );
+  }
+}
+
+// ── Product specs grid — TITLE VALUE | TITLE VALUE ───────────────────────────
+class _SpecsGrid extends StatelessWidget {
+  final Map<String, String> specs;
+  const _SpecsGrid({required this.specs});
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = specs.entries.toList();
+    final rows = <List<MapEntry<String, String>>>[];
+    for (var i = 0; i < entries.length; i += 2) {
+      rows.add([
+        entries[i],
+        if (i + 1 < entries.length) entries[i + 1],
+      ]);
+    }
+    return Column(
+      children: rows.asMap().entries.map((re) {
+        final isLast = re.key == rows.length - 1;
+        final pair = re.value;
+        return Container(
+          margin: EdgeInsets.only(bottom: isLast ? 0 : 8),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(child: _SpecCell(title: pair[0].key, value: pair[0].value)),
+                if (pair.length > 1) ...[
+                  const SizedBox(width: 1),
+                  Container(width: 1, color: _D.border),
+                  const SizedBox(width: 1),
+                  Expanded(child: _SpecCell(title: pair[1].key, value: pair[1].value)),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(growable: false),
+    );
+  }
+}
+
+class _SpecCell extends StatelessWidget {
+  final String title;
+  final String value;
+  const _SpecCell({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: _D.surfaceAlt,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 5,
             child: Text(
-              label,
+              title,
               style: const TextStyle(
                 color: _D.txt2,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
+          const SizedBox(width: 6),
           Expanded(
+            flex: 5,
             child: Text(
-              value,
+              value.isEmpty ? '—' : value,
               style: const TextStyle(
                 color: _D.txt1,
                 fontSize: 12,
-                height: 1.35,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -593,142 +721,283 @@ class _KV extends StatelessWidget {
   }
 }
 
-class _StatusHistorySection extends StatelessWidget {
-  final List<SellerCustomOrderStatusHistory> items;
+// ── Customer details ──────────────────────────────────────────────────────────
+class _CustomerContent extends StatelessWidget {
+  final SellerCustomOrderUser user;
+  final SellerCustomOrderCustomer customer;
+  final bool hasCustomer;
 
-  const _StatusHistorySection({required this.items});
+  const _CustomerContent({
+    required this.user,
+    required this.customer,
+    required this.hasCustomer,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return _Section(
-      title: 'Status History',
-      icon: Icons.timeline_rounded,
+    const na = '—';
+    return Column(
       children: [
-        for (final item in items)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _StatusPill(
-                  label: item.status,
-                  fg: _statusColors(item.status).fg,
-                  bg: _statusColors(item.status).bg,
+        _GridRow('Name', user.name, 'Phone', user.phone),
+        _GridRow('Email', user.email, 'Status', user.status),
+        _GridRow('Join Date', user.joinedThrough, 'Identifier', hasCustomer ? customer.identifier : na),
+        _GridRow(
+          'City',
+          hasCustomer ? customer.cityTitle : na,
+          'Area',
+          hasCustomer ? customer.areaTitle : na,
+        ),
+        _GridRow(
+          'Address',
+          hasCustomer ? customer.address : na,
+          'Father Name',
+          hasCustomer ? customer.fatherName : na,
+        ),
+        _GridRow(
+          'CNIC',
+          hasCustomer ? customer.cnicNo : na,
+          'Res. Phone',
+          hasCustomer ? customer.residencePhone : na,
+        ),
+        if (hasCustomer) ...[
+          const SizedBox(height: 4),
+          const Divider(height: 1, color: _D.border),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Text(
+                'KYC Verification',
+                style: TextStyle(
+                  color: _D.txt2,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+              ),
+              const Spacer(),
+              _StatusPill(
+                label: customer.verified ? 'Verified' : 'Not Verified',
+                fg: customer.verified ? _D.success : _D.danger,
+                bg: (customer.verified ? _D.success : _D.danger)
+                    .withValues(alpha: 0.12),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ── Instalments ───────────────────────────────────────────────────────────────
+class _InstalmentsContent extends StatelessWidget {
+  final List<SellerCustomOrderInstalment> items;
+  const _InstalmentsContent({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: items.asMap().entries.map((e) {
+        final isLast = e.key == items.length - 1;
+        final item = e.value;
+        final fg = item.isPaid ? _D.success : _D.warning;
+        final bg = (item.isPaid ? _D.success : _D.warning)
+            .withValues(alpha: 0.12);
+        return Container(
+          margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: item.isPaid
+                ? _D.success.withValues(alpha: 0.04)
+                : _D.surfaceAlt,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: item.isPaid
+                  ? _D.success.withValues(alpha: 0.25)
+                  : _D.border,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.month,
+                      style: const TextStyle(
+                        color: _D.txt1,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  _StatusPill(label: item.status, fg: fg, bg: bg),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1, color: _D.border),
+              const SizedBox(height: 8),
+              _GridRow(
+                'Amount',
+                item.formattedInstalmentPrice,
+                'Paid Amount',
+                item.formattedPaidPrice,
+              ),
+              _GridRow(
+                'Due Date',
+                item.instalmentDate,
+                'Paid Date',
+                item.paidDate,
+              ),
+              if (item.paymentMethod != 'Not available')
+                _GridRow('Payment Method', item.paymentMethod, '', ''),
+            ],
+          ),
+        );
+      }).toList(growable: false),
+    );
+  }
+}
+
+// ── Order change history (timeline) ──────────────────────────────────────────
+class _HistoryContent extends StatelessWidget {
+  final List<SellerCustomOrderStatusHistory> items;
+  const _HistoryContent({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: items.asMap().entries.map((e) {
+        final isLast = e.key == items.length - 1;
+        final item = e.value;
+        final c = _statusColors(item.status);
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: c.bg,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: c.fg.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.radio_button_checked_rounded,
+                    size: 13,
+                    color: c.fg,
+                  ),
+                ),
+                if (!isLast)
+                  Container(
+                    width: 1.5,
+                    height: 44,
+                    color: _D.border,
+                  ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: isLast ? 0 : 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _StatusPill(
+                          label: item.status,
+                          fg: c.fg,
+                          bg: c.bg,
+                        ),
+                        const Spacer(),
+                        Text(
+                          item.formattedCreatedAt,
+                          style: const TextStyle(
+                            color: _D.txt3,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (item.comment.isNotEmpty &&
+                        item.comment != 'Not available') ...[
+                      const SizedBox(height: 5),
                       Text(
                         item.comment,
                         style: const TextStyle(
                           color: _D.txt1,
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           height: 1.35,
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${item.role} · ${item.formattedCreatedAt}',
-                        style: const TextStyle(color: _D.txt3, fontSize: 11),
-                      ),
                     ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _InstalmentsSection extends StatelessWidget {
-  final List<SellerCustomOrderInstalment> items;
-
-  const _InstalmentsSection({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: 'Instalments',
-      icon: Icons.payments_outlined,
-      children: [
-        for (final item in items)
-          _KV(item.status, '${item.formattedAmount} · ${item.dueDate}'),
-      ],
-    );
-  }
-}
-
-class _RecoveryMembersSection extends StatelessWidget {
-  final List<SellerRecoveryMember> items;
-
-  const _RecoveryMembersSection({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: 'Recovery Team',
-      icon: Icons.groups_2_outlined,
-      children: [
-        for (final item in items)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _D.surfaceAlt,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _D.border),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: _D.brand.withValues(alpha: 0.1),
-                  foregroundColor: _D.brand,
-                  child: Text(
-                    item.user.name.isEmpty ? 'R' : item.user.name[0],
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.user.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _D.txt1,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                    // Render all payload key-value pairs
+                    if (item.payloadDetails.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _D.surfaceAlt,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _D.border),
+                        ),
+                        child: Column(
+                          children: item.payloadDetails.entries.map((kv) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 110,
+                                    child: Text(
+                                      _formatPayloadKey(kv.key),
+                                      style: const TextStyle(
+                                        color: _D.txt3,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      kv.value.isEmpty ? '—' : kv.value,
+                                      style: const TextStyle(
+                                        color: _D.txt1,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(growable: false),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${item.user.phone} · ${item.memberRole}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _D.txt2, fontSize: 11),
-                      ),
                     ],
-                  ),
+                    const SizedBox(height: 3),
+                    Text(
+                      item.role,
+                      style: const TextStyle(
+                        color: _D.txt3,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
-                _StatusPill(
-                  label: item.active ? 'Active' : 'Inactive',
-                  fg: item.active ? _D.success : _D.danger,
-                  bg: item.active
-                      ? _D.success.withValues(alpha: 0.12)
-                      : _D.danger.withValues(alpha: 0.12),
-                ),
-              ],
+              ),
             ),
-          ),
-      ],
+          ],
+        );
+      }).toList(growable: false),
     );
   }
 }
@@ -741,11 +1010,10 @@ class _GuarantorSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Section(
-      title: 'Guarantor',
+    return _SectionCard(
+      title: 'Order Guarantors',
       icon: Icons.assignment_ind_outlined,
-      children: [
-        state.when(
+      child: state.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Row(
@@ -787,7 +1055,7 @@ class _GuarantorSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'No guarantor has been added for this custom order.',
+                    'No guarantor added for this order.',
                     style: TextStyle(
                       color: _D.txt2,
                       fontSize: 12,
@@ -804,16 +1072,12 @@ class _GuarantorSection extends StatelessWidget {
                 ],
               );
             }
-
             return Column(
               children: [
-                _KV('Name', guarantor.name),
-                _KV('Phone', guarantor.phone),
-                _KV('CNIC', guarantor.cnic),
-                _KV('Address', guarantor.address),
-                if (guarantor.createdAt != 'Not available')
-                  _KV('Added', guarantor.createdAt),
-                const SizedBox(height: 12),
+                _GridRow('Name', guarantor.name, 'Phone', guarantor.phone),
+                _GridRow('CNIC', guarantor.cnic, 'Added', guarantor.createdAt),
+                _GridRow('Address', guarantor.address, '', ''),
+                const SizedBox(height: 10),
                 _InlineAction(
                   icon: Icons.edit_outlined,
                   label: 'Update Guarantor',
@@ -823,7 +1087,6 @@ class _GuarantorSection extends StatelessWidget {
             );
           },
         ),
-      ],
     );
   }
 }
@@ -975,6 +1238,15 @@ class _ErrorView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Converts snake_case payload key to "Title Case".
+String _formatPayloadKey(String key) {
+  return key
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
 }
 
 ({Color fg, Color bg}) _statusColors(String status) {
