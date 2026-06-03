@@ -31,7 +31,6 @@ class SellerDashboardModel {
   final Map<String, int> leadStatusPercentages;
   final Map<String, int> orderStatusPercentages;
   final List<SellerDashboardRecord> customers;
-  final List<SellerDashboardRecord> leads;
   final List<SellerDashboardRecord> customOrders;
   final List<SellerDashboardRecord> topProducts;
 
@@ -60,7 +59,6 @@ class SellerDashboardModel {
     required this.orderStatusPercentages,
     required this.customOrders,
     required this.customers,
-    required this.leads,
     required this.topProducts,
   });
 
@@ -101,9 +99,8 @@ class SellerDashboardModel {
       customers: _asList(
         data['customers'],
       ).map(_customerRecord).toList(growable: false),
-      leads: _asList(data['leads']).map(_leadRecord).toList(growable: false),
       customOrders: _asList(
-        data['custom_orders'],
+        data['lastest_custom_orders'],
       ).map(_customOrderRecord).toList(growable: false),
       topProducts: _asList(
         data['top_products'],

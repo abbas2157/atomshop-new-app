@@ -1672,16 +1672,8 @@ class _RecordsTab extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _RecordGroup(
-            icon: Icons.track_changes_rounded,
-            label: 'Leads',
-            color: _T.violet,
-            records: d.leads,
-            isDark: isDark,
-          ),
-          const SizedBox(height: 14),
-          _RecordGroup(
             icon: Icons.assignment_rounded,
-            label: 'Custom Orders',
+            label: 'Latest Custom Orders',
             color: _T.emerald,
             records: d.customOrders,
             isDark: isDark,
