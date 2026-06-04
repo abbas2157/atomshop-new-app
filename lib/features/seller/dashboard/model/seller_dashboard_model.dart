@@ -112,20 +112,15 @@ class SellerDashboardModel {
     return SellerDashboardRecord(
       title: _fallback(item['name']?.toString(), 'Customer'),
       subtitle: _fallback(item['phone']?.toString(), 'No phone'),
-      badge: _fallback(item['joined_through']?.toString(), 'Customer'),
+      badge: _fallback(item['status']?.toString(), 'Active'),
       details: {
-        'Customer ID': _text(item['id']),
-        'Customer UUID': _text(item['uuid']),
+        // ── Personal Information ──────────────────────────────
         'Name': _text(item['name']),
-        'Email': _text(item['email']),
         'Phone': _text(item['phone']),
-        'Role': _text(item['role']),
-        'Account Status': _text(item['status']),
-        'User Type': _text(item['user_type']),
-        'User IP': _text(item['user_ip']),
-        'Created At': _date(item['created_at']),
-        'Updated At': _date(item['updated_at']),
+        'Email': _text(item['email']),
+        'Status': _text(item['status']),
         'Joined Through': _text(item['joined_through']),
+        'Member Since': _date(item['created_at']),
       },
     );
   }
@@ -164,30 +159,21 @@ class SellerDashboardModel {
 
   static SellerDashboardRecord _customOrderRecord(Map<String, dynamic> item) {
     return SellerDashboardRecord(
-      title: 'Custom Order #${_text(item['id'])}',
-      subtitle: '${_money(item['total_deal_price'])} deal price',
+      title: 'Order #${_text(item['id'])}',
+      subtitle: '${_money(item['total_deal_price'])} · ${_fallback(item['status']?.toString(), 'Pending')}',
       badge: _fallback(item['status']?.toString(), 'Order'),
       details: {
-        'Order ID': _text(item['id']),
-        'Order UUID': _text(item['uuid']),
-        'User ID': _text(item['user_id']),
-        'Supplier Reference Code': _text(item['supplier_reference_code']),
-        'Product ID': _text(item['product_id']),
-        'Total Deal Price': _money(item['total_deal_price']),
-        'Advance Price': _money(item['advance_price']),
-        'Sourcing Agent Fee': _money(item['sourcing_agent_fee']),
-        'Monthly Percentage': '${_text(item['per_month_percentage'])}%',
-        'Tenure': '${_text(item['tenure'])} months',
-        'Area ID': _text(item['area_id']),
-        'City ID': _text(item['city_id']),
+        // ── Order Details ─────────────────────────────────────
+        'Order No': '#${_text(item['id'])}',
         'Portal': _text(item['portal']),
-        'Order Status': _text(item['status']),
-        'Order Type': _text(item['type']),
-        'Updated By': _text(item['updated_by']),
-        'Created By': _text(item['created_by']),
-        'Created At': _date(item['created_at']),
-        'Updated At': _date(item['updated_at']),
-        'Settlement Amount': _money(item['settlement_amount']),
+        'Status': _text(item['status']),
+        'Order Date': _date(item['created_at']),
+        // ── Financial Information ─────────────────────────────
+        'Deal Price': _money(item['total_deal_price']),
+        'Advance': _money(item['advance_price']),
+        'Tenure': '${_text(item['tenure'])} months',
+        'Monthly %': '${_text(item['per_month_percentage'])}%',
+        'Settlement': _money(item['settlement_amount']),
         'Deal Closed': _yesNo(item['deal_close']),
       },
     );
@@ -258,7 +244,16 @@ class SellerDashboardModel {
   static String _date(dynamic value) {
     final text = _text(value);
     if (text == 'Not available') return text;
-    return text.replaceFirst('T', ' ').replaceFirst('.000000Z', '');
+    try {
+      final dt = DateTime.parse(text).toLocal();
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ];
+      return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+    } catch (_) {
+      return text.split('T').first;
+    }
   }
 
   static String _yesNo(dynamic value) {

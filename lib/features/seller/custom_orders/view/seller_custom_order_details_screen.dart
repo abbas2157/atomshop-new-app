@@ -738,27 +738,20 @@ class _CustomerContent extends StatelessWidget {
     const na = '—';
     return Column(
       children: [
-        _GridRow('Name', user.name, 'Phone', user.phone),
-        _GridRow('Email', user.email, 'Status', user.status),
-        _GridRow('Join Date', user.joinedThrough, 'Identifier', hasCustomer ? customer.identifier : na),
+        _GridRow('Identifier', hasCustomer ? customer.identifier : na,
+            'Name', user.name),
+        _GridRow('Phone', user.phone, 'Email', user.email),
+        _GridRow('Father Name', hasCustomer ? customer.fatherName : na,
+            'CNIC', hasCustomer ? customer.cnicNo : na),
+        _GridRow('Address', hasCustomer ? customer.address : na,
+            'Res. Phone', hasCustomer ? customer.residencePhone : na),
         _GridRow(
-          'City',
-          hasCustomer ? customer.cityTitle : na,
-          'Area',
-          hasCustomer ? customer.areaTitle : na,
-        ),
-        _GridRow(
-          'Address',
-          hasCustomer ? customer.address : na,
-          'Father Name',
-          hasCustomer ? customer.fatherName : na,
-        ),
-        _GridRow(
-          'CNIC',
-          hasCustomer ? customer.cnicNo : na,
-          'Res. Phone',
-          hasCustomer ? customer.residencePhone : na,
-        ),
+            'Office Address', hasCustomer ? customer.officeAddress : na,
+            'Office Phone', hasCustomer ? customer.officePhone : na),
+        _GridRow('Joined Date', user.formattedCreatedAt,
+            'Joined Through', user.joinedThrough),
+        _GridRow('Portal', hasCustomer ? customer.portal : na,
+            'Status', user.status),
         if (hasCustomer) ...[
           const SizedBox(height: 4),
           const Divider(height: 1, color: _D.border),

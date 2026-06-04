@@ -67,13 +67,48 @@ class _SellerSalesTeamScreenState extends ConsumerState<SellerSalesTeamScreen> {
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: _T.bg,
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'seller_add_team_member',
-          onPressed: _showAddSheet,
-          backgroundColor: _T.brand,
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.person_add_alt_1_outlined),
-          label: const Text('Add'),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: GestureDetector(
+            onTap: _showAddSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_T.brandDark, _T.brand],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: _T.brand.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.person_add_alt_1_outlined,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Add Member',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
         appBar: AppBar(
           backgroundColor: _T.bg,
@@ -333,127 +368,186 @@ class _TeamMemberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = member.active
-        ? (fg: _T.success, bg: _T.success.withValues(alpha: 0.12))
-        : (fg: _T.warning, bg: _T.warning.withValues(alpha: 0.12));
+    final accentColor = member.active ? _T.success : _T.warning;
+    final location = member.location;
     return Container(
-      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: _T.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _T.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
-      child: Column(
-        children: [
-          Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: _T.brand.withValues(alpha: 0.1),
-                child: Text(
-                  _initials(member.user.name),
-                  style: const TextStyle(
-                    color: _T.brand,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              Container(width: 4, color: accentColor),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      member.user.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _T.text,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Name + status ─────────────────────────────────
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: _T.brand.withValues(alpha: 0.1),
+                            child: Text(
+                              _initials(member.user.name),
+                              style: const TextStyle(
+                                color: _T.brand,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  member.user.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _T.text,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  member.user.phone,
+                                  style: const TextStyle(
+                                    color: _T.muted,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _StatusPill(
+                            label: member.active ? 'Active' : 'Inactive',
+                            fg: accentColor,
+                            bg: accentColor.withValues(alpha: 0.12),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${member.memberType} - ${member.user.phone}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _T.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: _T.border),
+                      const SizedBox(height: 8),
+
+                      // ── Location ──────────────────────────────────────
+                      _CardRow(
+                        icon: Icons.location_on_outlined,
+                        label: location.isEmpty ? 'Location N/A' : location,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              _StatusPill(
-                label: member.active ? 'Active' : 'Inactive',
-                fg: colors.fg,
-                bg: colors.bg,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _MiniInfo(
-                  icon: Icons.location_on_outlined,
-                  label: 'Area ${member.areaId}',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MiniInfo(
-                  icon: Icons.badge_outlined,
-                  label: member.memberRole,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onPerformance,
-                  icon: const Icon(Icons.bar_chart_outlined, size: 17),
-                  label: const Text('Performance'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _T.brand,
-                    side: const BorderSide(color: _T.border),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                      const SizedBox(height: 5),
+
+                      // ── Role + type ───────────────────────────────────
+                      _CardRow(
+                        icon: Icons.badge_outlined,
+                        label: '${member.memberRole} · ${member.memberType}',
+                      ),
+                      const SizedBox(height: 5),
+
+                      // ── Date ─────────────────────────────────────────
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today_outlined,
+                              size: 13, color: _T.muted),
+                          const SizedBox(width: 4),
+                          Text(
+                            member.formattedCreatedAt,
+                            style: const TextStyle(
+                              color: _T.muted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── Actions ───────────────────────────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: onPerformance,
+                              icon: const Icon(Icons.bar_chart_outlined,
+                                  size: 15),
+                              label: const Text('Performance'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _T.brand,
+                                side: const BorderSide(color: _T.border),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: onEdit,
+                              icon: const Icon(Icons.edit_outlined, size: 15),
+                              label: const Text('Edit'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _T.brand,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined, size: 17),
-                  label: const Text('Edit'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _T.brand,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _CardRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _CardRow({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: _T.muted),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _T.text,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -724,43 +818,6 @@ class _MetricsSection extends StatelessWidget {
         children: metrics.entries
             .map((entry) => _InfoRow(label: entry.key, value: entry.value))
             .toList(),
-      ),
-    );
-  }
-}
-
-class _MiniInfo extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _MiniInfo({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: _T.surfaceAlt,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: _T.border),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: _T.brand),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _T.text,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

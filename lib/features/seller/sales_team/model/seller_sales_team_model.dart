@@ -92,6 +92,8 @@ class SellerSalesTeamMember {
   final String address;
   final int cityId;
   final int areaId;
+  final String cityTitle;
+  final String areaTitle;
   final String memberType;
   final String memberRole;
   final bool active;
@@ -107,6 +109,8 @@ class SellerSalesTeamMember {
     required this.address,
     required this.cityId,
     required this.areaId,
+    required this.cityTitle,
+    required this.areaTitle,
     required this.memberType,
     required this.memberRole,
     required this.active,
@@ -116,7 +120,17 @@ class SellerSalesTeamMember {
 
   String get formattedCreatedAt => _date(createdAt);
 
+  /// "Other, Lahore" — omits either part when unavailable.
+  String get location {
+    final a = areaTitle == 'Not available' ? '' : areaTitle;
+    final c = cityTitle == 'Not available' ? '' : cityTitle;
+    if (a.isNotEmpty && c.isNotEmpty) return '$a, $c';
+    return a.isNotEmpty ? a : c;
+  }
+
   factory SellerSalesTeamMember.fromJson(Map<String, dynamic> json) {
+    final cityObj = json['city'];
+    final areaObj = json['area'];
     return SellerSalesTeamMember(
       id: _asInt(json['id']),
       uuid: _text(json['uuid']),
@@ -126,6 +140,8 @@ class SellerSalesTeamMember {
       address: _text(json['address']),
       cityId: _asInt(json['city_id']),
       areaId: _asInt(json['area_id']),
+      cityTitle: cityObj is Map ? _text(cityObj['title']) : _text(cityObj),
+      areaTitle: areaObj is Map ? _text(areaObj['title']) : _text(areaObj),
       memberType: _text(json['member_type'], fallback: 'sales'),
       memberRole: _text(json['member_role']),
       active: json['status']?.toString() == '1',
@@ -227,6 +243,15 @@ String _text(dynamic value, {String fallback = 'Not available'}) {
 }
 
 String _date(String value) {
-  if (value.isEmpty || value == 'Not available') return 'Not available';
-  return value.replaceFirst('T', ' ').replaceFirst('.000000Z', '');
+  if (value.isEmpty || value == 'Not available') return 'N/A';
+  try {
+    final dt = DateTime.parse(value).toLocal();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  } catch (_) {
+    return value.split('T').first;
+  }
 }

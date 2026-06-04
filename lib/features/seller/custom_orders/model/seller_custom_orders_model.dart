@@ -538,6 +538,7 @@ class SellerCustomOrderUser {
   final String phone;
   final String status;
   final String joinedThrough;
+  final String createdAt;
   final SellerCustomOrderCustomer customer;
 
   const SellerCustomOrderUser({
@@ -548,8 +549,11 @@ class SellerCustomOrderUser {
     required this.phone,
     required this.status,
     required this.joinedThrough,
+    required this.createdAt,
     required this.customer,
   });
+
+  String get formattedCreatedAt => _date(createdAt);
 
   factory SellerCustomOrderUser.fromJson(Map<String, dynamic> json) {
     return SellerCustomOrderUser(
@@ -560,6 +564,7 @@ class SellerCustomOrderUser {
       phone: _text(json['phone']),
       status: _text(json['status'], fallback: 'Unknown'),
       joinedThrough: _text(json['joined_through']),
+      createdAt: _text(json['created_at']),
       customer: SellerCustomOrderCustomer.fromJson(
         json['customer'] as Map<String, dynamic>? ?? {},
       ),

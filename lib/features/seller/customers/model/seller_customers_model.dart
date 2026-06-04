@@ -153,6 +153,8 @@ class SellerCustomerProfile {
   final String address;
   final int cityId;
   final int areaId;
+  final String cityTitle;
+  final String areaTitle;
   final String cnicNo;
   final String fatherName;
   final String residencePhone;
@@ -170,6 +172,8 @@ class SellerCustomerProfile {
     required this.address,
     required this.cityId,
     required this.areaId,
+    required this.cityTitle,
+    required this.areaTitle,
     required this.cnicNo,
     required this.fatherName,
     required this.residencePhone,
@@ -181,7 +185,17 @@ class SellerCustomerProfile {
     required this.notVerifiedReason,
   });
 
+  /// "Sant Nagar, Lahore" — omits either part when unavailable.
+  String get location {
+    final a = areaTitle == 'Not available' ? '' : areaTitle;
+    final c = cityTitle == 'Not available' ? '' : cityTitle;
+    if (a.isNotEmpty && c.isNotEmpty) return '$a, $c';
+    return a.isNotEmpty ? a : c;
+  }
+
   factory SellerCustomerProfile.fromJson(Map<String, dynamic> json) {
+    final cityObj = json['city'];
+    final areaObj = json['area'];
     return SellerCustomerProfile(
       id: _asInt(json['id']),
       identifier: _text(json['identifier']),
@@ -189,6 +203,8 @@ class SellerCustomerProfile {
       address: _text(json['address']),
       cityId: _asInt(json['city_id']),
       areaId: _asInt(json['area_id']),
+      cityTitle: cityObj is Map ? _text(cityObj['title']) : _text(cityObj),
+      areaTitle: areaObj is Map ? _text(areaObj['title']) : _text(areaObj),
       cnicNo: _text(json['cnic_no']),
       fatherName: _text(json['father_name']),
       residencePhone: _text(json['residence_phone']),
@@ -202,8 +218,62 @@ class SellerCustomerProfile {
   }
 }
 
+class SellerCustomerVerification {
+  final int id;
+  final String idCardFront;
+  final String idCardBack;
+  final bool addressFound;
+  final String house;
+  final bool physicalMeet;
+  final String work;
+  final String selfie;
+  final String createdAt;
+
+  const SellerCustomerVerification({
+    required this.id,
+    required this.idCardFront,
+    required this.idCardBack,
+    required this.addressFound,
+    required this.house,
+    required this.physicalMeet,
+    required this.work,
+    required this.selfie,
+    required this.createdAt,
+  });
+
+  bool get exists => id > 0;
+
+  factory SellerCustomerVerification.fromJson(Map<String, dynamic> json) {
+    return SellerCustomerVerification(
+      id: _asInt(json['id']),
+      idCardFront: _text(json['id_card_front_side']),
+      idCardBack: _text(json['id_card_back_side']),
+      addressFound: json['address_found']?.toString() == '1',
+      house: _text(json['house']),
+      physicalMeet: json['customer_physical_meet']?.toString() == '1',
+      work: _text(json['work']),
+      selfie: _text(json['selfie_with_customer']),
+      createdAt: _text(json['created_at']),
+    );
+  }
+
+  static SellerCustomerVerification get empty =>
+      const SellerCustomerVerification(
+        id: 0,
+        idCardFront: 'Not available',
+        idCardBack: 'Not available',
+        addressFound: false,
+        house: 'Not available',
+        physicalMeet: false,
+        work: 'Not available',
+        selfie: 'Not available',
+        createdAt: 'Not available',
+      );
+}
+
 class SellerCustomerDetails {
   final SellerCustomer user;
+  final SellerCustomerVerification verification;
   final List<SellerCustomerOrderSummary> customOrders;
   final int totalCustomSales;
   final int totalCustomRecovery;
@@ -211,6 +281,7 @@ class SellerCustomerDetails {
 
   const SellerCustomerDetails({
     required this.user,
+    required this.verification,
     required this.customOrders,
     required this.totalCustomSales,
     required this.totalCustomRecovery,
@@ -231,8 +302,15 @@ class SellerCustomerDetails {
         : <String, dynamic>{};
     user['customer'] = data['customer'];
 
+    final rawVerification = data['customer_verification'];
+
     return SellerCustomerDetails(
       user: SellerCustomer.fromJson(user),
+      verification: rawVerification is Map
+          ? SellerCustomerVerification.fromJson(
+              Map<String, dynamic>.from(rawVerification),
+            )
+          : SellerCustomerVerification.empty,
       customOrders: (data['custom_orders'] as List? ?? const [])
           .whereType<Map>()
           .map(
@@ -434,10 +512,17 @@ String _text(dynamic value, {String fallback = 'Not available'}) {
 
 String _date(dynamic value) {
   final text = value?.toString().trim() ?? '';
-  if (text.isEmpty || text == 'null' || text == 'Not available') {
-    return 'Not available';
+  if (text.isEmpty || text == 'null' || text == 'Not available') return 'N/A';
+  try {
+    final dt = DateTime.parse(text).toLocal();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  } catch (_) {
+    return text.split('T').first;
   }
-  return text.replaceFirst('T', ' ').replaceFirst('.000000Z', '');
 }
 
 String _money(int value) => 'Rs ${_withCommas(value)}';
