@@ -1839,19 +1839,50 @@ class _RecordTile extends StatelessWidget {
     required this.isLast,
   });
 
+  // Determines badge color from status text
+  ({Color fg, Color bg}) _statusColor(String badge) {
+    final s = badge.toLowerCase();
+    if (s.contains('active') || s.contains('paid') || s.contains('complet') || s.contains('deliver')) {
+      return (fg: _T.emerald, bg: _T.emeraldSurf);
+    }
+    if (s.contains('pending') || s.contains('instalment') || s.contains('verif')) {
+      return (fg: _T.amber, bg: _T.amberSurf);
+    }
+    if (s.contains('cancel') || s.contains('lost') || s.contains('inactive')) {
+      return (fg: _T.rose, bg: _T.roseSurf);
+    }
+    if (s.contains('process')) {
+      return (fg: _T.violet, bg: _T.violetSurf);
+    }
+    return (fg: color, bg: color.withValues(alpha: 0.10));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final sc = _statusColor(record.badge);
+    // Split details into two groups: before and after the financial divider
+    final entries = record.details.entries.toList();
+    // Find where financial section starts (first key containing financial keywords)
+    final splitIdx = entries.indexWhere((e) {
+      final k = e.key.toLowerCase();
+      return k.contains('price') || k.contains('deal') || k.contains('advance') ||
+          k.contains('tenure') || k.contains('settlement') || k.contains('monthly') ||
+          k.contains('financial');
+    });
+    final personalEntries = splitIdx > 0 ? entries.sublist(0, splitIdx) : entries;
+    final financialEntries = splitIdx > 0 ? entries.sublist(splitIdx) : <MapEntry<String, String>>[];
+
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        tilePadding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
         leading: Container(
-          width: 30,
-          height: 30,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
+            color: color.withValues(alpha: 0.10),
+            shape: BoxShape.circle,
           ),
           child: Center(
             child: Text(
@@ -1859,7 +1890,7 @@ class _RecordTile extends StatelessWidget {
               style: TextStyle(
                 color: color,
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -1874,19 +1905,75 @@ class _RecordTile extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        subtitle: Text(
-          record.subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: _T.txt2, fontSize: 11),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+            record.subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isDark ? _T.dkTxt2 : _T.txt2,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
-        trailing: _SmallBadge(text: record.badge, color: color),
+        // Status badge — color-coded
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: sc.bg,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            record.badge,
+            style: TextStyle(
+              color: sc.fg,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
         children: [
           Divider(height: 1, color: isDark ? _T.dkBorder : _T.border),
-          const SizedBox(height: 8),
-          ...record.details.entries.map(
+          const SizedBox(height: 10),
+
+          // Personal info rows
+          ...personalEntries.map(
             (e) => _KVRow(label: e.key, value: e.value, isDark: isDark),
           ),
+
+          // Financial section (only when present)
+          if (financialEntries.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _T.emerald.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.account_balance_wallet_outlined,
+                      size: 12, color: _T.emerald),
+                  SizedBox(width: 5),
+                  Text(
+                    'FINANCIAL DETAILS',
+                    style: TextStyle(
+                      color: _T.emerald,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...financialEntries.map(
+              (e) => _KVRow(label: e.key, value: e.value, isDark: isDark),
+            ),
+          ],
         ],
       ),
     );
@@ -2196,34 +2283,6 @@ class _Dot extends StatelessWidget {
   );
 }
 
-class _SmallBadge extends StatelessWidget {
-  final String text;
-  final Color color;
-  const _SmallBadge({required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 90),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
 
 // ═══════════════════════════════════════════════════════════
 //  SHIMMER LOADING

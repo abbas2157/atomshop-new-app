@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:atompro/core/services/snackbar_services.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
 import 'package:atompro/features/seller/leads/model/seller_leads_model.dart';
 import 'package:atompro/features/seller/leads/repository/seller_leads_repository.dart';
@@ -682,8 +683,11 @@ class _LeadStatusSheet extends ConsumerStatefulWidget {
 class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
   final _formKey = GlobalKey<FormState>();
   final _comments = TextEditingController();
+  final _reason = TextEditingController();
   late String _status;
   bool _saving = false;
+
+  bool get _isLost => _status == 'Lost';
 
   @override
   void initState() {
@@ -696,6 +700,7 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
   @override
   void dispose() {
     _comments.dispose();
+    _reason.dispose();
     super.dispose();
   }
 
@@ -703,15 +708,16 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
     try {
-      await ref
-          .read(sellerLeadsRepositoryProvider)
-          .updateLead(
+      await ref.read(sellerLeadsRepositoryProvider).updateLead(
             leadId: widget.lead.id,
             status: _status,
-            comments: _comments.text.trim(),
+            reason: _isLost ? _reason.text.trim() : null,
+            comments: _comments.text.trim().isEmpty
+                ? null
+                : _comments.text.trim(),
           );
       if (!mounted) return;
-      SnackbarService().showSuccessSnackBar('Lead updated.');
+      SnackbarService().showSuccessSnackBar('Lead updated successfully.');
       Navigator.pop(context, true);
     } catch (e) {
       SnackbarService().showErrorSnackBar(_cleanError(e));
@@ -723,7 +729,7 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
   @override
   Widget build(BuildContext context) {
     return _SheetShell(
-      title: 'Update Lead',
+      title: 'Update Lead Status',
       child: Form(
         key: _formKey,
         child: Column(
@@ -732,19 +738,29 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
               initialValue: _status,
               decoration: _sheetDecoration('Status'),
               items: sellerLeadStatuses
-                  .map(
-                    (status) =>
-                        DropdownMenuItem(value: status, child: Text(status)),
-                  )
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
               onChanged: _saving
                   ? null
                   : (value) => setState(() => _status = value ?? _status),
             ),
+            // Reason — only visible when status is Lost
+            if (_isLost) ...[
+              const SizedBox(height: 12),
+              _SheetTextField(
+                controller: _reason,
+                label: 'Reason for Loss',
+                enabled: !_saving,
+                maxLines: 2,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Please enter a reason.'
+                    : null,
+              ),
+            ],
             const SizedBox(height: 12),
             _SheetTextField(
               controller: _comments,
-              label: 'Comments',
+              label: 'Comments (optional)',
               enabled: !_saving,
               maxLines: 3,
             ),
@@ -774,51 +790,138 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
   final _formKey = GlobalKey<FormState>();
   final _productPrice = TextEditingController();
   final _advancePrice = TextEditingController();
-  final _installments = TextEditingController(text: '12');
-  final _percentage = TextEditingController(text: '4');
-  late String _userType;
+
+  // Payload: user_type = "auth" | "guest"
+  String _userType = 'auth';
+  int _tenure = 6;
+  double _monthlyPct = 4.0;
+
+  // 0.1 → 6.0 in 0.1 steps (60 values), rounded to 1 decimal to avoid float drift
+  static final List<double> _markupValues = List.generate(
+    60,
+    (i) => double.parse(((i + 1) * 0.1).toStringAsFixed(1)),
+  );
+
+  List<SellerLeadLookup> _cities = [];
+  List<SellerLeadLookup> _areas = [];
+  SellerLeadLookup? _city;
+  SellerLeadLookup? _area;
+
+  bool _loadingLookups = true;
+  bool _loadingAreas = false;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    final type = widget.lead.type.trim().toLowerCase();
-    _userType = type == 'business' ? 'business' : 'individual';
+    _loadLookups();
+  }
+
+  Future<void> _loadLookups() async {
+    try {
+      final cities =
+          await ref.read(sellerLeadsRepositoryProvider).getCities();
+      if (!mounted) return;
+
+      SellerLeadLookup? autoCity;
+      if (widget.lead.cityId > 0) {
+        try {
+          autoCity = cities.firstWhere((c) => c.id == widget.lead.cityId);
+        } catch (_) {}
+      }
+
+      setState(() {
+        _cities = cities;
+        _city = autoCity;
+        _loadingLookups = false;
+      });
+
+      if (autoCity != null) {
+        await _onCityChanged(autoCity,
+            autoSelectAreaId: widget.lead.areaId);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingLookups = false);
+      SnackbarService().showErrorSnackBar(_cleanError(e));
+    }
+  }
+
+  Future<void> _onCityChanged(
+    SellerLeadLookup? city, {
+    int autoSelectAreaId = 0,
+  }) async {
+    setState(() {
+      _city = city;
+      _area = null;
+      _areas = [];
+      _loadingAreas = city != null;
+    });
+    if (city == null) return;
+    try {
+      final areas = await ref
+          .read(sellerLeadsRepositoryProvider)
+          .getAreasByCity(city.id);
+      if (!mounted) return;
+      SellerLeadLookup? autoArea;
+      if (autoSelectAreaId > 0) {
+        try {
+          autoArea = areas.firstWhere((a) => a.id == autoSelectAreaId);
+        } catch (_) {}
+      }
+      setState(() {
+        _areas = areas;
+        _area = autoArea;
+        _loadingAreas = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingAreas = false);
+    }
   }
 
   @override
   void dispose() {
     _productPrice.dispose();
     _advancePrice.dispose();
-    _installments.dispose();
-    _percentage.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final productPrice = int.tryParse(_productPrice.text.trim()) ?? 0;
-    final advancePrice = int.tryParse(_advancePrice.text.trim()) ?? 0;
-    if (advancePrice >= productPrice) {
-      SnackbarService().showErrorSnackBar(
-        'Advance price must be less than product price.',
-      );
+    if (_city == null) {
+      SnackbarService().showErrorSnackBar('Please select a city.');
       return;
     }
+    if (_area == null) {
+      SnackbarService().showErrorSnackBar('Please select an area.');
+      return;
+    }
+
+    final productPrice = int.tryParse(_productPrice.text.trim()) ?? 0;
+    final advancePrice = int.tryParse(_advancePrice.text.trim()) ?? 0;
+
+    if (advancePrice >= productPrice) {
+      SnackbarService().showErrorSnackBar(
+          'Advance price must be less than product price.');
+      return;
+    }
+
     setState(() => _saving = true);
     try {
-      await ref
-          .read(sellerLeadsRepositoryProvider)
-          .createCustomOrderFromLead(
+      await ref.read(sellerLeadsRepositoryProvider).convertLeadToCustomOrder(
             leadId: widget.lead.id,
             userType: _userType,
-            productPrice: _productPrice.text.trim(),
-            advancePrice: _advancePrice.text.trim(),
-            installments: _installments.text.trim(),
-            perMonthPercentage: _percentage.text.trim(),
+            cityId: _city!.id,
+            areaId: _area!.id,
+            productPrice: productPrice,
+            advancePrice: advancePrice,
+            totalDealPrice: productPrice, // not sent but required by signature
+            perMonthPercentage: _monthlyPct,
+            installments: _tenure,
           );
       if (!mounted) return;
-      SnackbarService().showSuccessSnackBar('Custom order created.');
+      SnackbarService().showSuccessSnackBar(
+          'Custom order created from lead.');
       Navigator.pop(context, true);
     } catch (e) {
       SnackbarService().showErrorSnackBar(_cleanError(e));
@@ -827,61 +930,256 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
     }
   }
 
+  // ── Section header ────────────────────────────────────────────────────────
+  Widget _section(String title, IconData icon) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: _L.brand),
+            const SizedBox(width: 6),
+            Text(
+              title.toUpperCase(),
+              style: const TextStyle(
+                color: _L.brand,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
+    if (_loadingLookups) {
+      return _SheetShell(
+        title: 'Convert to Custom Order',
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 32),
+          child: Center(child: CircularProgressIndicator(color: _L.brand)),
+        ),
+      );
+    }
+
     return _SheetShell(
-      title: 'Create Custom Order',
+      title: 'Convert to Custom Order',
       child: Form(
         key: _formKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Lead info ─────────────────────────────────────
             _LeadSummary(lead: widget.lead),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _userType,
-              decoration: _sheetDecoration('User Type'),
-              items: const [
-                DropdownMenuItem(
-                  value: 'individual',
-                  child: Text('Individual'),
+            const SizedBox(height: 20),
+
+            // ── Customer Type ────────────────────────────────
+            _section('Customer Type', Icons.person_outline_rounded),
+            Row(
+              children: [
+                _TypeChip(
+                  label: 'Registered',
+                  icon: Icons.verified_user_outlined,
+                  selected: _userType == 'auth',
+                  onTap: _saving
+                      ? null
+                      : () => setState(() => _userType = 'auth'),
                 ),
-                DropdownMenuItem(value: 'business', child: Text('Business')),
+                const SizedBox(width: 8),
+                _TypeChip(
+                  label: 'Guest',
+                  icon: Icons.person_outline_rounded,
+                  selected: _userType == 'guest',
+                  onTap: _saving
+                      ? null
+                      : () => setState(() => _userType = 'guest'),
+                ),
               ],
+            ),
+            const SizedBox(height: 20),
+
+            // ── Location ──────────────────────────────────────
+            _section('Location', Icons.location_on_outlined),
+
+            // ── City (searchable) ────────────────────────────
+            DropdownSearch<SellerLeadLookup>(
+              items: (filter, _) => _cities
+                  .where((c) =>
+                      c.title.toLowerCase().contains(filter.toLowerCase()))
+                  .toList(),
+              selectedItem: _city,
+              itemAsString: (c) => c.title,
+              compareFn: (a, b) => a.id == b.id,
+              enabled: !_saving,
+              onSelected: (v) => _onCityChanged(v),
+              validator: (v) => v == null ? 'Select a city.' : null,
+              decoratorProps: DropDownDecoratorProps(
+                decoration: _sheetDecoration('City *'),
+              ),
+              popupProps: PopupProps.menu(
+                showSearchBox: true,
+                searchFieldProps: const TextFieldProps(
+                  decoration: InputDecoration(
+                    hintText: 'Search city…',
+                    prefixIcon: Icon(Icons.search_rounded, size: 18),
+                    isDense: true,
+                  ),
+                ),
+                itemBuilder: (_, item, isSelected, x) => ListTile(
+                  dense: true,
+                  selected: isSelected,
+                  title: Text(item.title,
+                      overflow: TextOverflow.ellipsis, maxLines: 1),
+                ),
+                constraints: const BoxConstraints(maxHeight: 300),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Area (searchable, loads after city) ───────────
+            if (_loadingAreas)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: _L.brand),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Loading areas…',
+                        style: TextStyle(color: _L.muted, fontSize: 12)),
+                  ],
+                ),
+              )
+            else
+              DropdownSearch<SellerLeadLookup>(
+                items: (filter, _) => _areas
+                    .where((a) =>
+                        a.title.toLowerCase().contains(filter.toLowerCase()))
+                    .toList(),
+                selectedItem: _area,
+                itemAsString: (a) => a.title,
+                compareFn: (a, b) => a.id == b.id,
+                enabled: !_saving && _city != null,
+                onSelected: (v) => setState(() => _area = v),
+                validator: (v) => v == null ? 'Select an area.' : null,
+                decoratorProps: DropDownDecoratorProps(
+                  decoration: _sheetDecoration(
+                    _city == null ? 'Area (select city first)' : 'Area *',
+                  ),
+                ),
+                popupProps: PopupProps.menu(
+                  showSearchBox: true,
+                  searchFieldProps: const TextFieldProps(
+                    decoration: InputDecoration(
+                      hintText: 'Search area…',
+                      prefixIcon: Icon(Icons.search_rounded, size: 18),
+                      isDense: true,
+                    ),
+                  ),
+                  itemBuilder: (_, item, isSelected, x) => ListTile(
+                    dense: true,
+                    selected: isSelected,
+                    title: Text(item.title,
+                        overflow: TextOverflow.ellipsis, maxLines: 1),
+                  ),
+                  constraints: const BoxConstraints(maxHeight: 300),
+                ),
+              ),
+            const SizedBox(height: 20),
+
+            // ── Pricing ───────────────────────────────────────
+            _section('Pricing (PKR)', Icons.payments_outlined),
+            Row(
+              children: [
+                Expanded(
+                  child: _SheetTextField(
+                    controller: _productPrice,
+                    label: 'Product Price *',
+                    enabled: !_saving,
+                    keyboardType: TextInputType.number,
+                    validator: _positiveNumber,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _SheetTextField(
+                    controller: _advancePrice,
+                    label: 'Advance Price *',
+                    enabled: !_saving,
+                    keyboardType: TextInputType.number,
+                    validator: _positiveNumber,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // ── Plan ─────────────────────────────────────────
+            _section('Installment Plan', Icons.calendar_today_outlined),
+            DropdownButtonFormField<double>(
+              initialValue:
+                  _markupValues.contains(_monthlyPct) ? _monthlyPct : 4.0,
+              decoration: _sheetDecoration('Monthly Markup %'),
+              items: _markupValues
+                  .map((v) => DropdownMenuItem(
+                        value: v,
+                        child:
+                            Text('${v % 1 == 0 ? v.toInt() : v}%'),
+                      ))
+                  .toList(),
               onChanged: _saving
                   ? null
-                  : (value) => setState(() => _userType = value ?? _userType),
+                  : (v) => setState(() => _monthlyPct = v ?? _monthlyPct),
             ),
-            const SizedBox(height: 12),
-            _SheetTextField(
-              controller: _productPrice,
-              label: 'Product Price',
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              validator: _positiveNumber,
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Tenure',
+                  style: TextStyle(
+                    color: _L.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _L.brand.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$_tenure months',
+                    style: const TextStyle(
+                      color: _L.brand,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            _SheetTextField(
-              controller: _advancePrice,
-              label: 'Advance Price',
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              validator: _positiveNumber,
+            Slider(
+              value: _tenure.toDouble(),
+              min: 3,
+              max: 36,
+              divisions: 33,
+              label: '$_tenure mo.',
+              activeColor: _L.brand,
+              onChanged: _saving
+                  ? null
+                  : (v) => setState(() => _tenure = v.round()),
             ),
-            _SheetTextField(
-              controller: _installments,
-              label: 'Installments',
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              validator: _positiveNumber,
-            ),
-            _SheetTextField(
-              controller: _percentage,
-              label: 'Per Month Percentage',
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              validator: _positiveNumber,
-            ),
+            const SizedBox(height: 18),
+
             _SheetButton(
-              label: 'Create Order',
+              label: 'Create Custom Order',
               loading: _saving,
               onTap: _submit,
             ),
@@ -891,6 +1189,63 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
     );
   }
 }
+
+class _TypeChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _TypeChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? _L.brand
+                : _L.brand.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected
+                  ? _L.brand
+                  : _L.border,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 15,
+                  color: selected ? Colors.white : _L.brand),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : _L.brand,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Small label above a slider/section
 
 class _LeadSummary extends StatelessWidget {
   final SellerLead lead;
@@ -963,15 +1318,38 @@ class _SheetShell extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _L.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 18, color: _L.text),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Go back',
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: _L.text,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded,
+                          size: 20, color: _L.muted),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Close',
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 child,
               ],
             ),

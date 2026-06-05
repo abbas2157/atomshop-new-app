@@ -209,6 +209,35 @@ const sellerLeadStatuses = <String>[
   'Lost',
 ];
 
+// ── Lookup models used in the Convert-to-Order form ──────────────────────────
+
+class SellerLeadLookup {
+  final int id;
+  final String title;
+
+  const SellerLeadLookup({required this.id, required this.title});
+
+  factory SellerLeadLookup.fromJson(Map<String, dynamic> json) {
+    return SellerLeadLookup(
+      id: _asInt(json['id']),
+      title: _text(json['title'] ?? json['name']),
+    );
+  }
+
+  @override
+  String toString() => title;
+}
+
+List<SellerLeadLookup> parseLookupList(dynamic data, String key) {
+  final list = data is Map
+      ? (data[key] as List? ?? const [])
+      : (data is List ? data : const []);
+  return list
+      .whereType<Map>()
+      .map((item) => SellerLeadLookup.fromJson(Map<String, dynamic>.from(item)))
+      .toList(growable: false);
+}
+
 int _asInt(dynamic value, {int fallback = 0}) {
   if (value is int) return value;
   if (value is num) return value.toInt();

@@ -122,22 +122,11 @@ class SellerProfileSeller {
         ? Map<String, dynamic>.from(response['data'])
         : <String, dynamic>{};
 
-    // ignore: avoid_print
-    print('[SellerInfo] outer keys: ${outer.keys.toList()}');
-
     final json = outer['seller'] is Map
         ? Map<String, dynamic>.from(outer['seller'])
         : outer;
 
     final rawAreas = outer['active_areas'];
-
-    // ignore: avoid_print
-    print('[SellerInfo] seller keys: ${json.keys.toList()}');
-    // ignore: avoid_print
-    print('[SellerInfo] city field: ${json['city']}');
-    // ignore: avoid_print
-    print('[SellerInfo] active_areas type: ${rawAreas.runtimeType}, length: ${rawAreas is List ? rawAreas.length : 'N/A'}');
-
     final cityObj = json['city'];
 
     return SellerProfileSeller(

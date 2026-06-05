@@ -17,13 +17,13 @@ class SellerLeadsRepository {
 
   SellerLeadsRepository(this._network);
 
+  // ── Leads list + bundle ──────────────────────────────────────────────────────
+
   Future<SellerLeadsBundle> getLeadsBundle(SellerLeadsQuery query) async {
     final leads = await getLeads(query);
     final counts = await getStatusCounts(query.scope);
-    final newCount = query.scope == SellerLeadScope.mine
-        ? await getNewLeadsCount()
-        : 0;
-
+    final newCount =
+        query.scope == SellerLeadScope.mine ? await getNewLeadsCount() : 0;
     return SellerLeadsBundle(
       leads: leads,
       statusCounts: counts,
@@ -64,43 +64,94 @@ class SellerLeadsRepository {
     return _asInt(data['count']);
   }
 
+  // ── Update lead status ───────────────────────────────────────────────────────
+
+  /// POST seller-app/leads/update/{id}
+  /// Fields: status (required), reason (optional — send when status=Lost),
+  ///         comments (optional)
   Future<void> updateLead({
     required int leadId,
     required String status,
-    required String comments,
+    String? reason,
+    String? comments,
   }) async {
-    final response = await _post(ApiEndpoints.sellerLeadUpdate(leadId), {
-      'status': status,
-      'comments': comments,
-    });
-
+    final body = <String, dynamic>{'status': status};
+    if (reason != null && reason.trim().isNotEmpty) {
+      body['reason'] = reason.trim();
+    }
+    if (comments != null && comments.trim().isNotEmpty) {
+      body['comments'] = comments.trim();
+    }
+    final response = await _post(ApiEndpoints.sellerLeadUpdate(leadId), body);
     if (response['success'] != true) {
       throw Exception(response['message'] ?? 'Failed to update lead.');
     }
   }
 
-  Future<void> createCustomOrderFromLead({
+  // ── Convert lead → custom order ──────────────────────────────────────────────
+
+  /// POST seller-app/leads/custom-order/{id}
+  /// Payload: city_id, area_id, user_type (auth|guest),
+  ///          product_price, advance_price, installments, per_month_percentage
+  Future<Map<String, dynamic>> convertLeadToCustomOrder({
     required int leadId,
     required String userType,
-    required String productPrice,
-    required String advancePrice,
-    required String installments,
-    required String perMonthPercentage,
+    required int cityId,
+    required int areaId,
+    required int productPrice,
+    required int advancePrice,
+    required num perMonthPercentage,
+    required int installments,
+    // kept for signature compat — not sent to API
+    int totalDealPrice = 0,
   }) async {
-    final response = await _post(ApiEndpoints.sellerLeadCustomOrder(leadId), {
+    final body = <String, dynamic>{
       'user_type': userType,
-      'product_price': productPrice,
-      'advance_price': advancePrice,
-      'installments': installments,
-      'per_month_percentage': perMonthPercentage,
-    });
-
+      'city_id': cityId.toString(),
+      'area_id': areaId.toString(),
+      'product_price': productPrice.toString(),
+      'advance_price': advancePrice.toString(),
+      'per_month_percentage': perMonthPercentage.toString(),
+      'installments': installments.toString(),
+    };
+    final response =
+        await _post(ApiEndpoints.sellerLeadCustomOrder(leadId), body);
     if (response['success'] != true) {
       throw Exception(
-        response['message'] ?? 'Failed to create custom order from lead.',
-      );
+          response['message'] ?? 'Failed to create custom order from lead.');
     }
+    return response['data'] is Map
+        ? Map<String, dynamic>.from(response['data'])
+        : {};
   }
+
+  // ── Lookup APIs for the convert-to-order form ────────────────────────────────
+
+  /// GET api/cities  →  data is a flat List [{id, title}, ...]
+  Future<List<SellerLeadLookup>> getCities() async {
+    final response = await _get(ApiEndpoints.cities);
+    return _parseFlatList(response['data']);
+  }
+
+  /// GET api/areas/{cityId}  →  data is a flat List [{id, title}, ...]
+  Future<List<SellerLeadLookup>> getAreasByCity(int cityId) async {
+    final response = await _get(ApiEndpoints.areasByCity(cityId));
+    return _parseFlatList(response['data']);
+  }
+
+  /// GET api/categories  →  data is a flat List or wrapped in 'data' key
+  Future<List<SellerLeadLookup>> getCategories() async {
+    final response = await _get(ApiEndpoints.categories);
+    return _parseFlatList(response['data']);
+  }
+
+  /// GET api/brands  →  data is a flat List or wrapped in 'data' key
+  Future<List<SellerLeadLookup>> getBrands() async {
+    final response = await _get(ApiEndpoints.brands);
+    return _parseFlatList(response['data']);
+  }
+
+  // ── Import / export ──────────────────────────────────────────────────────────
 
   Future<void> importLeads(File file) async {
     final token = await SellerSessionManager.getToken();
@@ -110,7 +161,6 @@ class SellerLeadsRepository {
       {'file': file},
       token: token,
     );
-
     if (response['success'] != true) {
       throw Exception(response['message'] ?? 'Failed to import leads.');
     }
@@ -121,6 +171,21 @@ class SellerLeadsRepository {
       endpoint: ApiEndpoints.sellerLeadsSample,
       fileName: 'atomshop_leads_import_sample.xlsx',
     );
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  /// Parses a flat List response into [SellerLeadLookup] items.
+  /// Handles both direct List and {data: [...]} formats.
+  List<SellerLeadLookup> _parseFlatList(dynamic data) {
+    final list = data is List
+        ? data
+        : (data is Map ? (data['data'] as List? ?? []) : <dynamic>[]);
+    return list
+        .whereType<Map>()
+        .map((item) =>
+            SellerLeadLookup.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
   }
 
   Future<dynamic> _get(String endpoint) async {
