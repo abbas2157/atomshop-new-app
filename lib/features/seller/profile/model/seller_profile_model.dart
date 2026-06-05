@@ -36,9 +36,14 @@ class SellerProfileUser {
   });
 
   factory SellerProfileUser.fromResponse(Map<String, dynamic> response) {
-    final data = response['data'] is Map
+    final outer = response['data'] is Map
         ? Map<String, dynamic>.from(response['data'])
         : <String, dynamic>{};
+
+    // Handle both: combined payload (data.user) and direct user payload (data)
+    final data = outer['user'] is Map
+        ? Map<String, dynamic>.from(outer['user'])
+        : outer;
 
     return SellerProfileUser(
       id: _asInt(data['id']),
@@ -53,7 +58,9 @@ class SellerProfileUser {
       seller: SellerProfileSeller.fromJson(
         data['seller'] is Map
             ? Map<String, dynamic>.from(data['seller'])
-            : <String, dynamic>{},
+            : (outer['seller'] is Map
+                ? Map<String, dynamic>.from(outer['seller'])
+                : <String, dynamic>{}),
       ),
     );
   }
@@ -67,6 +74,7 @@ class SellerProfileSeller {
   final String cnicNumber;
   final String website;
   final int cityId;
+  final String cityTitle;
   final String address;
   final String investmentCapacity;
   final String previousExperience;
@@ -81,6 +89,7 @@ class SellerProfileSeller {
   final bool verified;
   final bool topRated;
   final String updatedAt;
+  final List<SellerLookupOption> activeAreas;
 
   const SellerProfileSeller({
     required this.id,
@@ -90,6 +99,7 @@ class SellerProfileSeller {
     required this.cnicNumber,
     required this.website,
     required this.cityId,
+    required this.cityTitle,
     required this.address,
     required this.investmentCapacity,
     required this.previousExperience,
@@ -104,20 +114,21 @@ class SellerProfileSeller {
     required this.verified,
     required this.topRated,
     required this.updatedAt,
+    required this.activeAreas,
   });
 
   factory SellerProfileSeller.fromResponse(Map<String, dynamic> response) {
-    final data = response['data'] is Map
+    final outer = response['data'] is Map
         ? Map<String, dynamic>.from(response['data'])
         : <String, dynamic>{};
-    return SellerProfileSeller.fromJson(
-      data['seller'] is Map
-          ? Map<String, dynamic>.from(data['seller'])
-          : <String, dynamic>{},
-    );
-  }
 
-  factory SellerProfileSeller.fromJson(Map<String, dynamic> json) {
+    final json = outer['seller'] is Map
+        ? Map<String, dynamic>.from(outer['seller'])
+        : outer;
+
+    final rawAreas = outer['active_areas'];
+    final cityObj = json['city'];
+
     return SellerProfileSeller(
       id: _asInt(json['id']),
       code: _text(json['code']),
@@ -126,6 +137,7 @@ class SellerProfileSeller {
       cnicNumber: _text(json['cnic_number']),
       website: _text(json['website']),
       cityId: _asInt(json['city_id']),
+      cityTitle: cityObj is Map ? _text(cityObj['title']) : _text(cityObj),
       address: _text(json['address']),
       investmentCapacity: _text(json['investment_capacity']),
       previousExperience: _text(json['previous_experience']),
@@ -140,6 +152,36 @@ class SellerProfileSeller {
       verified: json['verified']?.toString() == '1',
       topRated: json['top_rated']?.toString() == '1',
       updatedAt: _date(json['updated_at']),
+      activeAreas: _options(rawAreas),
+    );
+  }
+
+  factory SellerProfileSeller.fromJson(Map<String, dynamic> json) {
+    final cityObj = json['city'];
+    return SellerProfileSeller(
+      id: _asInt(json['id']),
+      code: _text(json['code']),
+      name: _text(json['name'], fallback: 'Seller'),
+      businessName: _text(json['business_name'], fallback: 'Business'),
+      cnicNumber: _text(json['cnic_number']),
+      website: _text(json['website']),
+      cityId: _asInt(json['city_id']),
+      cityTitle: cityObj is Map ? _text(cityObj['title']) : _text(cityObj),
+      address: _text(json['address']),
+      investmentCapacity: _text(json['investment_capacity']),
+      previousExperience: _text(json['previous_experience']),
+      whatsappPhone: _text(json['whatsapp_phone']),
+      businessType: _text(json['business_type']),
+      businessPhone: _text(json['business_phone']),
+      ntnTax: _text(json['ntn_tax']),
+      fulfillment: _text(json['fulfillment']),
+      feedback: _text(json['feedback']),
+      feeChargeType: _text(json['fee_charge_type']),
+      feeChargeValue: _text(json['fee_charge_value']),
+      verified: json['verified']?.toString() == '1',
+      topRated: json['top_rated']?.toString() == '1',
+      updatedAt: _date(json['updated_at']),
+      activeAreas: const [],
     );
   }
 }
@@ -234,5 +276,14 @@ String _text(dynamic value, {String fallback = 'Not available'}) {
 String _date(dynamic value) {
   final text = _text(value);
   if (text == 'Not available') return text;
-  return text.replaceFirst('T', ' ').replaceFirst('.000000Z', '');
+  try {
+    final dt = DateTime.parse(text).toLocal();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  } catch (_) {
+    return text.split('T').first;
+  }
 }

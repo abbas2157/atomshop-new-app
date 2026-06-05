@@ -3,251 +3,183 @@ import 'package:atompro/core/common/widgets/custom_button.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
-import 'package:atompro/core/style/extensions.dart';
 import 'package:atompro/features/customer/drawer/view/drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
-import 'package:atompro/core/common/widgets/app_cached_image.dart';
 
 class SmartSellerHome extends StatelessWidget {
   SmartSellerHome({super.key});
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  static const _features = [
+    (Icons.show_chart, "Live Sales & Revenue Tracking",
+        "Track your sales, installment recoveries, and profitability in real time."),
+    (Icons.payments_outlined, "Installment Payment Tracker",
+        "Monitor all customer installment schedules and recovery status."),
+    (Icons.campaign_outlined, "Shop Promotion & Campaigns",
+        "Your shop and products featured in our app and digital campaigns."),
+    (Icons.inventory_2_outlined, "No Product Limits",
+        "Sell from pre-listed products, offer your own, or let us help you source."),
+    (Icons.bar_chart_outlined, "Business Reports & Insights",
+        "Download reports, monitor your growth, and make informed decisions."),
+    (Icons.shopping_bag_outlined, "Orders Through Our Customer Apps",
+        "Our mobile apps generate regular customer orders — you focus on selling."),
+  ];
+
+  static const _benefits = [
+    ("Personalized Seller Panel Access",
+        "Full control of your sales, customers, and recoveries."),
+    ("Manual KYC with Direct Onboarding",
+        "Our team visits your shop for verification — no automated approvals."),
+    ("Seller Trainings",
+        "Customer KYC, Installment & Recovery Handling, Best Practices for Sales Growth."),
+    ("Product Sourcing Support",
+        "We help you source genuine products if you can't find them yourself."),
+    ("Branding for Premium Sellers",
+        "Exclusive branding and marketing support when you qualify as Premium Seller."),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: ColorPalette.background,
+      backgroundColor: ColorPalette.backgroundGray,
       appBar: buildAppBar(context, () {
-        _scaffoldKey.currentState
-            ?.openDrawer(); // <--- Use the key instead of context
+        _scaffoldKey.currentState?.openDrawer();
       }, true),
       drawer: AppDrawer(),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Column(
-              children: [
-                SizedBox(height: context.h(30)),
-                RichText(
-                  textAlign: TextAlign.left,
-
-                  text: TextSpan(
-                    style: AppTextStyles.h4,
-                    children: [
-                      TextSpan(text: "The ", style: AppTextStyles.h5.bold),
-                      TextSpan(
-                        text: "Smart Seller ",
-                        style: AppTextStyles.h5.bold.copyWith(
-                          color: ColorPalette.primaryLight,
-                        ),
-                      ),
-                      TextSpan(
-                        text: " - Powered by AtomShop",
-                        style: AppTextStyles.h5.bold,
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: context.h(10)),
-
-                Text(
-                  textAlign: TextAlign.left,
-                  "Become a Smart Seller with AtomShop and grow your business with confidence. We provide the platform, tools, and hands-on support you need to succeed.",
-                ),
-                SizedBox(height: context.h(10)),
-
-                CustomButton(
-                  width: context.w(150),
-                  title: "Become Seller",
-                  onPressed: () {
-                    AppNavigator.goToSmartSellerForm();
-                  },
-                  backgroundColor: ColorPalette.primaryLight,
-                  textColor: Colors.black,
-                ).alignTopLeft,
-                SizedBox(height: context.h(20)),
-
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: AppCachedImage(
-                    imageUrl: "https://atomshop.pk/public/web/img/seller.png",
-                  ),
-                ),
-                SizedBox(height: context.h(30)),
-
-                Text(
-                  "Smart Seller Dashboard Features",
-                  style: AppTextStyles.h4.bold,
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: context.h(20)),
-
-                ////////// 1
-                _smartSellerFeaturesWidget(
-                  context: context,
-                  icon: Icons.show_chart,
-                  title: "Live Sales & Revenue Tracking",
-                  description:
-                      "Track your sales, installment recoveries, and profitability in real time.",
-                ),
-
-                _smartSellerFeaturesWidget(
-                  context: context,
-
-                  icon: Icons.payments_outlined,
-                  title: "Installment Payment Tracker",
-                  description:
-                      "Your shop and products featured in our app and digital campaigns.",
-                ),
-
-                _smartSellerFeaturesWidget(
-                  context: context,
-
-                  icon: Icons.campaign_outlined,
-                  title: "Shop Promotion & Campaigns",
-                  description:
-                      "Your shop and products featured in our app and digital campaigns.",
-                ),
-
-                _smartSellerFeaturesWidget(
-                  context: context,
-
-                  icon: Icons.inventory_2_outlined,
-                  title: "No Product Limits",
-                  description:
-                      "Sell from our pre-listed products, offer your own custom products, or let us help you source products.",
-                ),
-
-                _smartSellerFeaturesWidget(
-                  context: context,
-
-                  icon: Icons.bar_chart_outlined,
-                  title: "Business Reports & Insights",
-                  description:
-                      "Download reports, monitor your growth, and make informed decisions.",
-                ),
-
-                _smartSellerFeaturesWidget(
-                  context: context,
-
-                  icon: Icons.shopping_bag_outlined,
-                  title: "Orders Through Our Customer Apps",
-                  description:
-                      "Our mobile apps generate regular customer orders — you focus on selling.",
-                ),
-                SizedBox(height: context.h(10)),
-
-                Text(
-                  "Software Support, Trainings & Seller Benefits",
-                  style: AppTextStyles.h5.bold,
-                  textAlign: TextAlign.left,
-                ),
-                SizedBox(height: context.h(10)),
-
-                _buildBenifitsWidget(
-                  context: context,
-                  title: "Personalized Seller Panel Access",
-                  description:
-                      "Personalized Seller Panel Access,full control of your sales, customers, and recoveries.",
-                ),
-                _buildBenifitsWidget(
-                  context: context,
-
-                  title: "Manual KYC with Direct Onboarding",
-                  description:
-                      "Our team visits your shop for verification and onboarding — no automated approvals",
-                ),
-                _buildBenifitsWidget(
-                  context: context,
-
-                  title: "Seller Trainings",
-                  description:
-                      "Customer KYC Process.\nInstallment & Recovery Handling.\nBest Practices for Sales Growth.",
-                ),
-                _buildBenifitsWidget(
-                  context: context,
-
-                  title: "Product Sourcing Support",
-                  description:
-                      "We help you source genuine products if you can't find them yourself.",
-                ),
-                _buildBenifitsWidget(
-                  context: context,
-
-                  title: "Branding for Premium Sellers",
-                  description:
-                      "Get exclusive branding and marketing support when you qualify as a Premium Seller.",
-                ),
-                SizedBox(height: context.h(20)),
-                SizedBox(
-                  width: double.infinity,
-                  child: Stack(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(left: context.w(80)),
-                        child: AppCachedImage(
-                          imageUrl:
-                              "https://atomshop.pk/public/web/img/SoftwareSupport.png",
-                          height: context.h(180),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        child: AppCachedImage(
-                          height: context.h(100),
-
-                          imageUrl:
-                              "https://atomshop.pk/public/web/img/SoftwareSupport1.png",
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: context.h(30)),
-              ],
-            ).paddingHorizontal(16),
+            // ── Hero ──────────────────────────────────────────────────────────
             Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: context.w(20),
-                vertical: context.h(40),
-              ),
               width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomRight,
-                  end: Alignment.topLeft,
-                  colors: [
-                    Color(0xFFEECA47),
-                    Color(0xFFCAB673),
-                    Color(0xFF9397B5),
-                    Color(0xFF7687D6),
-                  ],
-                ),
+              color: ColorPalette.secondary,
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      "SMART SELLER",
+                      style: AppTextStyles.overline.copyWith(
+                        color: Colors.white70,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Grow Your Business\nWith AtomShop",
+                    style: AppTextStyles.h3.bold.white,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Platform, tools & hands-on support to help you succeed.",
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Colors.white70,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  CustomButton(
+                    title: "Become Seller",
+                    onPressed: () => AppNavigator.goToSmartSellerForm(),
+                    backgroundColor: Colors.white,
+                    textColor: ColorPalette.secondary,
+                  ),
+                ],
               ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── Dashboard Features ─────────────────────────────────────────────
+            Container(
+              color: ColorPalette.background,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionHeader(
+                    "Dashboard Features",
+                    Icons.dashboard_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  ..._features.map(
+                    (f) => _featureTile(
+                      context,
+                      icon: f.$1,
+                      title: f.$2,
+                      subtitle: f.$3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── Support & Benefits ─────────────────────────────────────────────
+            Container(
+              color: ColorPalette.background,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionHeader(
+                    "Software Support & Benefits",
+                    Icons.verified_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  ...List.generate(
+                    _benefits.length,
+                    (i) => _benefitTile(
+                      context,
+                      number: i + 1,
+                      title: _benefits[i].$1,
+                      description: _benefits[i].$2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── CTA ────────────────────────────────────────────────────────────
+            Container(
+              width: double.infinity,
+              color: ColorPalette.secondary,
+              padding: EdgeInsets.fromLTRB(20, context.h(28), 20, context.h(48)),
               child: Column(
                 children: [
                   Text(
+                    "Ready to Become a\nSmart Seller?",
                     textAlign: TextAlign.center,
-                    "Ready to Become a Smart Seller?",
-                    style: AppTextStyles.h3.bold.white,
+                    style: AppTextStyles.h4.bold.white,
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Text(
+                    "Apply now and let's grow together!",
                     textAlign: TextAlign.center,
-                    "Apply now through our Sell on AtomShop Seller Signup form — and let's grow together!",
-                    style: AppTextStyles.bodyLarge.white,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Colors.white70,
+                    ),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   CustomButton(
-                    title: "Become Seller",
-                    onPressed: () {
-                      AppNavigator.goToSmartSellerForm();
-                    },
+                    title: "Apply Now",
+                    onPressed: () => AppNavigator.goToSmartSellerForm(),
                     width: context.w(200),
                     backgroundColor: Colors.white,
-                    textColor: Colors.black,
+                    textColor: ColorPalette.secondary,
                   ),
                 ],
               ),
@@ -258,64 +190,101 @@ class SmartSellerHome extends StatelessWidget {
     );
   }
 
-  Container _buildBenifitsWidget({
-    required BuildContext context,
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: ColorPalette.secondary, size: 20),
+        const SizedBox(width: 8),
+        Text(title, style: AppTextStyles.h6.bold),
+      ],
+    );
+  }
+
+  Widget _featureTile(
+    BuildContext context, {
+    required IconData icon,
     required String title,
-    required String description,
+    required String subtitle,
   }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Color(0xFFE9ECEF),
-      ),
-      padding: EdgeInsets.only(left: 20, right: 40, top: 20, bottom: 30),
-      margin: EdgeInsets.symmetric(vertical: 10),
-      child: Column(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTextStyles.h6.bold),
-          SizedBox(height: context.h(10)),
-
-          Text(description, style: AppTextStyles.bodyLarge),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: ColorPalette.backgroundBlueLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: ColorPalette.secondary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(subtitle, style: AppTextStyles.bodySmall),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Container _smartSellerFeaturesWidget({
-    required BuildContext context,
+  Widget _benefitTile(
+    BuildContext context, {
+    required int number,
     required String title,
     required String description,
-    required IconData icon,
   }) {
-    return Container(
-      width: double.infinity,
-
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 10,
-            spreadRadius: 1,
-            offset: const Offset(0, 0),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.symmetric(horizontal: 30, vertical: 40),
-      margin: EdgeInsets.symmetric(vertical: 20),
-      child: Column(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: ColorPalette.accentBlue, size: 28),
-          SizedBox(height: context.h(10)),
-
-          Text(title, style: AppTextStyles.h6.bold),
-          SizedBox(height: context.h(10)),
-
-          Text(description, style: AppTextStyles.bodyLarge),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: const BoxDecoration(
+              color: ColorPalette.secondary,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                "$number",
+                style: AppTextStyles.caption.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(description, style: AppTextStyles.bodySmall),
+              ],
+            ),
+          ),
         ],
       ),
     );

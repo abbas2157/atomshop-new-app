@@ -10,6 +10,10 @@ class ApiEndpoints {
   static const String sendOTP = "account/send/code";
   static const String setPassword = "account/send/code/reset/password";
   static const String categories = "categories";
+  static const String brands = "brands";
+  static const String sellerCustomerCities = "seller-app/customers/areas";
+  static const String cities = "cities";
+  static String areasByCity(int cityId) => "areas/$cityId";
   static const String placeCustomOrder = "custom-order/create";
   static const String updateProfile = "account/profile/update";
 

@@ -411,150 +411,178 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final verified = customer.verified;
+    final location = customer.profile.location;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: _C.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: _C.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
         ),
-        child: Column(
-          children: [
-            Row(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(11),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: _C.brand.withValues(alpha: 0.1),
-                  child: Text(
-                    _initials(customer.name),
-                    style: const TextStyle(
-                      color: _C.brand,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+                Container(
+                  width: 4,
+                  color: verified ? _C.success : _C.warning,
                 ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        customer.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                  child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Name + status ───────────────────────────────────────
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: _C.brand.withValues(alpha: 0.1),
+                      child: Text(
+                        _initials(customer.name),
                         style: const TextStyle(
-                          color: _C.text,
-                          fontSize: 15,
+                          color: _C.brand,
+                          fontSize: 11,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        customer.phone,
-                        style: const TextStyle(
-                          color: _C.muted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _StatusPill(
-                  label: customer.verified ? 'Verified' : 'Pending',
-                  fg: customer.verified ? _C.success : _C.warning,
-                  bg: (customer.verified ? _C.success : _C.warning).withValues(
-                    alpha: 0.12,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 13),
-            Row(
-              children: [
-                _MiniInfo(
-                  icon: Icons.badge_outlined,
-                  label: customer.profile.identifier,
-                ),
-                const SizedBox(width: 8),
-                _MiniInfo(
-                  icon: Icons.public_outlined,
-                  label: customer.joinedThrough,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    customer.profile.address,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _C.muted,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            customer.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _C.text,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            customer.phone,
+                            style: const TextStyle(
+                              color: _C.muted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _StatusPill(
+                      label: verified ? 'Verified' : 'Pending',
+                      fg: verified ? _C.success : _C.warning,
+                      bg: (verified ? _C.success : _C.warning)
+                          .withValues(alpha: 0.12),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right_rounded, color: _C.muted),
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: _C.border),
+                const SizedBox(height: 8),
+
+                // ── City + Area ─────────────────────────────────────────
+                _CardInfoRow(
+                  icon: Icons.location_on_outlined,
+                  label: location.isEmpty ? 'Location N/A' : location,
+                ),
+                const SizedBox(height: 5),
+
+                // ── Address ─────────────────────────────────────────────
+                _CardInfoRow(
+                  icon: Icons.home_outlined,
+                  label: customer.profile.address,
+                ),
+                const SizedBox(height: 5),
+
+                // ── Joined + Date ────────────────────────────────────────
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.public_outlined,
+                      size: 13,
+                      color: _C.muted,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      customer.joinedThrough,
+                      style: const TextStyle(
+                        color: _C.muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 13,
+                      color: _C.muted,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      customer.formattedCreatedAt,
+                      style: const TextStyle(
+                        color: _C.muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: _C.muted,
+                    ),
+                  ],
+                ),
               ],
             ),
-          ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _MiniInfo extends StatelessWidget {
+class _CardInfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
-
-  const _MiniInfo({required this.icon, required this.label});
+  const _CardInfoRow({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: _C.surfaceAlt,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _C.border),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 15, color: _C.brand),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: _C.text,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: _C.muted),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _C.text,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

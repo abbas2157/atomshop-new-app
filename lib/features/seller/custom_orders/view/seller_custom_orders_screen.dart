@@ -2117,6 +2117,64 @@ class _OrderCard extends StatelessWidget {
 
                       const SizedBox(height: 10),
 
+                      // ── Customer detail ─────────────────
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: _D.surfaceAlt,
+                          borderRadius: _D.r8,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _D.brand.withValues(alpha: 0.10),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.person_outline_rounded,
+                                size: 16,
+                                color: _D.brand,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    order.user.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: _D.txt1,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    order.user.phone,
+                                    style: const TextStyle(
+                                      color: _D.txt2,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
                       // ── Meta row ───────────────────────
                       Row(
                         children: [
@@ -2126,49 +2184,28 @@ class _OrderCard extends StatelessWidget {
                             color: _D.txt3,
                           ),
                           const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              order.formattedCreatedAt,
-                              style: const TextStyle(
-                                color: _D.txt3,
-                                fontSize: 11,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                          Text(
+                            order.formattedCreatedAt,
+                            style: const TextStyle(
+                              color: _D.txt3,
+                              fontSize: 11,
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.language_outlined,
+                            size: 12,
+                            color: _D.txt3,
+                          ),
+                          const SizedBox(width: 4),
                           Text(
-                            'User #${order.userId}',
+                            order.portal,
                             style: const TextStyle(
                               color: _D.txt3,
                               fontSize: 11,
                             ),
                           ),
                         ],
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // ── Expandable detail ───────────────
-                      Theme(
-                        data: Theme.of(
-                          context,
-                        ).copyWith(dividerColor: Colors.transparent),
-                        child: ExpansionTile(
-                          tilePadding: EdgeInsets.zero,
-                          childrenPadding: const EdgeInsets.only(top: 10),
-                          dense: true,
-                          title: const Text(
-                            'Quick details',
-                            style: TextStyle(
-                              color: _D.brand,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          iconColor: _D.brand,
-                          collapsedIconColor: _D.brand,
-                          children: [_DetailsGrid(order: order)],
-                        ),
                       ),
                     ],
                   ),
@@ -2259,88 +2296,6 @@ class _StatusBadge extends StatelessWidget {
   );
 }
 
-class _DetailsGrid extends StatelessWidget {
-  final SellerCustomOrder order;
-  const _DetailsGrid({required this.order});
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = [
-      ('Order ID', order.id.toString()),
-      ('UUID', order.uuid),
-      ('Product ID', order.productId.toString()),
-      ('Product', order.product.title),
-      ('PR Number', order.product.prNumber),
-      ('Category ID', order.product.categoryId),
-      ('Brand ID', order.product.brandId),
-      ('Picture', order.product.picture),
-      ('Custom Fields', order.product.customFields),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
-        color: _D.surfaceAlt,
-        borderRadius: _D.r12,
-      ),
-      child: Column(
-        children: rows.asMap().entries.map((e) {
-          final isLast = e.key == rows.length - 1;
-          return _KVLine(
-            label: e.value.$1,
-            value: e.value.$2,
-            showDivider: !isLast,
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _KVLine extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool showDivider;
-
-  const _KVLine({
-    required this.label,
-    required this.value,
-    required this.showDivider,
-  });
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 108,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: _D.txt2,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: _D.txt1,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-      if (showDivider) const Divider(height: 12, color: _D.border),
-    ],
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PAGINATION CONTROLS

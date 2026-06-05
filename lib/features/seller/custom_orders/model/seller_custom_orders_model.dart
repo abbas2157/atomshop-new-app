@@ -150,6 +150,30 @@ class SellerCustomOrdersPagination {
   }
 }
 
+/// Lightweight customer info carried on the list-level order payload.
+class SellerCustomOrderListUser {
+  final int id;
+  final String name;
+  final String phone;
+
+  const SellerCustomOrderListUser({
+    required this.id,
+    required this.name,
+    required this.phone,
+  });
+
+  factory SellerCustomOrderListUser.fromJson(Map<String, dynamic> json) {
+    return SellerCustomOrderListUser(
+      id: _asInt(json['id']),
+      name: _text(json['name'], fallback: 'Customer'),
+      phone: _text(json['phone']),
+    );
+  }
+
+  static SellerCustomOrderListUser get empty =>
+      const SellerCustomOrderListUser(id: 0, name: 'Customer', phone: '');
+}
+
 class SellerCustomOrder {
   final int id;
   final String uuid;
@@ -162,6 +186,7 @@ class SellerCustomOrder {
   final String status;
   final String createdAt;
   final SellerCustomOrderProduct product;
+  final SellerCustomOrderListUser user;
 
   const SellerCustomOrder({
     required this.id,
@@ -175,6 +200,7 @@ class SellerCustomOrder {
     required this.status,
     required this.createdAt,
     required this.product,
+    required this.user,
   });
 
   String get formattedTotalDealPrice => _money(totalDealPrice);
@@ -182,6 +208,7 @@ class SellerCustomOrder {
   String get formattedCreatedAt => _date(createdAt);
 
   factory SellerCustomOrder.fromJson(Map<String, dynamic> json) {
+    final rawUser = json['user'];
     return SellerCustomOrder(
       id: _asInt(json['id']),
       uuid: _text(json['uuid']),
@@ -196,6 +223,11 @@ class SellerCustomOrder {
       product: SellerCustomOrderProduct.fromJson(
         json['custom_order_product'] as Map<String, dynamic>? ?? {},
       ),
+      user: rawUser is Map
+          ? SellerCustomOrderListUser.fromJson(
+              Map<String, dynamic>.from(rawUser),
+            )
+          : SellerCustomOrderListUser.empty,
     );
   }
 }
@@ -226,7 +258,39 @@ class SellerCustomOrderProduct {
   String get formattedPrice => _money(price);
   String get formattedAdvancePrice => _money(advancePrice);
 
+  /// Parses custom_fields which can be:
+  ///   - null / "Not available"  → empty map
+  ///   - array [{title, value}]  → {title: value}
+  ///   - object {key: value}     → {key: value}
+  Map<String, String> get customFieldsMap {
+    if (customFields == 'Not available' || customFields.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(customFields);
+      if (decoded is List) {
+        final map = <String, String>{};
+        for (final item in decoded) {
+          if (item is Map) {
+            final title = item['title']?.toString() ?? '';
+            final value = item['value']?.toString() ?? '';
+            if (title.isNotEmpty) map[title] = value;
+          }
+        }
+        return map;
+      }
+      if (decoded is Map) {
+        return decoded.map(
+          (k, v) => MapEntry(k.toString(), v?.toString() ?? 'N/A'),
+        );
+      }
+      return const {};
+    } catch (_) {
+      return const {};
+    }
+  }
+
   factory SellerCustomOrderProduct.fromJson(Map<String, dynamic> json) {
+    // Preserve raw custom_fields (array or object) as JSON string for parsing.
+    final rawCf = json['custom_fields'];
     return SellerCustomOrderProduct(
       id: _asInt(json['id']),
       title: _text(json['title'], fallback: 'Untitled Product'),
@@ -236,7 +300,7 @@ class SellerCustomOrderProduct {
       picture: _text(json['picture'], fallback: 'No image'),
       categoryId: _text(json['category_id']),
       brandId: _text(json['brand_id']),
-      customFields: _text(json['custom_fields']),
+      customFields: rawCf == null ? 'Not available' : jsonEncode(rawCf),
     );
   }
 }
@@ -380,6 +444,8 @@ class SellerCustomOrderStatusHistory {
   final String orderType;
   final String createdAt;
   final String comment;
+  /// All key→value pairs from the payload JSON (excluding 'comment').
+  final Map<String, String> payloadDetails;
 
   const SellerCustomOrderStatusHistory({
     required this.id,
@@ -388,43 +454,78 @@ class SellerCustomOrderStatusHistory {
     required this.orderType,
     required this.createdAt,
     required this.comment,
+    required this.payloadDetails,
   });
 
   String get formattedCreatedAt => _date(createdAt);
 
   factory SellerCustomOrderStatusHistory.fromJson(Map<String, dynamic> json) {
+    final raw = json['payload'];
+    var comment = '';
+    var details = <String, String>{};
+
+    if (raw is String && raw.isNotEmpty && raw != '[]') {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          details = decoded.map(
+            (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
+          );
+          comment = details.remove('comment') ?? '';
+        }
+      } catch (_) {}
+    }
+
     return SellerCustomOrderStatusHistory(
       id: _asInt(json['id']),
       status: _text(json['status'], fallback: 'Unknown'),
       role: _text(json['role']),
       orderType: _text(json['order_type']),
       createdAt: _text(json['created_at']),
-      comment: _payloadComment(json['payload']),
+      comment: comment,
+      payloadDetails: details,
     );
   }
 }
 
 class SellerCustomOrderInstalment {
   final int id;
-  final String status;
-  final int amount;
-  final String dueDate;
+  final String month;           // "Advance", "1st Month", etc. — card title
+  final String type;            // "Advance" | "Instalment"
+  final String status;          // "Paid" | "Unpaid"
+  final int instalmentPrice;    // installment_price
+  final int paidPrice;          // installment_paid_price
+  final String instalmentDate;  // installment_date
+  final String paidDate;        // installment_paid_date
+  final String paymentMethod;   // payment_method
 
   const SellerCustomOrderInstalment({
     required this.id,
+    required this.month,
+    required this.type,
     required this.status,
-    required this.amount,
-    required this.dueDate,
+    required this.instalmentPrice,
+    required this.paidPrice,
+    required this.instalmentDate,
+    required this.paidDate,
+    required this.paymentMethod,
   });
 
-  String get formattedAmount => _money(amount);
+  String get formattedInstalmentPrice => _money(instalmentPrice);
+  String get formattedPaidPrice => paidPrice > 0 ? _money(paidPrice) : '—';
+  bool get isPaid => status.toLowerCase() == 'paid';
 
   factory SellerCustomOrderInstalment.fromJson(Map<String, dynamic> json) {
     return SellerCustomOrderInstalment(
       id: _asInt(json['id']),
+      month: _text(json['month']),
+      type: _text(json['type']),
       status: _text(json['status']),
-      amount: _asInt(json['amount'] ?? json['instalment_price']),
-      dueDate: _text(json['due_date'] ?? json['date']),
+      instalmentPrice: _asInt(json['installment_price']),
+      paidPrice: _asInt(json['installment_paid_price']),
+      instalmentDate: _text(json['installment_date']),
+      paidDate: _text(json['installment_paid_date']),
+      paymentMethod: _text(json['payment_method']),
     );
   }
 }
@@ -437,6 +538,7 @@ class SellerCustomOrderUser {
   final String phone;
   final String status;
   final String joinedThrough;
+  final String createdAt;
   final SellerCustomOrderCustomer customer;
 
   const SellerCustomOrderUser({
@@ -447,8 +549,11 @@ class SellerCustomOrderUser {
     required this.phone,
     required this.status,
     required this.joinedThrough,
+    required this.createdAt,
     required this.customer,
   });
+
+  String get formattedCreatedAt => _date(createdAt);
 
   factory SellerCustomOrderUser.fromJson(Map<String, dynamic> json) {
     return SellerCustomOrderUser(
@@ -459,6 +564,7 @@ class SellerCustomOrderUser {
       phone: _text(json['phone']),
       status: _text(json['status'], fallback: 'Unknown'),
       joinedThrough: _text(json['joined_through']),
+      createdAt: _text(json['created_at']),
       customer: SellerCustomOrderCustomer.fromJson(
         json['customer'] as Map<String, dynamic>? ?? {},
       ),
@@ -472,6 +578,8 @@ class SellerCustomOrderCustomer {
   final String address;
   final int cityId;
   final int areaId;
+  final String cityTitle;
+  final String areaTitle;
   final String cnicNo;
   final String fatherName;
   final String residencePhone;
@@ -487,6 +595,8 @@ class SellerCustomOrderCustomer {
     required this.address,
     required this.cityId,
     required this.areaId,
+    required this.cityTitle,
+    required this.areaTitle,
     required this.cnicNo,
     required this.fatherName,
     required this.residencePhone,
@@ -497,13 +607,20 @@ class SellerCustomOrderCustomer {
     required this.portal,
   });
 
+  /// Returns true when the API returned a real customer record (id > 0).
+  bool get hasData => id > 0;
+
   factory SellerCustomOrderCustomer.fromJson(Map<String, dynamic> json) {
+    final cityObj = json['city'];
+    final areaObj = json['area'];
     return SellerCustomOrderCustomer(
       id: _asInt(json['id']),
       identifier: _text(json['identifier']),
       address: _text(json['address']),
       cityId: _asInt(json['city_id']),
       areaId: _asInt(json['area_id']),
+      cityTitle: cityObj is Map ? _text(cityObj['title']) : _text(cityObj),
+      areaTitle: areaObj is Map ? _text(areaObj['title']) : _text(areaObj),
       cnicNo: _text(json['cnic_no']),
       fatherName: _text(json['father_name']),
       residencePhone: _text(json['residence_phone']),
@@ -643,8 +760,17 @@ String _text(dynamic value, {String fallback = 'Not available'}) {
 }
 
 String _date(String value) {
-  if (value.isEmpty || value == 'Not available') return 'Not available';
-  return value.replaceFirst('T', ' ').replaceFirst('.000000Z', '');
+  if (value.isEmpty || value == 'Not available') return 'N/A';
+  try {
+    final dt = DateTime.parse(value).toLocal();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  } catch (_) {
+    return value.split('T').first;
+  }
 }
 
 String _money(int value) {
@@ -662,20 +788,3 @@ String _withCommas(int value) {
   return buffer.toString();
 }
 
-String _payloadComment(dynamic payload) {
-  final raw = payload?.toString();
-  if (raw == null || raw.trim().isEmpty || raw == 'null') {
-    return 'Not available';
-  }
-
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is Map && decoded['comment'] != null) {
-      return _text(decoded['comment']);
-    }
-  } catch (_) {
-    // Keep the raw payload if it is not JSON.
-  }
-
-  return raw;
-}

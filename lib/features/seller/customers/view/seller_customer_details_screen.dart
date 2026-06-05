@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// ── Design tokens ─────────────────────────────────────────────────────────────
 abstract final class _C {
   static const bg = Color(0xFFF4F6FC);
   static const surface = Color(0xFFFFFFFF);
@@ -17,8 +18,10 @@ abstract final class _C {
   static const success = Color(0xFF10B981);
   static const warning = Color(0xFFF59E0B);
   static const danger = Color(0xFFEF4444);
+  static const info = Color(0xFF06B6D4);
 }
 
+// ── Root screen ───────────────────────────────────────────────────────────────
 class SellerCustomerDetailsScreen extends ConsumerWidget {
   final String customerUuid;
   final SellerCustomer? initialCustomer;
@@ -32,12 +35,10 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileState = ref.watch(sellerCustomerProfileProvider(customerUuid));
-    final instalmentsState = ref.watch(
-      sellerCustomerInstalmentsProvider(customerUuid),
-    );
-    final ordersState = ref.watch(
-      sellerCustomerCustomOrdersProvider(customerUuid),
-    );
+    final instalmentsState =
+        ref.watch(sellerCustomerInstalmentsProvider(customerUuid));
+    final ordersState =
+        ref.watch(sellerCustomerCustomOrdersProvider(customerUuid));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -62,8 +63,7 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
                 ref.invalidate(sellerCustomerProfileProvider(customerUuid));
                 ref.invalidate(sellerCustomerInstalmentsProvider(customerUuid));
                 ref.invalidate(
-                  sellerCustomerCustomOrdersProvider(customerUuid),
-                );
+                    sellerCustomerCustomOrdersProvider(customerUuid));
               },
               icon: const Icon(Icons.refresh_rounded),
             ),
@@ -81,45 +81,126 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(sellerCustomerProfileProvider(customerUuid));
               ref.invalidate(sellerCustomerInstalmentsProvider(customerUuid));
-              ref.invalidate(sellerCustomerCustomOrdersProvider(customerUuid));
+              ref.invalidate(
+                  sellerCustomerCustomOrdersProvider(customerUuid));
               await Future.wait([
                 ref.read(sellerCustomerProfileProvider(customerUuid).future),
                 ref.read(
-                  sellerCustomerInstalmentsProvider(customerUuid).future,
-                ),
+                    sellerCustomerInstalmentsProvider(customerUuid).future),
                 ref.read(
-                  sellerCustomerCustomOrdersProvider(customerUuid).future,
-                ),
+                    sellerCustomerCustomOrdersProvider(customerUuid).future),
               ]);
             },
             child: ListView(
               physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
               ),
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
               children: [
-                _Hero(details: details),
+                _HeroCard(details: details),
                 const SizedBox(height: 12),
-                _InfoSection(
-                  title: 'Customer Profile',
+
+                // CUSTOMER INFORMATION
+                _SectionCard(
+                  title: 'Customer Information',
                   icon: Icons.person_outline_rounded,
-                  rows: [
-                    _InfoRow('Identifier', details.user.profile.identifier),
-                    _InfoRow('Phone', details.user.phone),
-                    _InfoRow('Email', details.user.email),
-                    _InfoRow('CNIC', details.user.profile.cnicNo),
-                    _InfoRow('Father Name', details.user.profile.fatherName),
-                    _InfoRow('Residence', details.user.profile.residencePhone),
-                    _InfoRow('Address', details.user.profile.address),
-                    _InfoRow('Office', details.user.profile.officeAddress),
-                    _InfoRow('Portal', details.user.profile.portal),
-                    _InfoRow('Joined', details.user.formattedCreatedAt),
-                  ],
+                  child: Column(
+                    children: [
+                      _GRow('Identifier', details.user.profile.identifier,
+                          'Name', details.user.name),
+                      _GRow('Phone', details.user.phone,
+                          'Email', details.user.email),
+                      _GRow('Father Name', details.user.profile.fatherName,
+                          'CNIC', details.user.profile.cnicNo),
+                      _GRow('Address', details.user.profile.address,
+                          'Res. Phone', details.user.profile.residencePhone),
+                      _GRow('Office Address', details.user.profile.officeAddress,
+                          'Office Phone', details.user.profile.officePhone),
+                      _GRow('Joined Date', details.user.formattedCreatedAt,
+                          'Joined Through', details.user.joinedThrough),
+                      _GRow('Portal', details.user.profile.portal,
+                          'Status', details.user.status),
+                    ],
+                  ),
                 ),
+
+                // CUSTOMER VERIFICATION
+                if (details.verification.exists) ...[
+                  const SizedBox(height: 12),
+                  _SectionCard(
+                    title: 'Customer Verification',
+                    icon: Icons.verified_user_outlined,
+                    child: Column(
+                      children: [
+                        _GRow(
+                          'Physical Meet',
+                          details.verification.physicalMeet ? 'Yes' : 'No',
+                          'Address Found',
+                          details.verification.addressFound ? 'Yes' : 'No',
+                        ),
+                        _GRow('House', details.verification.house,
+                            'Work', details.verification.work),
+                        _GRow('ID Card (Front)',
+                            _shortPath(details.verification.idCardFront),
+                            'ID Card (Back)',
+                            _shortPath(details.verification.idCardBack)),
+                        if (details.verification.selfie != 'Not available')
+                          _GRow('Selfie',
+                              _shortPath(details.verification.selfie), '', ''),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // CUSTOM ORDERS
                 const SizedBox(height: 12),
-                _OrdersSection(state: ordersState),
+                _SectionCard(
+                  title: 'Custom Orders',
+                  icon: Icons.receipt_long_outlined,
+                  child: ordersState.when(
+                    loading: () =>
+                        const _InlineLoading(label: 'Loading orders...'),
+                    error: (e, _) => _InlineError(message: _cleanError(e)),
+                    data: (data) => data.orders.isEmpty
+                        ? const _EmptyInline(label: 'No custom orders yet.')
+                        : Column(
+                            children: data.orders
+                                .map((o) => _OrderTile(
+                                      order: o,
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              SellerCustomOrderDetailsScreen(
+                                            orderUuid: o.uuid,
+                                          ),
+                                        ),
+                                      ),
+                                    ))
+                                .toList(growable: false),
+                          ),
+                  ),
+                ),
+
+                // INSTALMENTS
                 const SizedBox(height: 12),
-                _InstalmentsSection(state: instalmentsState),
+                _SectionCard(
+                  title: 'Instalments',
+                  icon: Icons.payments_outlined,
+                  child: instalmentsState.when(
+                    loading: () =>
+                        const _InlineLoading(label: 'Loading instalments...'),
+                    error: (e, _) => _InlineError(message: _cleanError(e)),
+                    data: (data) => data.instalments.isEmpty
+                        ? const _EmptyInline(label: 'No instalments yet.')
+                        : Column(
+                            children: data.instalments
+                                .take(10)
+                                .map((item) => _InstalmentTile(item: item))
+                                .toList(growable: false),
+                          ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -129,14 +210,15 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
   }
 }
 
-class _Hero extends StatelessWidget {
+// ── Hero card ─────────────────────────────────────────────────────────────────
+class _HeroCard extends StatelessWidget {
   final SellerCustomerDetails details;
-
-  const _Hero({required this.details});
+  const _HeroCard({required this.details});
 
   @override
   Widget build(BuildContext context) {
     final customer = details.user;
+    final verified = customer.verified;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -145,12 +227,12 @@ class _Hero extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _C.brand.withValues(alpha: 0.24),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: _C.brand.withValues(alpha: 0.22),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -161,13 +243,13 @@ class _Hero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
-                radius: 28,
+                radius: 26,
                 backgroundColor: Colors.white.withValues(alpha: 0.16),
                 child: Text(
                   _initials(customer.name),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 13,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -181,53 +263,81 @@ class _Hero extends StatelessWidget {
                       customer.name,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
-                        height: 1.1,
+                        fontSize: 20,
+                        height: 1.15,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       customer.phone,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.78),
                         fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              _HeroChip(
-                label: customer.verified ? 'Verified' : 'Pending',
-                icon: customer.verified
-                    ? Icons.verified_outlined
-                    : Icons.schedule_outlined,
+              // ✅ Green for verified, yellow for pending
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: verified
+                      ? _C.success.withValues(alpha: 0.2)
+                      : _C.warning.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: verified
+                        ? _C.success.withValues(alpha: 0.5)
+                        : _C.warning.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      verified
+                          ? Icons.verified_outlined
+                          : Icons.schedule_outlined,
+                      color: verified ? _C.success : _C.warning,
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      verified ? 'Verified' : 'Pending',
+                      style: TextStyle(
+                        color: verified ? _C.success : _C.warning,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: _Metric(
-                  label: 'Sales',
-                  value: details.formattedTotalCustomSales,
-                ),
+                    label: 'Total Sales',
+                    value: details.formattedTotalCustomSales),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: _Metric(
-                  label: 'Recovery',
-                  value: details.formattedTotalCustomRecovery,
-                ),
+                    label: 'Recovery',
+                    value: details.formattedTotalCustomRecovery),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: _Metric(
-                  label: 'Rate',
-                  value: details.formattedRecoveryPercentage,
-                ),
+                    label: 'Rate',
+                    value: details.formattedRecoveryPercentage),
               ),
             ],
           ),
@@ -237,53 +347,131 @@ class _Hero extends StatelessWidget {
   }
 }
 
-class _HeroChip extends StatelessWidget {
+// ── Reusable section card ─────────────────────────────────────────────────────
+class _SectionCard extends StatelessWidget {
+  final String title;
   final IconData icon;
-  final String label;
+  final Widget child;
 
-  const _HeroChip({required this.icon, required this.label});
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        color: _C.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _C.border),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.white, size: 14),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+            decoration: BoxDecoration(
+              color: _C.brand.withValues(alpha: 0.05),
+              border: const Border(bottom: BorderSide(color: _C.border)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 15, color: _C.brand),
+                const SizedBox(width: 7),
+                Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    color: _C.text,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+              ],
             ),
           ),
+          Padding(padding: const EdgeInsets.all(14), child: child),
         ],
       ),
     );
   }
 }
 
+// ── 2-column grid row ─────────────────────────────────────────────────────────
+class _GRow extends StatelessWidget {
+  final String l1, v1, l2, v2;
+  const _GRow(this.l1, this.v1, this.l2, this.v2);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _GCell(label: l1, value: v1)),
+          if (l2.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            Expanded(child: _GCell(label: l2, value: v2)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GCell extends StatelessWidget {
+  final String label;
+  final String value;
+  const _GCell({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _C.muted,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value.isEmpty || value == 'Not available' ? '—' : value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: _C.text,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Metric in hero ────────────────────────────────────────────────────────────
 class _Metric extends StatelessWidget {
   final String label;
   final String value;
-
   const _Metric({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Column(
@@ -293,87 +481,20 @@ class _Metric extends StatelessWidget {
             label,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoSection extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<_InfoRow> rows;
-
-  const _InfoSection({
-    required this.title,
-    required this.icon,
-    required this.rows,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: title,
-      icon: icon,
-      child: Column(children: rows.map((row) => _InfoTile(row)).toList()),
-    );
-  }
-}
-
-class _InfoRow {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-}
-
-class _InfoTile extends StatelessWidget {
-  final _InfoRow row;
-
-  const _InfoTile(this.row);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
             child: Text(
-              row.label,
+              value,
               style: const TextStyle(
-                color: _C.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              row.value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: _C.text,
+                color: Colors.white,
                 fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
@@ -383,79 +504,10 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
-class _OrdersSection extends StatelessWidget {
-  final AsyncValue<SellerCustomerCustomOrdersResponse> state;
-
-  const _OrdersSection({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: 'Custom Orders',
-      icon: Icons.receipt_long_outlined,
-      child: state.when(
-        loading: () => const _InlineLoading(label: 'Loading orders...'),
-        error: (error, _) => _InlineError(message: _cleanError(error)),
-        data: (data) {
-          if (data.orders.isEmpty) {
-            return const _EmptyInline(label: 'No custom orders found.');
-          }
-          return Column(
-            children: data.orders
-                .map(
-                  (order) => _OrderTile(
-                    order: order,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SellerCustomOrderDetailsScreen(
-                          orderUuid: order.uuid,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _InstalmentsSection extends StatelessWidget {
-  final AsyncValue<SellerCustomerInstalmentsResponse> state;
-
-  const _InstalmentsSection({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: 'Instalments',
-      icon: Icons.payments_outlined,
-      child: state.when(
-        loading: () => const _InlineLoading(label: 'Loading instalments...'),
-        error: (error, _) => _InlineError(message: _cleanError(error)),
-        data: (data) {
-          if (data.instalments.isEmpty) {
-            return const _EmptyInline(label: 'No instalments found.');
-          }
-          return Column(
-            children: data.instalments
-                .take(8)
-                .map((item) => _InstalmentTile(item: item))
-                .toList(),
-          );
-        },
-      ),
-    );
-  }
-}
-
+// ── Order tile ────────────────────────────────────────────────────────────────
 class _OrderTile extends StatelessWidget {
   final SellerCustomerOrderSummary order;
   final VoidCallback onTap;
-
   const _OrderTile({required this.order, required this.onTap});
 
   @override
@@ -463,27 +515,17 @@ class _OrderTile extends StatelessWidget {
     final colors = _statusColors(order.status);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(11),
         decoration: BoxDecoration(
           color: _C.surfaceAlt,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: _C.border),
         ),
         child: Row(
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: colors.bg,
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(Icons.receipt_long_outlined, color: colors.fg),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,25 +534,25 @@ class _OrderTile extends StatelessWidget {
                     'Order #${order.id}',
                     style: const TextStyle(
                       color: _C.text,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
-                    '${order.formattedTotalDealPrice} • ${order.formattedCreatedAt}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    '${order.formattedTotalDealPrice} · ${order.formattedCreatedAt}',
                     style: const TextStyle(
                       color: _C.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: _C.muted),
+            _StatusPill(label: order.status, fg: colors.fg, bg: colors.bg),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, color: _C.muted, size: 16),
           ],
         ),
       ),
@@ -518,21 +560,26 @@ class _OrderTile extends StatelessWidget {
   }
 }
 
+// ── Instalment tile ───────────────────────────────────────────────────────────
 class _InstalmentTile extends StatelessWidget {
   final SellerCustomerInstalment item;
-
   const _InstalmentTile({required this.item});
 
   @override
   Widget build(BuildContext context) {
     final colors = _statusColors(item.status);
+    final isPaid = item.status.toLowerCase() == 'paid';
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: _C.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _C.border),
+        color: isPaid
+            ? _C.success.withValues(alpha: 0.04)
+            : _C.surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isPaid ? _C.success.withValues(alpha: 0.25) : _C.border,
+        ),
       ),
       child: Row(
         children: [
@@ -544,17 +591,17 @@ class _InstalmentTile extends StatelessWidget {
                   item.month,
                   style: const TextStyle(
                     color: _C.text,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
-                  '${item.formattedPrice} • ${item.installmentDate}',
+                  '${item.formattedPrice} · ${item.installmentDate}',
                   style: const TextStyle(
                     color: _C.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -567,69 +614,24 @@ class _InstalmentTile extends StatelessWidget {
   }
 }
 
-class _Section extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  const _Section({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _C.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: _C.brand, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: _C.text,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
+// ── Shared tiny widgets ───────────────────────────────────────────────────────
 class _StatusPill extends StatelessWidget {
   final String label;
   final Color fg;
   final Color bg;
-
   const _StatusPill({required this.label, required this.fg, required this.bg});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w900),
+        style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.w900),
       ),
     );
   }
@@ -637,7 +639,6 @@ class _StatusPill extends StatelessWidget {
 
 class _InlineLoading extends StatelessWidget {
   final String label;
-
   const _InlineLoading({required this.label});
 
   @override
@@ -645,19 +646,14 @@ class _InlineLoading extends StatelessWidget {
     return Row(
       children: [
         const SizedBox(
-          width: 18,
-          height: 18,
+          width: 16,
+          height: 16,
           child: CircularProgressIndicator(strokeWidth: 2, color: _C.brand),
         ),
-        const SizedBox(width: 10),
-        Text(
-          label,
-          style: const TextStyle(
-            color: _C.muted,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        const SizedBox(width: 8),
+        Text(label,
+            style: const TextStyle(
+                color: _C.muted, fontSize: 12, fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -665,43 +661,27 @@ class _InlineLoading extends StatelessWidget {
 
 class _InlineError extends StatelessWidget {
   final String message;
-
   const _InlineError({required this.message});
 
   @override
-  Widget build(BuildContext context) {
-    return Text(
-      message,
+  Widget build(BuildContext context) => Text(message,
       style: const TextStyle(
-        color: _C.danger,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
+          color: _C.danger, fontSize: 12, fontWeight: FontWeight.w600));
 }
 
 class _EmptyInline extends StatelessWidget {
   final String label;
-
   const _EmptyInline({required this.label});
 
   @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
+  Widget build(BuildContext context) => Text(label,
       style: const TextStyle(
-        color: _C.muted,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
+          color: _C.muted, fontSize: 12, fontWeight: FontWeight.w600));
 }
 
+// ── Loading / Error full-screen views ─────────────────────────────────────────
 class _LoadingView extends StatelessWidget {
   final SellerCustomer? initialCustomer;
-
   const _LoadingView({this.initialCustomer});
 
   @override
@@ -710,24 +690,25 @@ class _LoadingView extends StatelessWidget {
       return const Center(child: CircularProgressIndicator(color: _C.brand));
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
       children: [
         Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: _C.surface,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: _C.border),
           ),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 26,
+                radius: 22,
                 backgroundColor: _C.brand.withValues(alpha: 0.1),
                 child: Text(
                   _initials(initialCustomer!.name),
                   style: const TextStyle(
                     color: _C.brand,
+                    fontSize: 11,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -738,14 +719,14 @@ class _LoadingView extends StatelessWidget {
                   initialCustomer!.name,
                   style: const TextStyle(
                     color: _C.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
               const SizedBox(
-                width: 22,
-                height: 22,
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ],
@@ -759,7 +740,6 @@ class _LoadingView extends StatelessWidget {
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-
   const _ErrorView({required this.message, required this.onRetry});
 
   @override
@@ -772,14 +752,9 @@ class _ErrorView extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline_rounded, color: _C.danger, size: 34),
             const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _C.text,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: _C.text, fontWeight: FontWeight.w700)),
             const SizedBox(height: 14),
             FilledButton.icon(
               onPressed: onRetry,
@@ -793,17 +768,19 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 ({Color fg, Color bg}) _statusColors(String status) {
-  final lower = status.toLowerCase();
-  if (lower.contains('paid') && !lower.contains('unpaid')) {
+  final s = status.toLowerCase();
+  if (s.contains('paid') && !s.contains('unpaid')) {
     return (fg: _C.success, bg: _C.success.withValues(alpha: 0.12));
   }
-  if (lower.contains('unpaid') ||
-      lower.contains('pending') ||
-      lower.contains('instal')) {
+  if (s.contains('unpaid') || s.contains('pending')) {
     return (fg: _C.warning, bg: _C.warning.withValues(alpha: 0.12));
   }
-  if (lower.contains('cancel') || lower.contains('lost')) {
+  if (s.contains('instal') || s.contains('deliver')) {
+    return (fg: _C.info, bg: _C.info.withValues(alpha: 0.12));
+  }
+  if (s.contains('cancel')) {
     return (fg: _C.danger, bg: _C.danger.withValues(alpha: 0.12));
   }
   return (fg: _C.brand, bg: _C.brand.withValues(alpha: 0.12));
@@ -813,8 +790,13 @@ String _initials(String name) {
   final parts = name.trim().split(RegExp(r'\s+'));
   if (parts.isEmpty || parts.first.isEmpty) return 'C';
   if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return '${parts.first.substring(0, 1)}${parts[1].substring(0, 1)}'
-      .toUpperCase();
+  return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
+}
+
+/// Shows just the filename from a path, not the full path.
+String _shortPath(String path) {
+  if (path == 'Not available') return '—';
+  return path.split('/').last;
 }
 
 String _cleanError(Object error) {

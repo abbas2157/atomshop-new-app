@@ -53,7 +53,7 @@ class SellerProfileScreen extends ConsumerWidget {
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 110),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
                 children: [
                   _Header(
                     bundle: bundle,
@@ -61,74 +61,122 @@ class SellerProfileScreen extends ConsumerWidget {
                     onLogout: () => _confirmLogout(context, ref),
                   ),
                   const SizedBox(height: 14),
-                  _InfoSection(
+
+                  // ACCOUNT
+                  _SectionCard(
                     title: 'Account',
                     icon: Icons.person_outline_rounded,
-                    actionLabel: 'Edit',
-                    onAction: () => _showUserInfoSheet(context, ref, bundle),
-                    rows: [
-                      _InfoRow('Name', bundle.profile.name),
-                      _InfoRow('Email', bundle.profile.email),
-                      _InfoRow('Phone', bundle.profile.phone),
-                      _InfoRow('Role', bundle.profile.role),
-                      _InfoRow('Last Login', bundle.profile.lastLoginAt),
-                    ],
+                    trailing: _EditButton(
+                      onTap: () =>
+                          _showUserInfoSheet(context, ref, bundle),
+                    ),
+                    child: Column(
+                      children: [
+                        _GRow('Name', bundle.profile.name,
+                            'Phone', bundle.profile.phone),
+                        _GRow('Email', bundle.profile.email,
+                            'Status', bundle.profile.status),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _InfoSection(
+
+                  // SELLER INFO
+                  _SectionCard(
                     title: 'Seller Info',
                     icon: Icons.badge_outlined,
-                    actionLabel: 'Edit',
-                    onAction: () => _showSellerInfoSheet(context, ref, bundle),
-                    rows: [
-                      _InfoRow('Seller Code', bundle.sellerInfo.code),
-                      _InfoRow('Seller Name', bundle.sellerInfo.name),
-                      _InfoRow('CNIC', bundle.sellerInfo.cnicNumber),
-                      _InfoRow('Website', bundle.sellerInfo.website),
-                      _InfoRow('Fee Type', bundle.sellerInfo.feeChargeType),
-                      _InfoRow('Fee Value', bundle.sellerInfo.feeChargeValue),
-                    ],
+                    trailing: _EditButton(
+                      onTap: () =>
+                          _showSellerInfoSheet(context, ref, bundle),
+                    ),
+                    child: Column(
+                      children: [
+                        _GRow('Seller Code', bundle.sellerInfo.code,
+                            'CNIC', bundle.sellerInfo.cnicNumber),
+                        _GRow('Website', bundle.sellerInfo.website,
+                            'WhatsApp', bundle.sellerInfo.whatsappPhone),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _InfoSection(
+
+                  // BUSINESS INFO
+                  _SectionCard(
                     title: 'Business Info',
                     icon: Icons.storefront_outlined,
-                    actionLabel: 'Edit',
-                    onAction: () =>
-                        _showBusinessInfoSheet(context, ref, bundle),
-                    rows: [
-                      _InfoRow('Business', bundle.sellerInfo.businessName),
-                      _InfoRow(
-                        'City',
-                        bundle.businessInfo.cityTitle(
-                          bundle.businessInfo.sellerCityId == 0
-                              ? bundle.sellerInfo.cityId
-                              : bundle.businessInfo.sellerCityId,
-                        ),
-                      ),
-                      _InfoRow('Address', bundle.sellerInfo.address),
-                      _InfoRow(
-                        'Investment',
-                        bundle.sellerInfo.investmentCapacity,
-                      ),
-                      _InfoRow(
-                        'Experience',
-                        bundle.sellerInfo.previousExperience,
-                      ),
-                      _InfoRow(
-                        'Coverage Areas',
-                        bundle.businessInfo
-                            .selectedAreaTitles()
-                            .take(6)
-                            .join(', '),
-                      ),
-                    ],
+                    trailing: _EditButton(
+                      onTap: () =>
+                          _showBusinessInfoSheet(context, ref, bundle),
+                    ),
+                    child: Column(
+                      children: [
+                        _GRow('Business', bundle.sellerInfo.businessName,
+                            'City', bundle.sellerInfo.cityTitle),
+                        _GRow('Address', bundle.sellerInfo.address,
+                            'Investment', bundle.sellerInfo.investmentCapacity),
+                        _GRow('Experience',
+                            bundle.sellerInfo.previousExperience,
+                            'Business Phone',
+                            bundle.sellerInfo.businessPhone),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
+
+                  // ACTIVE COVERAGE AREAS — own section, always visible
+                  _SectionCard(
+                    title: 'Active Coverage Areas',
+                    icon: Icons.location_on_outlined,
+                    child: bundle.sellerInfo.activeAreas.isEmpty
+                        ? const Text(
+                            'No active areas assigned yet.',
+                            style: TextStyle(
+                              color: Color(0xFF9CA3AF),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        : Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: bundle.sellerInfo.activeAreas
+                                .map(
+                                  (area) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _P.brand.withValues(alpha: 0.07),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color:
+                                            _P.brand.withValues(alpha: 0.20),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      area.title,
+                                      style: const TextStyle(
+                                        color: _P.brand,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // SECURITY
                   _SecurityCard(
-                    onChangePassword: () => _showPasswordSheet(context, ref),
+                    onChangePassword: () =>
+                        _showPasswordSheet(context, ref),
                   ),
                   const SizedBox(height: 12),
+
+                  // QUICK ACTIONS
                   _ProfileActionCard(
                     icon: Icons.groups_2_outlined,
                     title: 'Sales Team',
@@ -141,7 +189,7 @@ class SellerProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   _ProfileActionCard(
                     icon: Icons.account_balance_wallet_outlined,
                     title: 'Fee Charge',
@@ -154,7 +202,7 @@ class SellerProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   _ProfileActionCard(
                     icon: Icons.trending_up_rounded,
                     title: 'Investments',
@@ -308,6 +356,9 @@ class _Header extends StatelessWidget {
               _HeaderChip(
                 icon: Icons.verified_outlined,
                 label: seller.verified ? 'Verified' : 'Not verified',
+                accentColor: seller.verified
+                    ? const Color(0xFF10B981)  // green when verified
+                    : const Color(0xFFF59E0B), // amber when not
               ),
               if (seller.topRated)
                 const _HeaderChip(
@@ -359,27 +410,35 @@ class _HeaderIconButton extends StatelessWidget {
 class _HeaderChip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color? accentColor; // when set, uses colored bg instead of white
 
-  const _HeaderChip({required this.icon, required this.label});
+  const _HeaderChip({
+    required this.icon,
+    required this.label,
+    this.accentColor,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final fg = accentColor ?? Colors.white;
+    final bgAlpha = accentColor != null ? 0.20 : 0.12;
+    final borderAlpha = accentColor != null ? 0.40 : 0.16;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: fg.withValues(alpha: bgAlpha),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        border: Border.all(color: fg.withValues(alpha: borderAlpha)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 15),
-          const SizedBox(width: 6),
+          Icon(icon, color: fg, size: 14),
+          const SizedBox(width: 5),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: fg,
               fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
@@ -390,116 +449,154 @@ class _HeaderChip extends StatelessWidget {
   }
 }
 
-class _InfoSection extends StatelessWidget {
+// ── Reusable section card ────────────────────────────────────────────────────
+class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
-  final String actionLabel;
-  final VoidCallback onAction;
-  final List<_InfoRow> rows;
+  final Widget child;
+  final Widget? trailing;
 
-  const _InfoSection({
+  const _SectionCard({
     required this.title,
     required this.icon,
-    required this.actionLabel,
-    required this.onAction,
-    required this.rows,
+    required this.child,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _P.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _P.border),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: _P.brand.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: _P.brand, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: _P.text,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 11, 10, 11),
+            decoration: BoxDecoration(
+              color: _P.brand.withValues(alpha: 0.05),
+              border: const Border(bottom: BorderSide(color: _P.border)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 15, color: _P.brand),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    style: const TextStyle(
+                      color: _P.text,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.7,
+                    ),
                   ),
                 ),
-              ),
-              TextButton.icon(
-                onPressed: onAction,
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: Text(actionLabel),
-              ),
-            ],
+                if (trailing != null) trailing!,
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          ...rows.map((row) => _InfoTile(row: row)),
+          Padding(padding: const EdgeInsets.all(14), child: child),
         ],
       ),
     );
   }
 }
 
-class _InfoRow {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-}
-
-class _InfoTile extends StatelessWidget {
-  final _InfoRow row;
-
-  const _InfoTile({required this.row});
+class _EditButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EditButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F2F8))),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 116,
-            child: Text(
-              row.label,
-              style: const TextStyle(
-                color: _P.muted,
-                fontSize: 12,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: _P.brand.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.edit_outlined, size: 12, color: _P.brand),
+            SizedBox(width: 4),
+            Text(
+              'Edit',
+              style: TextStyle(
+                color: _P.brand,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              row.value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: _P.text,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 2-column grid ────────────────────────────────────────────────────────────
+class _GRow extends StatelessWidget {
+  final String l1, v1, l2, v2;
+  const _GRow(this.l1, this.v1, this.l2, this.v2);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _GCell(label: l1, value: v1)),
+          if (l2.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            Expanded(child: _GCell(label: l2, value: v2)),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _GCell extends StatelessWidget {
+  final String label;
+  final String value;
+  const _GCell({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _P.muted,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value.isEmpty || value == 'Not available' ? '—' : value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: _P.text,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            height: 1.3,
+          ),
+        ),
+      ],
     );
   }
 }

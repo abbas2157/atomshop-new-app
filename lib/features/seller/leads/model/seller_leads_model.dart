@@ -122,10 +122,11 @@ class SellerLead {
   final String fullName;
   final String phone;
   final bool availableOnWhatsapp;
-  final String city;
+  final String cityTitle;
   final int cityId;
-  final String address;
+  final String areaTitle;
   final int areaId;
+  final String address;
   final String portal;
   final String reason;
   final int sellerId;
@@ -142,10 +143,11 @@ class SellerLead {
     required this.fullName,
     required this.phone,
     required this.availableOnWhatsapp,
-    required this.city,
+    required this.cityTitle,
     required this.cityId,
-    required this.address,
+    required this.areaTitle,
     required this.areaId,
+    required this.address,
     required this.portal,
     required this.reason,
     required this.sellerId,
@@ -156,9 +158,20 @@ class SellerLead {
     required this.updatedAt,
   });
 
+  /// "Johar Town, Lahore" — either part omitted when unavailable
+  String get location {
+    final area = areaTitle == 'Not available' ? '' : areaTitle;
+    final city = cityTitle == 'Not available' ? '' : cityTitle;
+    if (area.isNotEmpty && city.isNotEmpty) return '$area, $city';
+    return area.isNotEmpty ? area : city;
+  }
+
   String get formattedCreatedAt => _date(createdAt);
 
   factory SellerLead.fromJson(Map<String, dynamic> json) {
+    // city and area come as nested objects: {"id": 1, "title": "Lahore"}
+    final cityObj = json['city'];
+    final areaObj = json['area'];
     return SellerLead(
       id: _asInt(json['id']),
       uuid: _text(json['uuid']),
@@ -166,10 +179,15 @@ class SellerLead {
       fullName: _text(json['full_name'], fallback: 'Lead'),
       phone: _text(json['phone']),
       availableOnWhatsapp: json['available_on_whatsapp']?.toString() == '1',
-      city: _text(json['city']),
+      cityTitle: cityObj is Map
+          ? _text(cityObj['title'])
+          : _text(cityObj),
       cityId: _asInt(json['city_id']),
-      address: _text(json['address']),
+      areaTitle: areaObj is Map
+          ? _text(areaObj['title'])
+          : _text(areaObj),
       areaId: _asInt(json['area_id']),
+      address: _text(json['address']),
       portal: _text(json['portal']),
       reason: _text(json['reason']),
       sellerId: _asInt(json['seller_id']),
@@ -191,6 +209,35 @@ const sellerLeadStatuses = <String>[
   'Lost',
 ];
 
+// ── Lookup models used in the Convert-to-Order form ──────────────────────────
+
+class SellerLeadLookup {
+  final int id;
+  final String title;
+
+  const SellerLeadLookup({required this.id, required this.title});
+
+  factory SellerLeadLookup.fromJson(Map<String, dynamic> json) {
+    return SellerLeadLookup(
+      id: _asInt(json['id']),
+      title: _text(json['title'] ?? json['name']),
+    );
+  }
+
+  @override
+  String toString() => title;
+}
+
+List<SellerLeadLookup> parseLookupList(dynamic data, String key) {
+  final list = data is Map
+      ? (data[key] as List? ?? const [])
+      : (data is List ? data : const []);
+  return list
+      .whereType<Map>()
+      .map((item) => SellerLeadLookup.fromJson(Map<String, dynamic>.from(item)))
+      .toList(growable: false);
+}
+
 int _asInt(dynamic value, {int fallback = 0}) {
   if (value is int) return value;
   if (value is num) return value.toInt();
@@ -204,6 +251,15 @@ String _text(dynamic value, {String fallback = 'Not available'}) {
 }
 
 String _date(String value) {
-  if (value.isEmpty || value == 'Not available') return 'Not available';
-  return value.replaceFirst('T', ' ').replaceFirst('.000000Z', '');
+  if (value.isEmpty || value == 'Not available') return 'N/A';
+  try {
+    final dt = DateTime.parse(value).toLocal();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  } catch (_) {
+    return value.split('T').first;
+  }
 }
