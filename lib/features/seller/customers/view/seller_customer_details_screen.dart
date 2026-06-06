@@ -1,3 +1,5 @@
+import 'package:atompro/features/seller/core/design/design.dart';
+import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_order_details_screen.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
 import 'package:atompro/features/seller/customers/viewmodel/seller_customers_viewmodel.dart';
@@ -5,23 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
-abstract final class _C {
-  static const bg = Color(0xFFF4F6FC);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceAlt = Color(0xFFF8FAFE);
-  static const brand = Color(0xFF3B5BDB);
-  static const brandDark = Color(0xFF1A2980);
-  static const text = Color(0xFF101828);
-  static const muted = Color(0xFF667085);
-  static const border = Color(0xFFE4E8F5);
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-  static const danger = Color(0xFFEF4444);
-  static const info = Color(0xFF06B6D4);
-}
-
-// ── Root screen ───────────────────────────────────────────────────────────────
+// ── Root screen — wrapped in SellerThemeScope so the pushed route inherits the
+//    correct theme even when the shell's theme differs from system theme.
 class SellerCustomerDetailsScreen extends ConsumerWidget {
   final String customerUuid;
   final SellerCustomer? initialCustomer;
@@ -34,177 +21,244 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileState = ref.watch(sellerCustomerProfileProvider(customerUuid));
-    final instalmentsState =
-        ref.watch(sellerCustomerInstalmentsProvider(customerUuid));
-    final ordersState =
-        ref.watch(sellerCustomerCustomOrdersProvider(customerUuid));
+    return SellerThemeScope(
+      child: Builder(
+        builder: (context) {
+          final c = context.sellerColors;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: _C.bg,
-        appBar: AppBar(
-          backgroundColor: _C.bg,
-          surfaceTintColor: _C.bg,
-          titleSpacing: 0,
-          title: const Text(
-            'Customer Details',
-            style: TextStyle(
-              color: _C.text,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: () {
-                ref.invalidate(sellerCustomerProfileProvider(customerUuid));
-                ref.invalidate(sellerCustomerInstalmentsProvider(customerUuid));
-                ref.invalidate(
-                    sellerCustomerCustomOrdersProvider(customerUuid));
-              },
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-        ),
-        body: profileState.when(
-          loading: () => _LoadingView(initialCustomer: initialCustomer),
-          error: (error, _) => _ErrorView(
-            message: _cleanError(error),
-            onRetry: () =>
-                ref.invalidate(sellerCustomerProfileProvider(customerUuid)),
-          ),
-          data: (details) => RefreshIndicator(
-            color: _C.brand,
-            onRefresh: () async {
-              ref.invalidate(sellerCustomerProfileProvider(customerUuid));
-              ref.invalidate(sellerCustomerInstalmentsProvider(customerUuid));
-              ref.invalidate(
-                  sellerCustomerCustomOrdersProvider(customerUuid));
-              await Future.wait([
-                ref.read(sellerCustomerProfileProvider(customerUuid).future),
-                ref.read(
-                    sellerCustomerInstalmentsProvider(customerUuid).future),
-                ref.read(
-                    sellerCustomerCustomOrdersProvider(customerUuid).future),
-              ]);
-            },
-            child: ListView(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
+          final profileState =
+              ref.watch(sellerCustomerProfileProvider(customerUuid));
+          final instalmentsState =
+              ref.watch(sellerCustomerInstalmentsProvider(customerUuid));
+          final ordersState =
+              ref.watch(sellerCustomerCustomOrdersProvider(customerUuid));
+
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: c.isDark
+                ? SystemUiOverlayStyle.light
+                : SystemUiOverlayStyle.dark,
+            child: Scaffold(
+              backgroundColor: c.canvas,
+              appBar: AppBar(
+                backgroundColor: c.canvas,
+                surfaceTintColor: Colors.transparent,
+                title: Text('Customer Details', style: c.isDark
+                    ? context.sellerText.titleMd.copyWith(color: c.textPrimary)
+                    : context.sellerText.titleMd),
+                titleSpacing: 0,
+                iconTheme: IconThemeData(color: c.textPrimary),
+                actions: [
+                  IconButton(
+                    tooltip: 'Refresh',
+                    icon: Icon(Icons.refresh_rounded, color: c.textPrimary),
+                    onPressed: () {
+                      ref.invalidate(
+                          sellerCustomerProfileProvider(customerUuid));
+                      ref.invalidate(
+                          sellerCustomerInstalmentsProvider(customerUuid));
+                      ref.invalidate(
+                          sellerCustomerCustomOrdersProvider(customerUuid));
+                    },
+                  ),
+                ],
               ),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
-              children: [
-                _HeroCard(details: details),
-                const SizedBox(height: 12),
-
-                // CUSTOMER INFORMATION
-                _SectionCard(
-                  title: 'Customer Information',
-                  icon: Icons.person_outline_rounded,
-                  child: Column(
+              body: profileState.when(
+                loading: () =>
+                    _LoadingView(initialCustomer: initialCustomer),
+                error: (error, _) => SellerErrorState(
+                  message: _cleanError(error),
+                  onRetry: () => ref.invalidate(
+                      sellerCustomerProfileProvider(customerUuid)),
+                ),
+                data: (details) => RefreshIndicator(
+                  color: c.accent,
+                  backgroundColor: c.surface,
+                  onRefresh: () async {
+                    ref.invalidate(
+                        sellerCustomerProfileProvider(customerUuid));
+                    ref.invalidate(
+                        sellerCustomerInstalmentsProvider(customerUuid));
+                    ref.invalidate(
+                        sellerCustomerCustomOrdersProvider(customerUuid));
+                    await Future.wait([
+                      ref.read(
+                          sellerCustomerProfileProvider(customerUuid).future),
+                      ref.read(sellerCustomerInstalmentsProvider(customerUuid)
+                          .future),
+                      ref.read(sellerCustomerCustomOrdersProvider(customerUuid)
+                          .future),
+                    ]);
+                  },
+                  child: ListView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    padding: AppInsets.pageWithNav,
                     children: [
-                      _GRow('Identifier', details.user.profile.identifier,
-                          'Name', details.user.name),
-                      _GRow('Phone', details.user.phone,
-                          'Email', details.user.email),
-                      _GRow('Father Name', details.user.profile.fatherName,
-                          'CNIC', details.user.profile.cnicNo),
-                      _GRow('Address', details.user.profile.address,
-                          'Res. Phone', details.user.profile.residencePhone),
-                      _GRow('Office Address', details.user.profile.officeAddress,
-                          'Office Phone', details.user.profile.officePhone),
-                      _GRow('Joined Date', details.user.formattedCreatedAt,
-                          'Joined Through', details.user.joinedThrough),
-                      _GRow('Portal', details.user.profile.portal,
-                          'Status', details.user.status),
+                      // ── Hero ──────────────────────────────────────────
+                      _HeroCard(details: details),
+                      const Gap.v(AppSpace.md),
+
+                      // ── Customer Information ──────────────────────────
+                      _SectionCard(
+                        title: 'Customer Information',
+                        icon: Icons.person_outline_rounded,
+                        child: Column(
+                          children: [
+                            _GRow(
+                              'Identifier',
+                              details.user.profile.identifier,
+                              'Name',
+                              details.user.name,
+                            ),
+                            _GRow(
+                              'Phone',
+                              details.user.phone,
+                              'Email',
+                              details.user.email,
+                            ),
+                            _GRow(
+                              'Father Name',
+                              details.user.profile.fatherName,
+                              'CNIC',
+                              details.user.profile.cnicNo,
+                            ),
+                            _GRow(
+                              'Address',
+                              details.user.profile.address,
+                              'Res. Phone',
+                              details.user.profile.residencePhone,
+                            ),
+                            _GRow(
+                              'Office Address',
+                              details.user.profile.officeAddress,
+                              'Office Phone',
+                              details.user.profile.officePhone,
+                            ),
+                            _GRow(
+                              'Joined Date',
+                              details.user.formattedCreatedAt,
+                              'Joined Through',
+                              details.user.joinedThrough,
+                            ),
+                            _GRow(
+                              'Portal',
+                              details.user.profile.portal,
+                              'Status',
+                              details.user.status,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ── Customer Verification ─────────────────────────
+                      if (details.verification.exists) ...[
+                        const Gap.v(AppSpace.md),
+                        _SectionCard(
+                          title: 'Customer Verification',
+                          icon: Icons.verified_user_outlined,
+                          child: Column(
+                            children: [
+                              _GRow(
+                                'Physical Meet',
+                                details.verification.physicalMeet
+                                    ? 'Yes'
+                                    : 'No',
+                                'Address Found',
+                                details.verification.addressFound
+                                    ? 'Yes'
+                                    : 'No',
+                              ),
+                              _GRow(
+                                'House',
+                                details.verification.house,
+                                'Work',
+                                details.verification.work,
+                              ),
+                              _GRow(
+                                'ID Card (Front)',
+                                _shortPath(details.verification.idCardFront),
+                                'ID Card (Back)',
+                                _shortPath(details.verification.idCardBack),
+                              ),
+                              if (details.verification.selfie !=
+                                  'Not available')
+                                _GRow(
+                                  'Selfie',
+                                  _shortPath(details.verification.selfie),
+                                  '',
+                                  '',
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // ── Custom Orders ─────────────────────────────────
+                      const Gap.v(AppSpace.md),
+                      _SectionCard(
+                        title: 'Custom Orders',
+                        icon: Icons.receipt_long_outlined,
+                        child: ordersState.when(
+                          loading: () => const _InlineLoading(
+                              label: 'Loading orders…'),
+                          error: (e, _) =>
+                              _InlineError(message: _cleanError(e)),
+                          data: (data) => data.orders.isEmpty
+                              ? const _EmptyInline(
+                                  label: 'No custom orders yet.')
+                              : Column(
+                                  children: data.orders
+                                      .map(
+                                        (o) => _OrderTile(
+                                          order: o,
+                                          onTap: () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  SellerCustomOrderDetailsScreen(
+                                                orderUuid: o.uuid,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(growable: false),
+                                ),
+                        ),
+                      ),
+
+                      // ── Instalments ───────────────────────────────────
+                      const Gap.v(AppSpace.md),
+                      _SectionCard(
+                        title: 'Instalments',
+                        icon: Icons.payments_outlined,
+                        child: instalmentsState.when(
+                          loading: () => const _InlineLoading(
+                              label: 'Loading instalments…'),
+                          error: (e, _) =>
+                              _InlineError(message: _cleanError(e)),
+                          data: (data) => data.instalments.isEmpty
+                              ? const _EmptyInline(
+                                  label: 'No instalments yet.')
+                              : Column(
+                                  children: data.instalments
+                                      .take(10)
+                                      .map(
+                                        (item) =>
+                                            _InstalmentTile(item: item),
+                                      )
+                                      .toList(growable: false),
+                                ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-
-                // CUSTOMER VERIFICATION
-                if (details.verification.exists) ...[
-                  const SizedBox(height: 12),
-                  _SectionCard(
-                    title: 'Customer Verification',
-                    icon: Icons.verified_user_outlined,
-                    child: Column(
-                      children: [
-                        _GRow(
-                          'Physical Meet',
-                          details.verification.physicalMeet ? 'Yes' : 'No',
-                          'Address Found',
-                          details.verification.addressFound ? 'Yes' : 'No',
-                        ),
-                        _GRow('House', details.verification.house,
-                            'Work', details.verification.work),
-                        _GRow('ID Card (Front)',
-                            _shortPath(details.verification.idCardFront),
-                            'ID Card (Back)',
-                            _shortPath(details.verification.idCardBack)),
-                        if (details.verification.selfie != 'Not available')
-                          _GRow('Selfie',
-                              _shortPath(details.verification.selfie), '', ''),
-                      ],
-                    ),
-                  ),
-                ],
-
-                // CUSTOM ORDERS
-                const SizedBox(height: 12),
-                _SectionCard(
-                  title: 'Custom Orders',
-                  icon: Icons.receipt_long_outlined,
-                  child: ordersState.when(
-                    loading: () =>
-                        const _InlineLoading(label: 'Loading orders...'),
-                    error: (e, _) => _InlineError(message: _cleanError(e)),
-                    data: (data) => data.orders.isEmpty
-                        ? const _EmptyInline(label: 'No custom orders yet.')
-                        : Column(
-                            children: data.orders
-                                .map((o) => _OrderTile(
-                                      order: o,
-                                      onTap: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              SellerCustomOrderDetailsScreen(
-                                            orderUuid: o.uuid,
-                                          ),
-                                        ),
-                                      ),
-                                    ))
-                                .toList(growable: false),
-                          ),
-                  ),
-                ),
-
-                // INSTALMENTS
-                const SizedBox(height: 12),
-                _SectionCard(
-                  title: 'Instalments',
-                  icon: Icons.payments_outlined,
-                  child: instalmentsState.when(
-                    loading: () =>
-                        const _InlineLoading(label: 'Loading instalments...'),
-                    error: (e, _) => _InlineError(message: _cleanError(e)),
-                    data: (data) => data.instalments.isEmpty
-                        ? const _EmptyInline(label: 'No instalments yet.')
-                        : Column(
-                            children: data.instalments
-                                .take(10)
-                                .map((item) => _InstalmentTile(item: item))
-                                .toList(growable: false),
-                          ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -217,44 +271,27 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     final customer = details.user;
     final verified = customer.verified;
+
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_C.brandDark, _C.brand],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: _C.brand.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        gradient: c.headerGradient,
+        borderRadius: AppRadius.brXl,
+        boxShadow: c.floatingShadow,
       ),
+      padding: const EdgeInsets.all(AppSpace.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Avatar row ──────────────────────────────────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: Colors.white.withValues(alpha: 0.16),
-                child: Text(
-                  _initials(customer.name),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              SellerMonogram(name: customer.name, size: 52),
+              const Gap.h(AppSpace.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,37 +299,39 @@ class _HeroCard extends StatelessWidget {
                     Text(
                       customer.name,
                       style: const TextStyle(
+                        fontFamily: 'Roboto',
                         color: Colors.white,
                         fontSize: 20,
                         height: 1.15,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const Gap.v(AppSpace.xxs),
                     Text(
                       customer.phone,
                       style: TextStyle(
+                        fontFamily: 'Roboto',
                         color: Colors.white.withValues(alpha: 0.78),
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-              // ✅ Green for verified, yellow for pending
+              // Verified pill on gradient (white-tinted)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.sm,
+                  vertical: AppSpace.xxs + 2,
+                ),
                 decoration: BoxDecoration(
                   color: verified
-                      ? _C.success.withValues(alpha: 0.2)
-                      : _C.warning.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(999),
+                      ? Colors.white.withValues(alpha: 0.18)
+                      : Colors.white.withValues(alpha: 0.14),
+                  borderRadius: AppRadius.brPill,
                   border: Border.all(
-                    color: verified
-                        ? _C.success.withValues(alpha: 0.5)
-                        : _C.warning.withValues(alpha: 0.5),
+                    color: Colors.white.withValues(alpha: 0.28),
                   ),
                 ),
                 child: Row(
@@ -302,16 +341,17 @@ class _HeroCard extends StatelessWidget {
                       verified
                           ? Icons.verified_outlined
                           : Icons.schedule_outlined,
-                      color: verified ? _C.success : _C.warning,
+                      color: Colors.white,
                       size: 13,
                     ),
-                    const SizedBox(width: 4),
+                    const Gap.h(AppSpace.xxs),
                     Text(
                       verified ? 'Verified' : 'Pending',
-                      style: TextStyle(
-                        color: verified ? _C.success : _C.warning,
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        color: Colors.white,
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -319,27 +359,50 @@ class _HeroCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const Gap.v(AppSpace.md),
+          // ── KPI strip ───────────────────────────────────────────────
           Row(
             children: [
               Expanded(
-                child: _Metric(
-                    label: 'Total Sales',
-                    value: details.formattedTotalCustomSales),
+                child: _HeroMetric(
+                  label: 'Total Sales',
+                  value: details.formattedTotalCustomSales,
+                ),
               ),
-              const SizedBox(width: 8),
+              const Gap.h(AppSpace.xs),
               Expanded(
-                child: _Metric(
-                    label: 'Recovery',
-                    value: details.formattedTotalCustomRecovery),
+                child: _HeroMetric(
+                  label: 'Recovery',
+                  value: details.formattedTotalCustomRecovery,
+                ),
               ),
-              const SizedBox(width: 8),
+              const Gap.h(AppSpace.xs),
               Expanded(
-                child: _Metric(
-                    label: 'Rate',
-                    value: details.formattedRecoveryPercentage),
+                child: _HeroMetric(
+                  label: 'Rate',
+                  value: details.formattedRecoveryPercentage,
+                ),
               ),
             ],
+          ),
+          // ── Recovery bar ────────────────────────────────────────────
+          const Gap.v(AppSpace.sm),
+          Text(
+            'Recovery rate',
+            style: text.caption.copyWith(
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+          const Gap.v(AppSpace.xxs),
+          ClipRRect(
+            borderRadius: AppRadius.brPill,
+            child: LinearProgressIndicator(
+              value: _clampPct(details.formattedRecoveryPercentage),
+              minHeight: 6,
+              backgroundColor: Colors.white.withValues(alpha: 0.18),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
           ),
         ],
       ),
@@ -347,7 +410,54 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
-// ── Reusable section card ─────────────────────────────────────────────────────
+// Hero metric tile (lives on the gradient, so uses white text)
+class _HeroMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  const _HeroMetric({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpace.xs + 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: AppRadius.brMd,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Roboto',
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Gap.v(AppSpace.xxs),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Section card ──────────────────────────────────────────────────────────────
 class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -361,40 +471,44 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _C.border),
-      ),
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
+    return SellerCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header stripe
           Container(
-            padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.md,
+              AppSpace.sm,
+              AppSpace.md,
+              AppSpace.sm,
+            ),
             decoration: BoxDecoration(
-              color: _C.brand.withValues(alpha: 0.05),
-              border: const Border(bottom: BorderSide(color: _C.border)),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(13)),
+              color: c.accentSurface,
+              border: Border(bottom: BorderSide(color: c.border)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadius.lg),
+              ),
             ),
             child: Row(
               children: [
-                Icon(icon, size: 15, color: _C.brand),
-                const SizedBox(width: 7),
+                Icon(icon, size: 15, color: c.accent),
+                const Gap.h(AppSpace.xs - 2),
                 Text(
                   title.toUpperCase(),
-                  style: const TextStyle(
-                    color: _C.text,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.7,
-                  ),
+                  style: text.overline.copyWith(color: c.accent),
                 ),
               ],
             ),
           ),
-          Padding(padding: const EdgeInsets.all(14), child: child),
+          Padding(
+            padding: const EdgeInsets.all(AppSpace.md),
+            child: child,
+          ),
         ],
       ),
     );
@@ -409,13 +523,13 @@ class _GRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpace.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(child: _GCell(label: l1, value: v1)),
           if (l2.isNotEmpty) ...[
-            const SizedBox(width: 12),
+            const Gap.h(AppSpace.sm),
             Expanded(child: _GCell(label: l2, value: v2)),
           ],
         ],
@@ -431,75 +545,22 @@ class _GCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = context.sellerText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: _C.muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 3),
+        Text(label, style: text.caption),
+        const Gap.v(AppSpace.xxs),
         Text(
           value.isEmpty || value == 'Not available' ? '—' : value,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: _C.text,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            height: 1.3,
+          style: text.bodySm.copyWith(
+            color: context.sellerColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Metric in hero ────────────────────────────────────────────────────────────
-class _Metric extends StatelessWidget {
-  final String label;
-  final String value;
-  const _Metric({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -512,17 +573,17 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _statusColors(order.status);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(11),
-        decoration: BoxDecoration(
-          color: _C.surfaceAlt,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _C.border),
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.xs),
+      child: SellerCard(
+        onTap: onTap,
+        color: c.surfaceAlt,
+        elevated: false,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.sm,
+          vertical: AppSpace.xs + 2,
         ),
         child: Row(
           children: [
@@ -532,27 +593,23 @@ class _OrderTile extends StatelessWidget {
                 children: [
                   Text(
                     'Order #${order.id}',
-                    style: const TextStyle(
-                      color: _C.text,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: text.titleSm,
                   ),
-                  const SizedBox(height: 2),
+                  const Gap.v(AppSpace.xxs),
                   Text(
                     '${order.formattedTotalDealPrice} · ${order.formattedCreatedAt}',
-                    style: const TextStyle(
-                      color: _C.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: text.caption,
                   ),
                 ],
               ),
             ),
-            _StatusPill(label: order.status, fg: colors.fg, bg: colors.bg),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, color: _C.muted, size: 16),
+            SellerStatusPill(label: order.status, dense: true),
+            const Gap.h(AppSpace.xxs),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: c.textTertiary,
+              size: 16,
+            ),
           ],
         ),
       ),
@@ -567,93 +624,86 @@ class _InstalmentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _statusColors(item.status);
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final tone = SellerStatus.toneFor(item.status, c);
     final isPaid = item.status.toLowerCase() == 'paid';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: isPaid
-            ? _C.success.withValues(alpha: 0.04)
-            : _C.surfaceAlt,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isPaid ? _C.success.withValues(alpha: 0.25) : _C.border,
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.xs),
+      child: SellerCard(
+        color: isPaid ? c.successSurface : c.surfaceAlt,
+        borderColor: isPaid
+            ? c.success.withValues(alpha: 0.25)
+            : c.border,
+        elevated: false,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.sm,
+          vertical: AppSpace.xs + 2,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.month, style: text.titleSm),
+                  const Gap.v(AppSpace.xxs),
+                  Text(
+                    '${item.formattedPrice} · ${item.installmentDate}',
+                    style: text.caption,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpace.xs,
+                vertical: 3,
+              ),
+              decoration: BoxDecoration(
+                color: tone.bg,
+                borderRadius: AppRadius.brPill,
+                border: Border.all(color: tone.border),
+              ),
+              child: Text(
+                item.status,
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: tone.fg,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.month,
-                  style: const TextStyle(
-                    color: _C.text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${item.formattedPrice} · ${item.installmentDate}',
-                  style: const TextStyle(
-                    color: _C.muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _StatusPill(label: item.status, fg: colors.fg, bg: colors.bg),
-        ],
-      ),
     );
   }
 }
 
-// ── Shared tiny widgets ───────────────────────────────────────────────────────
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color fg;
-  final Color bg;
-  const _StatusPill({required this.label, required this.fg, required this.bg});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.w900),
-      ),
-    );
-  }
-}
-
+// ── Inline helpers ────────────────────────────────────────────────────────────
 class _InlineLoading extends StatelessWidget {
   final String label;
   const _InlineLoading({required this.label});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return Row(
       children: [
-        const SizedBox(
+        SizedBox(
           width: 16,
           height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: _C.brand),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: c.accent,
+          ),
         ),
-        const SizedBox(width: 8),
-        Text(label,
-            style: const TextStyle(
-                color: _C.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+        const Gap.h(AppSpace.xs),
+        Text(label, style: text.bodySm),
       ],
     );
   }
@@ -664,9 +714,13 @@ class _InlineError extends StatelessWidget {
   const _InlineError({required this.message});
 
   @override
-  Widget build(BuildContext context) => Text(message,
-      style: const TextStyle(
-          color: _C.danger, fontSize: 12, fontWeight: FontWeight.w600));
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    return Text(
+      message,
+      style: context.sellerText.bodySm.copyWith(color: c.danger),
+    );
+  }
 }
 
 class _EmptyInline extends StatelessWidget {
@@ -674,132 +728,67 @@ class _EmptyInline extends StatelessWidget {
   const _EmptyInline({required this.label});
 
   @override
-  Widget build(BuildContext context) => Text(label,
-      style: const TextStyle(
-          color: _C.muted, fontSize: 12, fontWeight: FontWeight.w600));
+  Widget build(BuildContext context) =>
+      Text(label, style: context.sellerText.bodySm);
 }
 
-// ── Loading / Error full-screen views ─────────────────────────────────────────
+// ── Full-screen loading (with optional initial-customer preview) ──────────────
 class _LoadingView extends StatelessWidget {
   final SellerCustomer? initialCustomer;
   const _LoadingView({this.initialCustomer});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
     if (initialCustomer == null) {
-      return const Center(child: CircularProgressIndicator(color: _C.brand));
+      return Center(
+        child: CircularProgressIndicator(color: c.accent),
+      );
     }
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+      padding: AppInsets.pageWithNav,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _C.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _C.border),
-          ),
+        SellerCard(
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: _C.brand.withValues(alpha: 0.1),
-                child: Text(
-                  _initials(initialCustomer!.name),
-                  style: const TextStyle(
-                    color: _C.brand,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              SellerMonogram(name: initialCustomer!.name, size: 44),
+              const Gap.h(AppSpace.sm),
               Expanded(
-                child: Text(
-                  initialCustomer!.name,
-                  style: const TextStyle(
-                    color: _C.text,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                child: Text(initialCustomer!.name, style: text.titleSm),
               ),
-              const SizedBox(
+              SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: c.accent,
+                ),
               ),
             ],
           ),
         ),
+        const Gap.v(AppSpace.md),
+        const SellerListSkeleton(count: 3, itemHeight: 100),
       ],
     );
   }
 }
 
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, color: _C.danger, size: 34),
-            const SizedBox(height: 12),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: _C.text, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-({Color fg, Color bg}) _statusColors(String status) {
-  final s = status.toLowerCase();
-  if (s.contains('paid') && !s.contains('unpaid')) {
-    return (fg: _C.success, bg: _C.success.withValues(alpha: 0.12));
-  }
-  if (s.contains('unpaid') || s.contains('pending')) {
-    return (fg: _C.warning, bg: _C.warning.withValues(alpha: 0.12));
-  }
-  if (s.contains('instal') || s.contains('deliver')) {
-    return (fg: _C.info, bg: _C.info.withValues(alpha: 0.12));
-  }
-  if (s.contains('cancel')) {
-    return (fg: _C.danger, bg: _C.danger.withValues(alpha: 0.12));
-  }
-  return (fg: _C.brand, bg: _C.brand.withValues(alpha: 0.12));
-}
-
-String _initials(String name) {
-  final parts = name.trim().split(RegExp(r'\s+'));
-  if (parts.isEmpty || parts.first.isEmpty) return 'C';
-  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
-}
-
-/// Shows just the filename from a path, not the full path.
+// ── Pure-logic helpers ────────────────────────────────────────────────────────
 String _shortPath(String path) {
   if (path == 'Not available') return '—';
   return path.split('/').last;
 }
 
 String _cleanError(Object error) {
-  final text = error.toString().replaceFirst('Exception: ', '').trim();
-  return text.isEmpty ? 'Something went wrong. Please try again.' : text;
+  final raw = error.toString().replaceFirst('Exception: ', '').trim();
+  return raw.isEmpty ? 'Something went wrong. Please try again.' : raw;
+}
+
+double _clampPct(String pct) {
+  final v = double.tryParse(pct.replaceAll('%', '').trim()) ?? 0;
+  return (v / 100).clamp(0.0, 1.0);
 }

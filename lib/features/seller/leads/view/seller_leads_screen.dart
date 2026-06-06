@@ -1,30 +1,27 @@
+// ============================================================
+//  seller_leads_screen.dart  —  v2 (Design System)
+//
+//  Rebuilt on the Seller Design System: unified tokens, colour
+//  extension (light + dark), shared component library. All
+//  business logic — providers, validators, city/area cascade,
+//  pricing guards, convert-to-custom-order, import/download —
+//  is 100% preserved.
+// ============================================================
+
 import 'dart:io';
 
 import 'package:atompro/core/services/snackbar_services.dart';
-import 'package:dropdown_search/dropdown_search.dart';
+import 'package:atompro/features/seller/core/design/design.dart';
+import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
 import 'package:atompro/features/seller/leads/model/seller_leads_model.dart';
 import 'package:atompro/features/seller/leads/repository/seller_leads_repository.dart';
 import 'package:atompro/features/seller/leads/viewmodel/seller_leads_viewmodel.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-abstract final class _L {
-  static const bg = Color(0xFFF4F6FC);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceAlt = Color(0xFFF8FAFE);
-  static const brand = Color(0xFF3B5BDB);
-  static const brandDark = Color(0xFF1A2980);
-  static const text = Color(0xFF101828);
-  static const muted = Color(0xFF667085);
-  static const border = Color(0xFFE4E8F5);
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-  static const danger = Color(0xFFEF4444);
-  static const info = Color(0xFF06B6D4);
-}
 
 class SellerLeadsScreen extends ConsumerStatefulWidget {
   const SellerLeadsScreen({super.key});
@@ -49,7 +46,8 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
     super.dispose();
   }
 
-  void _setScope(SellerLeadScope scope) {
+  void _setScope(int index) {
+    final scope = SellerLeadScope.values[index];
     if (_scope == scope) return;
     setState(() {
       _scope = scope;
@@ -58,29 +56,40 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
     });
   }
 
-  void _setStatus(String? status) {
+  void _setStatus(int chipIndex) {
+    // index 0 = "All" (null status), index 1..N = statuses
+    final statuses = <String?>[null, ...sellerLeadStatuses];
+    final chosen = statuses[chipIndex];
     setState(() {
-      _status = status;
+      _status = chosen;
       _page = 1;
     });
   }
 
   Future<void> _showStatusSheet(SellerLead lead) async {
+    final isDark = context.sellerIsDark;
     final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _LeadStatusSheet(lead: lead),
+      builder: (_) => Theme(
+        data: isDark ? SellerTheme.dark : SellerTheme.light,
+        child: _LeadStatusSheet(lead: lead),
+      ),
     );
     if (changed == true) ref.invalidate(sellerLeadsBundleProvider(_query));
   }
 
   Future<void> _showCustomOrderSheet(SellerLead lead) async {
+    final isDark = context.sellerIsDark;
     final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _LeadCustomOrderSheet(lead: lead),
+      builder: (_) => Theme(
+        data: isDark ? SellerTheme.dark : SellerTheme.light,
+        child: _LeadCustomOrderSheet(lead: lead),
+      ),
     );
     if (changed == true) ref.invalidate(sellerLeadsBundleProvider(_query));
   }
@@ -114,188 +123,160 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     final state = ref.watch(sellerLeadsBundleProvider(_query));
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: _L.bg,
-        body: SafeArea(
-          child: RefreshIndicator(
-            color: _L.brand,
-            onRefresh: () async {
-              ref.invalidate(sellerLeadsBundleProvider(_query));
-              await ref.read(sellerLeadsBundleProvider(_query).future);
-            },
-            child: ListView(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 118),
-              children: [
-                _Header(
-                  state: state,
-                  onImport: _importLeads,
-                  onSample: _openImportSample,
-                ),
-                const SizedBox(height: 14),
-                _ScopeTabs(selected: _scope, onChanged: _setScope),
-                const SizedBox(height: 12),
-                state.maybeWhen(
-                  data: (bundle) => _StatusChips(
-                    selected: _status,
-                    counts: bundle.statusCounts,
-                    onChanged: _setStatus,
-                  ),
-                  orElse: () => _StatusChips(
-                    selected: _status,
-                    counts: const {},
-                    onChanged: _setStatus,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _SearchBox(
-                  controller: _searchCtrl,
-                  onChanged: (value) => setState(() => _search = value),
-                ),
-                const SizedBox(height: 14),
-                state.when(
-                  loading: () => const _LeadSkeleton(),
-                  error: (error, _) => _ErrorCard(
-                    message: _cleanError(error),
-                    onRetry: () =>
-                        ref.invalidate(sellerLeadsBundleProvider(_query)),
-                  ),
-                  data: (bundle) {
-                    final leads = _filter(bundle.leads.leads, _search);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _RangeStrip(
-                          total: bundle.leads.pagination.total,
-                          from: bundle.leads.pagination.from,
-                          to: bundle.leads.pagination.to,
-                          label: _scope.label,
-                        ),
-                        const SizedBox(height: 12),
-                        if (leads.isEmpty)
-                          const _EmptyState()
-                        else
-                          ...leads.map(
-                            (lead) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _LeadCard(
-                                lead: lead,
-                                onStatus: () => _showStatusSheet(lead),
-                                onCustomOrder: () =>
-                                    _showCustomOrderSheet(lead),
-                              ),
-                            ),
-                          ),
-                        _PaginationBar(
-                          pagination: bundle.leads.pagination,
-                          onPrevious: bundle.leads.pagination.hasPrevious
-                              ? () => setState(() => _page--)
-                              : null,
-                          onNext: bundle.leads.pagination.hasNext
-                              ? () => setState(() => _page++)
-                              : null,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+    // Derive new leads count from the loaded state (null while loading)
+    final newLeadsCount = state.asData?.value.newLeadsCount;
 
-class _Header extends StatelessWidget {
-  final AsyncValue<SellerLeadsBundle> state;
-  final VoidCallback onImport;
-  final VoidCallback onSample;
+    // Build filter chips list (All + each status)
+    final statusList = <String?>[null, ...sellerLeadStatuses];
+    final statusCounts = state.asData?.value.statusCounts ?? const {};
+    final chips = statusList.map((s) {
+      final label = s ?? 'All';
+      final count = s == null ? null : statusCounts[s];
+      return SellerChipData(label, count: count);
+    }).toList();
 
-  const _Header({
-    required this.state,
-    required this.onImport,
-    required this.onSample,
-  });
+    final selectedChipIndex = statusList.indexOf(_status);
 
-  @override
-  Widget build(BuildContext context) {
-    final count = state.asData?.value.newLeadsCount;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_L.brandDark, _L.brand],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: _L.brand.withValues(alpha: 0.24),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
+    return Scaffold(
+      backgroundColor: c.canvas,
+      body: Column(
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+          // ── Gradient header ────────────────────────────────────────────────
+          SellerGradientHeader(
+            leading: SellerIconBadge(
+              icon: Icons.trending_up_rounded,
+              tone: SellerTone(
+                fg: Colors.white,
+                bg: Colors.white.withValues(alpha: 0.16),
+                border: Colors.white.withValues(alpha: 0.18),
+              ),
+              size: 44,
+              iconSize: 24,
             ),
-            child: const Icon(
-              Icons.trending_up_rounded,
-              color: Colors.white,
-              size: 28,
+            title: 'Leads',
+            subtitle: newLeadsCount == null
+                ? 'Manage sales pipeline'
+                : '$newLeadsCount new leads',
+            actions: [
+              SellerHeaderIconButton(
+                icon: Icons.download_outlined,
+                onTap: _openImportSample,
+                tooltip: 'Sample file',
+              ),
+              SellerHeaderIconButton(
+                icon: Icons.upload_file_outlined,
+                onTap: _importLeads,
+                tooltip: 'Import leads',
+              ),
+            ],
+          ),
+
+          // ── Controls row (scope tabs, filter chips, search) ───────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.md,
+              AppSpace.md,
+              AppSpace.md,
+              AppSpace.sm,
+            ),
+            child: SellerSegmentedTabs(
+              labels: SellerLeadScope.values.map((s) => s.shortLabel).toList(),
+              selectedIndex: _scope.index,
+              onChanged: _setScope,
             ),
           ),
-          const SizedBox(width: 14),
+          SellerFilterChips(
+            chips: chips,
+            selectedIndex: selectedChipIndex < 0 ? 0 : selectedChipIndex,
+            onSelected: _setStatus,
+            padding: AppInsets.pageH,
+          ),
+          const Gap.v(AppSpace.sm),
+          Padding(
+            padding: AppInsets.pageH,
+            child: SellerSearchField(
+              controller: _searchCtrl,
+              hint: 'Search by name, phone, or product',
+              onChanged: (v) => setState(() => _search = v),
+              onClear: () => setState(() => _search = ''),
+            ),
+          ),
+          const Gap.v(AppSpace.sm),
+
+          // ── Main content ────────────────────────────────────────────────
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Leads',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w900,
-                  ),
+            child: RefreshIndicator(
+              color: c.accent,
+              backgroundColor: c.surface,
+              onRefresh: () async {
+                ref.invalidate(sellerLeadsBundleProvider(_query));
+                await ref.read(sellerLeadsBundleProvider(_query).future);
+              },
+              child: state.when(
+                loading: () => SellerListSkeleton(count: 4, itemHeight: 200),
+                error: (error, _) => ListView(
+                  padding: AppInsets.pageWithNav,
+                  children: [
+                    SellerErrorState(
+                      message: _cleanError(error),
+                      onRetry: () =>
+                          ref.invalidate(sellerLeadsBundleProvider(_query)),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  count == null ? 'Manage sales pipeline' : '$count new leads',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+                data: (bundle) {
+                  final leads = _filter(bundle.leads.leads, _search);
+                  return ListView(
+                    padding: AppInsets.pageWithNav,
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    children: [
+                      // ── Range strip ─────────────────────────────────────
+                      _RangeStrip(
+                        total: bundle.leads.pagination.total,
+                        from: bundle.leads.pagination.from,
+                        to: bundle.leads.pagination.to,
+                        label: _scope.label,
+                      ),
+                      const Gap.v(AppSpace.sm),
+
+                      // ── Leads list ──────────────────────────────────────
+                      if (leads.isEmpty)
+                        SellerEmptyState(
+                          icon: Icons.person_search_outlined,
+                          title: 'No leads found',
+                          message:
+                              'Try adjusting the filters or importing leads.',
+                        )
+                      else
+                        for (final lead in leads) ...[
+                          _LeadCard(
+                            lead: lead,
+                            onStatus: () => _showStatusSheet(lead),
+                            onCustomOrder: () => _showCustomOrderSheet(lead),
+                          ),
+                          const Gap.v(AppSpace.sm),
+                        ],
+
+                      // ── Pagination ──────────────────────────────────────
+                      _PaginationBar(
+                        pagination: bundle.leads.pagination,
+                        onPrevious: bundle.leads.pagination.hasPrevious
+                            ? () => setState(() => _page--)
+                            : null,
+                        onNext: bundle.leads.pagination.hasNext
+                            ? () => setState(() => _page++)
+                            : null,
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-          _HeaderAction(
-            tooltip: 'Sample file',
-            icon: Icons.download_outlined,
-            onTap: onSample,
-          ),
-          const SizedBox(width: 8),
-          _HeaderAction(
-            tooltip: 'Import leads',
-            icon: Icons.upload_file_outlined,
-            onTap: onImport,
           ),
         ],
       ),
@@ -303,163 +284,9 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _HeaderAction extends StatelessWidget {
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _HeaderAction({
-    required this.tooltip,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-class _ScopeTabs extends StatelessWidget {
-  final SellerLeadScope selected;
-  final ValueChanged<SellerLeadScope> onChanged;
-
-  const _ScopeTabs({required this.selected, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: _L.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _L.border),
-      ),
-      child: Row(
-        children: SellerLeadScope.values.map((scope) {
-          final active = selected == scope;
-          return Expanded(
-            child: InkWell(
-              onTap: () => onChanged(scope),
-              borderRadius: BorderRadius.circular(14),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                decoration: BoxDecoration(
-                  color: active ? _L.brand : Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  scope.shortLabel,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: active ? Colors.white : _L.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _StatusChips extends StatelessWidget {
-  final String? selected;
-  final Map<String, int> counts;
-  final ValueChanged<String?> onChanged;
-
-  const _StatusChips({
-    required this.selected,
-    required this.counts,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final statuses = <String?>[null, ...sellerLeadStatuses];
-    return SizedBox(
-      height: 42,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemBuilder: (context, index) {
-          final status = statuses[index];
-          final active = selected == status;
-          final label = status ?? 'All';
-          final count = status == null ? null : counts[status];
-          return ChoiceChip(
-            selected: active,
-            label: Text(count == null ? label : '$label $count'),
-            onSelected: (_) => onChanged(status),
-            selectedColor: _L.brand,
-            labelStyle: TextStyle(
-              color: active ? Colors.white : _L.text,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-            side: const BorderSide(color: _L.border),
-            backgroundColor: _L.surface,
-          );
-        },
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemCount: statuses.length,
-      ),
-    );
-  }
-}
-
-class _SearchBox extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  const _SearchBox({required this.controller, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        hintText: 'Search current page by name, phone, product',
-        prefixIcon: const Icon(Icons.search_rounded),
-        filled: true,
-        fillColor: _L.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _L.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _L.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _L.brand, width: 1.4),
-        ),
-      ),
-    );
-  }
-}
-
+// ═══════════════════════════════════════════════════════════
+//  LEAD CARD
+// ═══════════════════════════════════════════════════════════
 class _LeadCard extends StatelessWidget {
   final SellerLead lead;
   final VoidCallback onStatus;
@@ -473,169 +300,113 @@ class _LeadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _statusColors(lead.status);
-    return Container(
-      decoration: BoxDecoration(
-        color: _L.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _L.border),
-      ),
-      // ClipRRect keeps the left strip within the rounded corners
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(11),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Status-colored left accent strip
-              Container(width: 4, color: colors.fg),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
-                  child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Name + Status ───────────────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  lead.fullName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _L.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final tone = SellerStatus.toneFor(lead.status, c);
+
+    return SellerCard(
+      padding: EdgeInsets.zero,
+      accentEdge: tone.fg,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Name + Status ─────────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    lead.fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.titleSm,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              _StatusPill(label: lead.status, fg: colors.fg, bg: colors.bg),
-            ],
-          ),
-          const SizedBox(height: 4),
+                const Gap.h(AppSpace.xs),
+                SellerStatusPill(label: lead.status, dense: true),
+              ],
+            ),
+            const Gap.v(AppSpace.xxs),
 
-          // ── Product title with label ────────────────────────────────────
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.inventory_2_outlined,
-                size: 13,
-                color: _L.muted,
-              ),
-              const SizedBox(width: 4),
-              const Text(
-                'Product: ',
-                style: TextStyle(
-                  color: _L.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  lead.productTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _L.text,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1, color: _L.border),
-          const SizedBox(height: 10),
-
-          // ── Location ────────────────────────────────────────────────────
-          _InfoRow(
-            icon: Icons.location_on_outlined,
-            label: lead.location.isEmpty ? 'Location N/A' : lead.location,
-          ),
-          const SizedBox(height: 5),
-
-          // ── Phone ───────────────────────────────────────────────────────
-          _InfoRow(icon: Icons.phone_outlined, label: lead.phone),
-          const SizedBox(height: 5),
-
-          // ── Portal + Date ───────────────────────────────────────────────
-          Row(
-            children: [
-              const Icon(Icons.language_outlined, size: 13, color: _L.muted),
-              const SizedBox(width: 4),
-              Text(
-                lead.portal,
-                style: const TextStyle(
-                  color: _L.muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 13,
-                color: _L.muted,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                lead.formattedCreatedAt,
-                style: const TextStyle(
-                  color: _L.muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // ── Actions ─────────────────────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onStatus,
-                  icon: const Icon(Icons.edit_outlined, size: 15),
-                  label: const Text('Status'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _L.brand,
-                    side: const BorderSide(color: _L.border),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+            // ── Product ───────────────────────────────────────────────────
+            Row(
+              children: [
+                Icon(Icons.inventory_2_outlined,
+                    size: 13, color: c.textTertiary),
+                const Gap.h(AppSpace.xxs),
+                Text('Product: ', style: text.bodySm),
+                Expanded(
+                  child: Text(
+                    lead.productTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodySm.copyWith(
+                      color: c.textPrimary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onCustomOrder,
-                  icon: const Icon(Icons.add_shopping_cart_outlined, size: 15),
-                  label: const Text('Order'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _L.brand,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+              ],
+            ),
+
+            const Gap.v(AppSpace.sm),
+            Divider(height: 1, color: c.divider),
+            const Gap.v(AppSpace.sm),
+
+            // ── Location ──────────────────────────────────────────────────
+            _InfoRow(
+              icon: Icons.location_on_outlined,
+              label: lead.location.isEmpty ? 'Location N/A' : lead.location,
+            ),
+            const Gap.v(AppSpace.xxs),
+
+            // ── Phone ──────────────────────────────────────────────────────
+            _InfoRow(icon: Icons.phone_outlined, label: lead.phone),
+            const Gap.v(AppSpace.xxs),
+
+            // ── Portal + Date ──────────────────────────────────────────────
+            Row(
+              children: [
+                Icon(Icons.language_outlined, size: 13, color: c.textTertiary),
+                const Gap.h(AppSpace.xxs),
+                Text(lead.portal, style: text.caption),
+                const Gap.h(AppSpace.sm),
+                Icon(Icons.calendar_today_outlined,
+                    size: 13, color: c.textTertiary),
+                const Gap.h(AppSpace.xxs),
+                Text(lead.formattedCreatedAt, style: text.caption),
+              ],
+            ),
+
+            const Gap.v(AppSpace.md),
+
+            // ── Actions ───────────────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: SellerButton.secondary(
+                    label: 'Status',
+                    icon: Icons.edit_outlined,
+                    onPressed: onStatus,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
+                const Gap.h(AppSpace.sm),
+                Expanded(
+                  child: SellerButton(
+                    label: 'Order',
+                    icon: Icons.add_shopping_cart_outlined,
+                    onPressed: onCustomOrder,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -650,19 +421,20 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return Row(
       children: [
-        Icon(icon, size: 13, color: _L.muted),
-        const SizedBox(width: 5),
+        Icon(icon, size: 13, color: c.textTertiary),
+        const Gap.h(AppSpace.xxs),
         Expanded(
           child: Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _L.text,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+            style: text.bodySm.copyWith(
+              color: c.textPrimary,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -671,6 +443,102 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  RANGE STRIP
+// ═══════════════════════════════════════════════════════════
+class _RangeStrip extends StatelessWidget {
+  final String label;
+  final int total;
+  final int? from;
+  final int? to;
+
+  const _RangeStrip({
+    required this.label,
+    required this.total,
+    required this.from,
+    required this.to,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return SellerCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.sm,
+      ),
+      elevated: false,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: text.titleSm,
+            ),
+          ),
+          Text(
+            total == 0
+                ? '0 leads'
+                : '${from ?? 0}–${to ?? 0} of $total',
+            style: text.bodySm.copyWith(color: c.accent),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PAGINATION BAR
+// ═══════════════════════════════════════════════════════════
+class _PaginationBar extends StatelessWidget {
+  final SellerLeadsPagination pagination;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  const _PaginationBar({
+    required this.pagination,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (pagination.lastPage <= 1) return const SizedBox.shrink();
+    final text = context.sellerText;
+    final c = context.sellerColors;
+    return Row(
+      children: [
+        Expanded(
+          child: SellerButton.secondary(
+            label: 'Previous',
+            icon: Icons.chevron_left_rounded,
+            onPressed: onPrevious,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+          child: Text(
+            '${pagination.currentPage} / ${pagination.lastPage}',
+            style: text.labelSm.copyWith(color: c.textSecondary),
+          ),
+        ),
+        Expanded(
+          child: SellerButton.secondary(
+            label: 'Next',
+            trailingIcon: Icons.chevron_right_rounded,
+            onPressed: onNext,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STATUS UPDATE SHEET
+// ═══════════════════════════════════════════════════════════
 class _LeadStatusSheet extends ConsumerStatefulWidget {
   final SellerLead lead;
 
@@ -728,25 +596,36 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
     return _SheetShell(
       title: 'Update Lead Status',
       child: Form(
         key: _formKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── Status dropdown ─────────────────────────────────────────
             DropdownButtonFormField<String>(
               initialValue: _status,
-              decoration: _sheetDecoration('Status'),
+              decoration: _sheetDecoration('Status', c),
+              dropdownColor: c.surface,
+              style: text.body,
               items: sellerLeadStatuses
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(s, style: text.body),
+                      ))
                   .toList(),
               onChanged: _saving
                   ? null
                   : (value) => setState(() => _status = value ?? _status),
             ),
-            // Reason — only visible when status is Lost
+
+            // ── Reason (only when Lost) ─────────────────────────────────
             if (_isLost) ...[
-              const SizedBox(height: 12),
+              const Gap.v(AppSpace.sm),
               _SheetTextField(
                 controller: _reason,
                 label: 'Reason for Loss',
@@ -757,17 +636,23 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
                     : null,
               ),
             ],
-            const SizedBox(height: 12),
+            const Gap.v(AppSpace.sm),
+
+            // ── Comments ────────────────────────────────────────────────
             _SheetTextField(
               controller: _comments,
               label: 'Comments (optional)',
               enabled: !_saving,
               maxLines: 3,
             ),
-            _SheetButton(
+            const Gap.v(AppSpace.md),
+
+            // ── Save ─────────────────────────────────────────────────────
+            SellerButton(
               label: 'Save Status',
+              icon: Icons.save_outlined,
               loading: _saving,
-              onTap: _submit,
+              onPressed: _saving ? null : _submit,
             ),
           ],
         ),
@@ -776,6 +661,9 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  CONVERT TO CUSTOM ORDER SHEET
+// ═══════════════════════════════════════════════════════════
 class _LeadCustomOrderSheet extends ConsumerStatefulWidget {
   final SellerLead lead;
 
@@ -786,7 +674,8 @@ class _LeadCustomOrderSheet extends ConsumerStatefulWidget {
       _LeadCustomOrderSheetState();
 }
 
-class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
+class _LeadCustomOrderSheetState
+    extends ConsumerState<_LeadCustomOrderSheet> {
   final _formKey = GlobalKey<FormState>();
   final _productPrice = TextEditingController();
   final _advancePrice = TextEditingController();
@@ -819,8 +708,7 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
 
   Future<void> _loadLookups() async {
     try {
-      final cities =
-          await ref.read(sellerLeadsRepositoryProvider).getCities();
+      final cities = await ref.read(sellerLeadsRepositoryProvider).getCities();
       if (!mounted) return;
 
       SellerLeadLookup? autoCity;
@@ -837,8 +725,7 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
       });
 
       if (autoCity != null) {
-        await _onCityChanged(autoCity,
-            autoSelectAreaId: widget.lead.areaId);
+        await _onCityChanged(autoCity, autoSelectAreaId: widget.lead.areaId);
       }
     } catch (e) {
       if (!mounted) return;
@@ -908,7 +795,9 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(sellerLeadsRepositoryProvider).convertLeadToCustomOrder(
+      await ref
+          .read(sellerLeadsRepositoryProvider)
+          .convertLeadToCustomOrder(
             leadId: widget.lead.id,
             userType: _userType,
             cityId: _city!.id,
@@ -920,8 +809,7 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
             installments: _tenure,
           );
       if (!mounted) return;
-      SnackbarService().showSuccessSnackBar(
-          'Custom order created from lead.');
+      SnackbarService().showSuccessSnackBar('Custom order created from lead.');
       Navigator.pop(context, true);
     } catch (e) {
       SnackbarService().showErrorSnackBar(_cleanError(e));
@@ -930,34 +818,19 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
     }
   }
 
-  // ── Section header ────────────────────────────────────────────────────────
-  Widget _section(String title, IconData icon) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(
-          children: [
-            Icon(icon, size: 14, color: _L.brand),
-            const SizedBox(width: 6),
-            Text(
-              title.toUpperCase(),
-              style: const TextStyle(
-                color: _L.brand,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
-              ),
-            ),
-          ],
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
     if (_loadingLookups) {
       return _SheetShell(
         title: 'Convert to Custom Order',
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 32),
-          child: Center(child: CircularProgressIndicator(color: _L.brand)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.xxl),
+          child: Center(
+            child: CircularProgressIndicator(color: c.accent),
+          ),
         ),
       );
     }
@@ -969,12 +842,15 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Lead info ─────────────────────────────────────
+            // ── Lead summary ─────────────────────────────────────────────
             _LeadSummary(lead: widget.lead),
-            const SizedBox(height: 20),
+            const Gap.v(AppSpace.lg),
 
-            // ── Customer Type ────────────────────────────────
-            _section('Customer Type', Icons.person_outline_rounded),
+            // ── Customer type ────────────────────────────────────────────
+            _SheetSectionHeader(
+              icon: Icons.person_outline_rounded,
+              title: 'Customer Type',
+            ),
             Row(
               children: [
                 _TypeChip(
@@ -985,7 +861,7 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
                       ? null
                       : () => setState(() => _userType = 'auth'),
                 ),
-                const SizedBox(width: 8),
+                const Gap.h(AppSpace.sm),
                 _TypeChip(
                   label: 'Guest',
                   icon: Icons.person_outline_rounded,
@@ -996,12 +872,15 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const Gap.v(AppSpace.lg),
 
-            // ── Location ──────────────────────────────────────
-            _section('Location', Icons.location_on_outlined),
+            // ── Location ─────────────────────────────────────────────────
+            _SheetSectionHeader(
+              icon: Icons.location_on_outlined,
+              title: 'Location',
+            ),
 
-            // ── City (searchable) ────────────────────────────
+            // City (searchable)
             DropdownSearch<SellerLeadLookup>(
               items: (filter, _) => _cities
                   .where((c) =>
@@ -1014,7 +893,7 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
               onSelected: (v) => _onCityChanged(v),
               validator: (v) => v == null ? 'Select a city.' : null,
               decoratorProps: DropDownDecoratorProps(
-                decoration: _sheetDecoration('City *'),
+                decoration: _sheetDecoration('City *', c),
               ),
               popupProps: PopupProps.menu(
                 showSearchBox: true,
@@ -1034,23 +913,22 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
                 constraints: const BoxConstraints(maxHeight: 300),
               ),
             ),
-            const SizedBox(height: 12),
+            const Gap.v(AppSpace.sm),
 
-            // ── Area (searchable, loads after city) ───────────
+            // Area (searchable, loads after city)
             if (_loadingAreas)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
                 child: Row(
                   children: [
                     SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: _L.brand),
+                          strokeWidth: 2, color: c.accent),
                     ),
-                    SizedBox(width: 8),
-                    Text('Loading areas…',
-                        style: TextStyle(color: _L.muted, fontSize: 12)),
+                    const Gap.h(AppSpace.xs),
+                    Text('Loading areas…', style: text.bodySm),
                   ],
                 ),
               )
@@ -1069,6 +947,7 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
                 decoratorProps: DropDownDecoratorProps(
                   decoration: _sheetDecoration(
                     _city == null ? 'Area (select city first)' : 'Area *',
+                    c,
                   ),
                 ),
                 popupProps: PopupProps.menu(
@@ -1089,10 +968,13 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
                   constraints: const BoxConstraints(maxHeight: 300),
                 ),
               ),
-            const SizedBox(height: 20),
+            const Gap.v(AppSpace.lg),
 
-            // ── Pricing ───────────────────────────────────────
-            _section('Pricing (PKR)', Icons.payments_outlined),
+            // ── Pricing ──────────────────────────────────────────────────
+            _SheetSectionHeader(
+              icon: Icons.payments_outlined,
+              title: 'Pricing (PKR)',
+            ),
             Row(
               children: [
                 Expanded(
@@ -1104,7 +986,7 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
                     validator: _positiveNumber,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const Gap.h(AppSpace.sm),
                 Expanded(
                   child: _SheetTextField(
                     controller: _advancePrice,
@@ -1116,51 +998,51 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const Gap.v(AppSpace.lg),
 
-            // ── Plan ─────────────────────────────────────────
-            _section('Installment Plan', Icons.calendar_today_outlined),
+            // ── Installment plan ──────────────────────────────────────────
+            _SheetSectionHeader(
+              icon: Icons.calendar_today_outlined,
+              title: 'Installment Plan',
+            ),
             DropdownButtonFormField<double>(
               initialValue:
                   _markupValues.contains(_monthlyPct) ? _monthlyPct : 4.0,
-              decoration: _sheetDecoration('Monthly Markup %'),
+              decoration: _sheetDecoration('Monthly Markup %', c),
+              dropdownColor: c.surface,
+              style: text.body,
               items: _markupValues
                   .map((v) => DropdownMenuItem(
                         value: v,
-                        child:
-                            Text('${v % 1 == 0 ? v.toInt() : v}%'),
+                        child: Text(
+                          '${v % 1 == 0 ? v.toInt() : v}%',
+                          style: text.body,
+                        ),
                       ))
                   .toList(),
               onChanged: _saving
                   ? null
                   : (v) => setState(() => _monthlyPct = v ?? _monthlyPct),
             ),
-            const SizedBox(height: 14),
+            const Gap.v(AppSpace.md),
+
+            // ── Tenure slider ─────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Tenure',
-                  style: TextStyle(
-                    color: _L.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text('Tenure', style: text.label),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                    horizontal: AppSpace.sm,
+                    vertical: AppSpace.xxs,
+                  ),
                   decoration: BoxDecoration(
-                    color: _L.brand.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
+                    color: c.accentSurface,
+                    borderRadius: AppRadius.brPill,
                   ),
                   child: Text(
                     '$_tenure months',
-                    style: const TextStyle(
-                      color: _L.brand,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: text.labelSm.copyWith(color: c.accent),
                   ),
                 ),
               ],
@@ -1171,17 +1053,20 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
               max: 36,
               divisions: 33,
               label: '$_tenure mo.',
-              activeColor: _L.brand,
+              activeColor: c.accent,
+              inactiveColor: c.surfaceMuted,
               onChanged: _saving
                   ? null
                   : (v) => setState(() => _tenure = v.round()),
             ),
-            const SizedBox(height: 18),
+            const Gap.v(AppSpace.md),
 
-            _SheetButton(
+            // ── Submit ───────────────────────────────────────────────────
+            SellerButton(
               label: 'Create Custom Order',
+              icon: Icons.add_shopping_cart_outlined,
               loading: _saving,
-              onTap: _submit,
+              onPressed: _saving ? null : _submit,
             ),
           ],
         ),
@@ -1190,99 +1075,11 @@ class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
   }
 }
 
-class _TypeChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback? onTap;
+// ═══════════════════════════════════════════════════════════
+//  SHARED SHEET COMPONENTS
+// ═══════════════════════════════════════════════════════════
 
-  const _TypeChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected
-                ? _L.brand
-                : _L.brand.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected
-                  ? _L.brand
-                  : _L.border,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon,
-                  size: 15,
-                  color: selected ? Colors.white : _L.brand),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? Colors.white : _L.brand,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Small label above a slider/section
-
-class _LeadSummary extends StatelessWidget {
-  final SellerLead lead;
-
-  const _LeadSummary({required this.lead});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _L.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _L.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.person_search_outlined, color: _L.brand),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '${lead.fullName} • ${lead.productTitle}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _L.text,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+/// Frosted sheet container shared by status + convert-to-order sheets.
 class _SheetShell extends StatelessWidget {
   final String title;
   final Widget child;
@@ -1291,14 +1088,22 @@ class _SheetShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+
     return Padding(
       padding: EdgeInsets.only(bottom: bottom),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-        decoration: const BoxDecoration(
-          color: _L.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: AppRadius.sheet,
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.lg,
+          AppSpace.sm,
+          AppSpace.lg,
+          AppSpace.lg,
         ),
         child: SafeArea(
           top: false,
@@ -1307,54 +1112,83 @@ class _SheetShell extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Drag handle
                 Center(
                   child: Container(
-                    width: 42,
+                    width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: _L.border,
-                      borderRadius: BorderRadius.circular(999),
+                      color: c.borderStrong,
+                      borderRadius: AppRadius.brPill,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const Gap.v(AppSpace.md),
+
+                // Title row with back + close
                 Row(
                   children: [
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 18, color: _L.text),
+                      icon: Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 18,
+                        color: c.textPrimary,
+                      ),
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
                       tooltip: 'Go back',
                     ),
-                    const SizedBox(width: 8),
+                    const Gap.h(AppSpace.xs),
                     Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: _L.text,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
+                      child: Text(title, style: text.titleMd),
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded,
-                          size: 20, color: _L.muted),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 20,
+                        color: c.textTertiary,
+                      ),
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
                       tooltip: 'Close',
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const Gap.v(AppSpace.sm),
                 child,
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Small overline row that labels a sheet section.
+class _SheetSectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+
+  const _SheetSectionHeader({required this.icon, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.xs),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: c.accent),
+          const Gap.h(AppSpace.xs - 2),
+          Text(
+            title.toUpperCase(),
+            style: text.overline.copyWith(color: c.accent),
+          ),
+        ],
       ),
     );
   }
@@ -1379,8 +1213,9 @@ class _SheetTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpace.sm),
       child: TextFormField(
         controller: controller,
         enabled: enabled,
@@ -1390,44 +1225,60 @@ class _SheetTextField extends StatelessWidget {
             ? [FilteringTextInputFormatter.digitsOnly]
             : null,
         validator: validator,
-        decoration: _sheetDecoration(label),
+        decoration: _sheetDecoration(label, c),
       ),
     );
   }
 }
 
-class _SheetButton extends StatelessWidget {
+/// Customer-type selector chip (Registered / Guest).
+class _TypeChip extends StatelessWidget {
   final String label;
-  final bool loading;
-  final VoidCallback onTap;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback? onTap;
 
-  const _SheetButton({
+  const _TypeChip({
     required this.label,
-    required this.loading,
+    required this.icon,
+    required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: FilledButton.icon(
-        onPressed: loading ? null : onTap,
-        icon: loading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.sm - 2),
+          decoration: BoxDecoration(
+            color: selected ? c.accent : c.accentSurface,
+            borderRadius: AppRadius.brMd,
+            border: Border.all(
+              color: selected ? c.accent : c.border,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: selected ? c.onAccent : c.accent,
+              ),
+              const Gap.h(AppSpace.xs - 2),
+              Text(
+                label,
+                style: text.labelSm.copyWith(
+                  color: selected ? c.onAccent : c.accent,
+                  fontWeight: FontWeight.w700,
                 ),
-              )
-            : const Icon(Icons.save_outlined, size: 18),
-        label: Text(label),
-        style: FilledButton.styleFrom(
-          backgroundColor: _L.brand,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+              ),
+            ],
           ),
         ),
       ),
@@ -1435,224 +1286,74 @@ class _SheetButton extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color fg;
-  final Color bg;
+/// Compact lead info card shown at the top of the convert-to-order sheet.
+class _LeadSummary extends StatelessWidget {
+  final SellerLead lead;
 
-  const _StatusPill({required this.label, required this.fg, required this.bg});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w900),
-      ),
-    );
-  }
-}
-
-class _RangeStrip extends StatelessWidget {
-  final String label;
-  final int total;
-  final int? from;
-  final int? to;
-
-  const _RangeStrip({
-    required this.label,
-    required this.total,
-    required this.from,
-    required this.to,
-  });
+  const _LeadSummary({required this.lead});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _L.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _L.border),
-      ),
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return SellerCard(
+      color: c.surfaceAlt,
+      elevated: false,
       child: Row(
         children: [
+          SellerIconBadge(
+            icon: Icons.person_search_outlined,
+            tone: c.accentTone,
+            size: 38,
+            iconSize: 20,
+          ),
+          const Gap.h(AppSpace.sm),
           Expanded(
             child: Text(
-              label,
-              style: const TextStyle(
-                color: _L.text,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
+              '${lead.fullName} • ${lead.productTitle}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySm.copyWith(
+                color: c.textPrimary,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          Text(
-            total == 0 ? '0 leads' : '${from ?? 0}-${to ?? 0} of $total',
-            style: const TextStyle(
-              color: _L.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-class _PaginationBar extends StatelessWidget {
-  final SellerLeadsPagination pagination;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
+// ═══════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════
 
-  const _PaginationBar({
-    required this.pagination,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (pagination.lastPage <= 1) return const SizedBox.shrink();
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onPrevious,
-            icon: const Icon(Icons.chevron_left_rounded),
-            label: const Text('Previous'),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            '${pagination.currentPage}/${pagination.lastPage}',
-            style: const TextStyle(
-              color: _L.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onNext,
-            icon: const Icon(Icons.chevron_right_rounded),
-            label: const Text('Next'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LeadSkeleton extends StatelessWidget {
-  const _LeadSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        4,
-        (_) => Container(
-          height: 190,
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: _L.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _L.border),
-          ),
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorCard({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _L.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _L.border),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.error_outline_rounded, color: _L.danger),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: _L.text, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: _L.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _L.border),
-      ),
-      child: const Column(
-        children: [
-          Icon(Icons.person_search_outlined, color: _L.muted, size: 32),
-          SizedBox(height: 10),
-          Text(
-            'No leads found.',
-            style: TextStyle(color: _L.text, fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-InputDecoration _sheetDecoration(String label) {
+InputDecoration _sheetDecoration(String label, SellerColors c) {
   return InputDecoration(
     labelText: label,
     filled: true,
-    fillColor: _L.surfaceAlt,
+    fillColor: c.surfaceAlt,
+    labelStyle: TextStyle(color: c.textSecondary),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _L.border),
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _L.border),
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _L.brand, width: 1.4),
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.accent, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.danger),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.danger, width: 1.6),
     ),
   );
 }
@@ -1674,23 +1375,6 @@ List<SellerLead> _filter(List<SellerLead> leads, String query) {
             lead.status.toLowerCase().contains(q);
       })
       .toList(growable: false);
-}
-
-({Color fg, Color bg}) _statusColors(String status) {
-  final lower = status.toLowerCase();
-  if (lower.contains('won')) {
-    return (fg: _L.success, bg: _L.success.withValues(alpha: 0.12));
-  }
-  if (lower.contains('lost') || lower.contains('no response')) {
-    return (fg: _L.danger, bg: _L.danger.withValues(alpha: 0.12));
-  }
-  if (lower.contains('follow')) {
-    return (fg: _L.warning, bg: _L.warning.withValues(alpha: 0.12));
-  }
-  if (lower.contains('contact')) {
-    return (fg: _L.info, bg: _L.info.withValues(alpha: 0.12));
-  }
-  return (fg: _L.brand, bg: _L.brand.withValues(alpha: 0.12));
 }
 
 String _cleanError(Object error) {

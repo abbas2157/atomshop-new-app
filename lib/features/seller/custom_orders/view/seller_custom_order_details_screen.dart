@@ -1,27 +1,25 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  seller_custom_order_details_screen.dart  —  Seller Design System
+//
+//  Rebuilt on the unified Seller Design System. All Riverpod / business logic
+//  is unchanged: detail + guarantor providers, PDF open, status update, close
+//  deal and guarantor save flows behave exactly as before. Pure presentation.
+//
+//  This screen is pushed as its own route, so the top Scaffold is wrapped in a
+//  [SellerThemeScope]; the modal sheets capture brightness and wrap their
+//  result in an explicit [Theme] so they render in the correct palette.
+// ═══════════════════════════════════════════════════════════════════════════
+
 import 'package:atompro/core/services/snackbar_services.dart';
+import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
+import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/model/seller_custom_orders_model.dart';
 import 'package:atompro/features/seller/custom_orders/repository/seller_custom_orders_repository.dart';
 import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_orders_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-abstract final class _D {
-  static const brand = Color(0xFF3B5BDB);
-  static const brandDeep = Color(0xFF1A2980);
-  static const bg = Color(0xFFF4F6FC);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceAlt = Color(0xFFF8FAFE);
-  static const border = Color(0xFFE4E8F5);
-  static const txt1 = Color(0xFF0A0F1E);
-  static const txt2 = Color(0xFF6B7280);
-  static const txt3 = Color(0xFF9CA3AF);
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-  static const danger = Color(0xFFEF4444);
-  static const info = Color(0xFF06B6D4);
-}
 
 class SellerCustomOrderDetailsScreen extends ConsumerWidget {
   final String orderUuid;
@@ -35,88 +33,87 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(sellerCustomOrderDetailsProvider(orderUuid));
+    return SellerThemeScope(
+      child: Builder(
+        builder: (context) {
+          final c = context.sellerColors;
+          final text = context.sellerText;
+          final state = ref.watch(sellerCustomOrderDetailsProvider(orderUuid));
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: _D.bg,
-        appBar: AppBar(
-          backgroundColor: _D.bg,
-          surfaceTintColor: _D.bg,
-          titleSpacing: 0,
-          title: const Text(
-            'Custom Order Details',
-            style: TextStyle(
-              color: _D.txt1,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+          return Scaffold(
+            backgroundColor: c.canvas,
+            appBar: AppBar(
+              backgroundColor: c.canvas,
+              surfaceTintColor: c.canvas,
+              titleSpacing: 0,
+              title: Text('Custom Order Details', style: text.titleMd),
+              actions: [
+                IconButton(
+                  tooltip: 'Open PDF',
+                  onPressed: () => _openPdf(ref, orderUuid),
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: () {
+                    ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
+                    ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
+                  },
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
             ),
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Open PDF',
-              onPressed: () => _openPdf(ref, orderUuid),
-              icon: const Icon(Icons.picture_as_pdf_outlined),
+            body: state.when(
+              loading: () => _LoadingView(initialOrder: initialOrder),
+              error: (error, _) => SellerErrorState(
+                message: error.toString().replaceFirst('Exception: ', ''),
+                onRetry: () =>
+                    ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid)),
+              ),
+              data: (details) => _DetailsContent(
+                details: details,
+                orderUuid: orderUuid,
+                guarantorState: ref.watch(
+                  sellerCustomOrderGuarantorProvider(orderUuid),
+                ),
+                onUpdateStatus: () => _showStatusSheet(
+                  context: context,
+                  ref: ref,
+                  orderUuid: orderUuid,
+                  currentStatus: details.order.status,
+                  receivedBy: details.user.name,
+                ),
+                // Close Deal is only relevant once the order is on Instalments
+                onCloseDeal:
+                    (!details.order.dealClosed &&
+                        details.order.status
+                            .toLowerCase()
+                            .contains('instalment'))
+                    ? () => _showCloseDealSheet(
+                        context: context,
+                        ref: ref,
+                        orderUuid: orderUuid,
+                        order: details.order,
+                      )
+                    : null,
+                onAddGuarantor: (initial) => _showGuarantorSheet(
+                  context: context,
+                  ref: ref,
+                  orderUuid: orderUuid,
+                  initial: initial,
+                ),
+                onRefresh: () async {
+                  ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
+                  ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
+                  await Future.wait([
+                    ref.read(sellerCustomOrderDetailsProvider(orderUuid).future),
+                    ref.read(sellerCustomOrderGuarantorProvider(orderUuid).future),
+                  ]);
+                },
+              ),
             ),
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: () {
-                ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
-                ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
-              },
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-        ),
-        body: state.when(
-          loading: () => _LoadingView(initialOrder: initialOrder),
-          error: (error, _) => _ErrorView(
-            message: error.toString().replaceFirst('Exception: ', ''),
-            onRetry: () =>
-                ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid)),
-          ),
-          data: (details) => _DetailsContent(
-            details: details,
-            orderUuid: orderUuid,
-            guarantorState: ref.watch(
-              sellerCustomOrderGuarantorProvider(orderUuid),
-            ),
-            onUpdateStatus: () => _showStatusSheet(
-              context: context,
-              ref: ref,
-              orderUuid: orderUuid,
-              currentStatus: details.order.status,
-              receivedBy: details.user.name,
-            ),
-            // Close Deal is only relevant once the order is on Instalments
-            onCloseDeal: (!details.order.dealClosed &&
-                    details.order.status
-                        .toLowerCase()
-                        .contains('instalment'))
-                ? () => _showCloseDealSheet(
-                    context: context,
-                    ref: ref,
-                    orderUuid: orderUuid,
-                    order: details.order,
-                  )
-                : null,
-            onAddGuarantor: (initial) => _showGuarantorSheet(
-              context: context,
-              ref: ref,
-              orderUuid: orderUuid,
-              initial: initial,
-            ),
-            onRefresh: () async {
-              ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
-              ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
-              await Future.wait([
-                ref.read(sellerCustomOrderDetailsProvider(orderUuid).future),
-                ref.read(sellerCustomOrderGuarantorProvider(orderUuid).future),
-              ]);
-            },
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -154,26 +151,28 @@ class _DetailsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     final order = details.order;
     final user = details.user;
     final customer = user.customer;
     final specs = order.product.customFieldsMap;
 
     return RefreshIndicator(
-      color: _D.brand,
+      color: c.accent,
+      backgroundColor: c.surface,
       onRefresh: onRefresh,
       child: ListView(
         physics: const BouncingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
         ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+        padding: AppInsets.pageWithNav,
         children: [
           _HeroCard(
             order: order,
             onUpdateStatus: onUpdateStatus,
             onCloseDeal: onCloseDeal,
           ),
-          const SizedBox(height: 14),
+          const Gap.v(AppSpace.md),
 
           // ORDER DETAILS
           _SectionCard(
@@ -184,7 +183,7 @@ class _DetailsContent extends StatelessWidget {
 
           // PRODUCT SPECS (custom fields — only when present)
           if (specs.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const Gap.v(AppSpace.sm),
             _SectionCard(
               title: 'Product Specifications',
               icon: Icons.tune_outlined,
@@ -193,33 +192,37 @@ class _DetailsContent extends StatelessWidget {
           ],
 
           // PRODUCT INFORMATION
-          const SizedBox(height: 12),
+          const Gap.v(AppSpace.sm),
           _SectionCard(
             title: 'Product Information',
             icon: Icons.inventory_2_outlined,
             child: Column(
               children: [
-                _GridRow('Product', order.product.title, 'PR Number', order.product.prNumber),
-                _GridRow('Product Price', order.product.formattedPrice, 'Advance Price', order.product.formattedAdvancePrice),
+                _GridRow('Product', order.product.title, 'PR Number',
+                    order.product.prNumber),
+                _GridRow('Product Price', order.product.formattedPrice,
+                    'Advance Price', order.product.formattedAdvancePrice),
               ],
             ),
           ),
 
           // OTHER DETAILS
-          const SizedBox(height: 12),
+          const Gap.v(AppSpace.sm),
           _SectionCard(
             title: 'Other Details',
             icon: Icons.info_outline_rounded,
             child: Column(
               children: [
-                _GridRow('Outstanding', 'Rs ${details.outstandingPrincipal}', 'Settlement', order.formattedSettlementAmount),
-                _GridRow('Deal Closed', order.dealClosed ? 'Yes' : 'No', '', ''),
+                _GridRow('Outstanding', 'Rs ${details.outstandingPrincipal}',
+                    'Settlement', order.formattedSettlementAmount),
+                _GridRow(
+                    'Deal Closed', order.dealClosed ? 'Yes' : 'No', '', ''),
               ],
             ),
           ),
 
           // CUSTOMER DETAILS
-          const SizedBox(height: 12),
+          const Gap.v(AppSpace.sm),
           _SectionCard(
             title: 'Customer Details',
             icon: Icons.person_outline_rounded,
@@ -232,7 +235,7 @@ class _DetailsContent extends StatelessWidget {
 
           // INSTALMENT DETAILS
           if (details.instalments.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const Gap.v(AppSpace.sm),
             _SectionCard(
               title: 'Instalment Details',
               icon: Icons.payments_outlined,
@@ -241,7 +244,7 @@ class _DetailsContent extends StatelessWidget {
           ],
 
           // ORDER GUARANTORS
-          const SizedBox(height: 12),
+          const Gap.v(AppSpace.sm),
           _GuarantorSection(
             state: guarantorState,
             onAdd: () => onAddGuarantor(guarantorState.asData?.value),
@@ -249,7 +252,7 @@ class _DetailsContent extends StatelessWidget {
 
           // ORDER CHANGE HISTORY
           if (details.statusHistory.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const Gap.v(AppSpace.sm),
             _SectionCard(
               title: 'Order Change History',
               icon: Icons.history_rounded,
@@ -262,6 +265,7 @@ class _DetailsContent extends StatelessWidget {
   }
 }
 
+// ── Hero card ────────────────────────────────────────────────────────────────
 class _HeroCard extends StatelessWidget {
   final SellerCustomOrderDetailOrder order;
   final VoidCallback onUpdateStatus;
@@ -275,19 +279,15 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _statusColors(order.status);
+    final c = context.sellerColors;
 
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_D.brandDeep, _D.brand],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
+        gradient: c.headerGradient,
+        borderRadius: AppRadius.brXl,
         boxShadow: [
           BoxShadow(
-            color: _D.brand.withValues(alpha: 0.28),
+            color: c.gradientEnd.withValues(alpha: 0.28),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -308,7 +308,7 @@ class _HeroCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(AppSpace.md + 2),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -321,22 +321,19 @@ class _HeroCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
+                          fontFamily: 'Roboto',
                           color: Colors.white,
                           fontSize: 20,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                           height: 1.15,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    _StatusPill(
-                      label: order.status,
-                      fg: colors.fg,
-                      bg: colors.bg,
-                    ),
+                    const Gap.h(AppSpace.sm),
+                    _HeroStatusPill(label: order.status),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const Gap.v(AppSpace.md),
                 Row(
                   children: [
                     Expanded(
@@ -359,20 +356,22 @@ class _HeroCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const Gap.v(AppSpace.sm),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: AppSpace.xs,
+                  runSpacing: AppSpace.xs,
                   children: [
                     _HeroChip(icon: Icons.public_rounded, label: order.portal),
                     _HeroChip(
                       icon: Icons.calendar_month_outlined,
                       label: order.formattedCreatedAt,
                     ),
-                    _HeroChip(icon: Icons.tag_outlined, label: order.product.prNumber),
+                    _HeroChip(
+                        icon: Icons.tag_outlined,
+                        label: order.product.prNumber),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const Gap.v(AppSpace.md),
                 Row(
                   children: [
                     Expanded(
@@ -383,7 +382,7 @@ class _HeroCard extends StatelessWidget {
                       ),
                     ),
                     if (onCloseDeal != null) ...[
-                      const SizedBox(width: 10),
+                      const Gap.h(AppSpace.sm),
                       Expanded(
                         child: _HeroActionButton(
                           icon: Icons.handshake_outlined,
@@ -403,6 +402,38 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
+/// A status pill rendered on the hero gradient (frosted, always white text).
+class _HeroStatusPill extends StatelessWidget {
+  final String label;
+  const _HeroStatusPill({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.xs + 1,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: AppRadius.brPill,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontFamily: 'Roboto',
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
 class _HeroActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -416,16 +447,41 @@ class _HeroActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16),
-      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white,
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.34)),
-        minimumSize: const Size(0, 44),
-        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Material(
+      color: Colors.white.withValues(alpha: 0.14),
+      borderRadius: AppRadius.brMd,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.brMd,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.34)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: Colors.white),
+              const Gap.h(AppSpace.xs),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -445,21 +501,23 @@ class _HeroMetric extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
+            fontFamily: 'Roboto',
             color: Colors.white.withValues(alpha: 0.62),
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 3),
+        const Gap.v(AppSpace.xxs - 1),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
             value,
             style: const TextStyle(
+              fontFamily: 'Roboto',
               color: Colors.white,
               fontSize: 14,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
@@ -477,20 +535,24 @@ class _HeroChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.xs + 1,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: AppRadius.brPill,
         border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: Colors.white, size: 13),
-          const SizedBox(width: 5),
+          const Gap.h(AppSpace.xxs + 1),
           Text(
             label,
             style: const TextStyle(
+              fontFamily: 'Roboto',
               color: Colors.white,
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -516,41 +578,36 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _D.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _D.border),
-      ),
+    final c = context.sellerColors;
+    return SellerCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpace.md,
+              vertical: AppSpace.sm,
+            ),
             decoration: BoxDecoration(
-              color: _D.brand.withValues(alpha: 0.05),
-              border: const Border(bottom: BorderSide(color: _D.border)),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(13),
-              ),
+              color: c.accentSurface,
+              border: Border(bottom: BorderSide(color: c.border)),
             ),
             child: Row(
               children: [
-                Icon(icon, size: 15, color: _D.brand),
-                const SizedBox(width: 7),
-                Text(
-                  title.toUpperCase(),
-                  style: const TextStyle(
-                    color: _D.txt1,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.7,
-                  ),
+                Icon(icon, size: 16, color: c.accent),
+                const Gap.h(AppSpace.xs),
+                Expanded(
+                  child: Text(title.toUpperCase(),
+                      style: context.sellerText.overline.copyWith(
+                        color: c.accent,
+                      )),
                 ),
               ],
             ),
           ),
-          Padding(padding: const EdgeInsets.all(14), child: child),
+          Padding(padding: const EdgeInsets.all(AppSpace.md), child: child),
         ],
       ),
     );
@@ -569,12 +626,12 @@ class _GridRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpace.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(child: _Cell(label: label1, value: value1)),
-          const SizedBox(width: 12),
+          const Gap.h(AppSpace.sm),
           Expanded(child: _Cell(label: label2, value: value2)),
         ],
       ),
@@ -589,27 +646,19 @@ class _Cell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = context.sellerText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: _D.txt3,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 3),
+        Text(label, style: text.caption),
+        const Gap.v(AppSpace.xxs - 1),
         Text(
           value.isEmpty ? '—' : value,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: _D.txt1,
-            fontSize: 12,
+          style: text.bodySm.copyWith(
+            color: context.sellerColors.textPrimary,
             fontWeight: FontWeight.w700,
-            height: 1.3,
           ),
         ),
       ],
@@ -626,9 +675,12 @@ class _OrderDetailsContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _GridRow('Total Deal Amount', order.formattedTotalDealPrice, 'Advance Amount', order.formattedAdvancePrice),
-        _GridRow('Sourcing Agent Fee', order.formattedSourcingAgentFee, 'Installment Tenure', '${order.tenure} months'),
-        _GridRow('Monthly %', '${order.perMonthPercentage}% / mo', 'Order Date', order.formattedCreatedAt),
+        _GridRow('Total Deal Amount', order.formattedTotalDealPrice,
+            'Advance Amount', order.formattedAdvancePrice),
+        _GridRow('Sourcing Agent Fee', order.formattedSourcingAgentFee,
+            'Installment Tenure', '${order.tenure} months'),
+        _GridRow('Monthly %', '${order.perMonthPercentage}% / mo', 'Order Date',
+            order.formattedCreatedAt),
       ],
     );
   }
@@ -641,6 +693,7 @@ class _SpecsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     final entries = specs.entries.toList();
     final rows = <List<MapEntry<String, String>>>[];
     for (var i = 0; i < entries.length; i += 2) {
@@ -654,16 +707,19 @@ class _SpecsGrid extends StatelessWidget {
         final isLast = re.key == rows.length - 1;
         final pair = re.value;
         return Container(
-          margin: EdgeInsets.only(bottom: isLast ? 0 : 8),
+          margin: EdgeInsets.only(bottom: isLast ? 0 : AppSpace.xs),
           child: IntrinsicHeight(
             child: Row(
               children: [
-                Expanded(child: _SpecCell(title: pair[0].key, value: pair[0].value)),
+                Expanded(
+                    child: _SpecCell(title: pair[0].key, value: pair[0].value)),
                 if (pair.length > 1) ...[
-                  const SizedBox(width: 1),
-                  Container(width: 1, color: _D.border),
-                  const SizedBox(width: 1),
-                  Expanded(child: _SpecCell(title: pair[1].key, value: pair[1].value)),
+                  const Gap.h(AppSpace.xs),
+                  Container(width: 1, color: c.border),
+                  const Gap.h(AppSpace.xs),
+                  Expanded(
+                      child:
+                          _SpecCell(title: pair[1].key, value: pair[1].value)),
                 ],
               ],
             ),
@@ -681,38 +737,35 @@ class _SpecCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.sm,
+        vertical: AppSpace.xs,
+      ),
       decoration: BoxDecoration(
-        color: _D.surfaceAlt,
-        borderRadius: BorderRadius.circular(8),
+        color: c.surfaceAlt,
+        borderRadius: AppRadius.brSm,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             flex: 5,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: _D.txt2,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text(title, style: text.caption),
           ),
-          const SizedBox(width: 6),
+          const Gap.h(AppSpace.xs - 2),
           Expanded(
             flex: 5,
             child: Text(
               value.isEmpty ? '—' : value,
-              style: const TextStyle(
-                color: _D.txt1,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
+              style: text.bodySm.copyWith(
+                color: c.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -735,43 +788,34 @@ class _CustomerContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     const na = '—';
     return Column(
       children: [
-        _GridRow('Identifier', hasCustomer ? customer.identifier : na,
-            'Name', user.name),
+        _GridRow('Identifier', hasCustomer ? customer.identifier : na, 'Name',
+            user.name),
         _GridRow('Phone', user.phone, 'Email', user.email),
-        _GridRow('Father Name', hasCustomer ? customer.fatherName : na,
-            'CNIC', hasCustomer ? customer.cnicNo : na),
-        _GridRow('Address', hasCustomer ? customer.address : na,
-            'Res. Phone', hasCustomer ? customer.residencePhone : na),
-        _GridRow(
-            'Office Address', hasCustomer ? customer.officeAddress : na,
+        _GridRow('Father Name', hasCustomer ? customer.fatherName : na, 'CNIC',
+            hasCustomer ? customer.cnicNo : na),
+        _GridRow('Address', hasCustomer ? customer.address : na, 'Res. Phone',
+            hasCustomer ? customer.residencePhone : na),
+        _GridRow('Office Address', hasCustomer ? customer.officeAddress : na,
             'Office Phone', hasCustomer ? customer.officePhone : na),
-        _GridRow('Joined Date', user.formattedCreatedAt,
-            'Joined Through', user.joinedThrough),
-        _GridRow('Portal', hasCustomer ? customer.portal : na,
-            'Status', user.status),
+        _GridRow('Joined Date', user.formattedCreatedAt, 'Joined Through',
+            user.joinedThrough),
+        _GridRow('Portal', hasCustomer ? customer.portal : na, 'Status',
+            user.status),
         if (hasCustomer) ...[
-          const SizedBox(height: 4),
-          const Divider(height: 1, color: _D.border),
-          const SizedBox(height: 10),
+          const Gap.v(AppSpace.xxs),
+          Divider(height: 1, color: c.divider),
+          const Gap.v(AppSpace.sm),
           Row(
             children: [
-              const Text(
-                'KYC Verification',
-                style: TextStyle(
-                  color: _D.txt2,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              Text('KYC Verification', style: text.label),
               const Spacer(),
-              _StatusPill(
+              SellerStatusPill(
                 label: customer.verified ? 'Verified' : 'Not Verified',
-                fg: customer.verified ? _D.success : _D.danger,
-                bg: (customer.verified ? _D.success : _D.danger)
-                    .withValues(alpha: 0.12),
               ),
             ],
           ),
@@ -788,25 +832,21 @@ class _InstalmentsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return Column(
       children: items.asMap().entries.map((e) {
         final isLast = e.key == items.length - 1;
         final item = e.value;
-        final fg = item.isPaid ? _D.success : _D.warning;
-        final bg = (item.isPaid ? _D.success : _D.warning)
-            .withValues(alpha: 0.12);
+        final tone = item.isPaid ? c.successTone : c.warningTone;
         return Container(
-          margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
-          padding: const EdgeInsets.all(12),
+          margin: EdgeInsets.only(bottom: isLast ? 0 : AppSpace.sm),
+          padding: const EdgeInsets.all(AppSpace.sm),
           decoration: BoxDecoration(
-            color: item.isPaid
-                ? _D.success.withValues(alpha: 0.04)
-                : _D.surfaceAlt,
-            borderRadius: BorderRadius.circular(10),
+            color: item.isPaid ? c.successSurface : c.surfaceAlt,
+            borderRadius: AppRadius.brSm,
             border: Border.all(
-              color: item.isPaid
-                  ? _D.success.withValues(alpha: 0.25)
-                  : _D.border,
+              color: item.isPaid ? tone.border : c.border,
             ),
           ),
           child: Column(
@@ -817,19 +857,15 @@ class _InstalmentsContent extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item.month,
-                      style: const TextStyle(
-                        color: _D.txt1,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: text.bodyLg.copyWith(fontWeight: FontWeight.w800),
                     ),
                   ),
-                  _StatusPill(label: item.status, fg: fg, bg: bg),
+                  SellerStatusPill(label: item.status),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Divider(height: 1, color: _D.border),
-              const SizedBox(height: 8),
+              const Gap.v(AppSpace.xs),
+              Divider(height: 1, color: c.divider),
+              const Gap.v(AppSpace.xs),
               _GridRow(
                 'Amount',
                 item.formattedInstalmentPrice,
@@ -859,11 +895,13 @@ class _HistoryContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return Column(
       children: items.asMap().entries.map((e) {
         final isLast = e.key == items.length - 1;
         final item = e.value;
-        final c = _statusColors(item.status);
+        final tone = SellerStatus.toneFor(item.status, c);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -872,79 +910,63 @@ class _HistoryContent extends StatelessWidget {
                 Container(
                   width: 28,
                   height: 28,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: c.bg,
+                    color: tone.bg,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: c.fg.withValues(alpha: 0.3),
-                    ),
+                    border: Border.all(color: tone.border),
                   ),
                   child: Icon(
                     Icons.radio_button_checked_rounded,
                     size: 13,
-                    color: c.fg,
+                    color: tone.fg,
                   ),
                 ),
                 if (!isLast)
-                  Container(
-                    width: 1.5,
-                    height: 44,
-                    color: _D.border,
-                  ),
+                  Container(width: 1.5, height: 44, color: c.border),
               ],
             ),
-            const SizedBox(width: 10),
+            const Gap.h(AppSpace.sm),
             Expanded(
               child: Padding(
-                padding: EdgeInsets.only(bottom: isLast ? 0 : 6),
+                padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpace.xs),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        _StatusPill(
-                          label: item.status,
-                          fg: c.fg,
-                          bg: c.bg,
-                        ),
+                        SellerStatusPill(label: item.status),
                         const Spacer(),
-                        Text(
-                          item.formattedCreatedAt,
-                          style: const TextStyle(
-                            color: _D.txt3,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        Text(item.formattedCreatedAt, style: text.caption),
                       ],
                     ),
                     if (item.comment.isNotEmpty &&
                         item.comment != 'Not available') ...[
-                      const SizedBox(height: 5),
+                      const Gap.v(AppSpace.xxs + 1),
                       Text(
                         item.comment,
-                        style: const TextStyle(
-                          color: _D.txt1,
-                          fontSize: 12,
+                        style: text.bodySm.copyWith(
+                          color: c.textPrimary,
                           fontWeight: FontWeight.w600,
-                          height: 1.35,
                         ),
                       ),
                     ],
                     // Render all payload key-value pairs
                     if (item.payloadDetails.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const Gap.v(AppSpace.xs - 2),
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(AppSpace.xs),
                         decoration: BoxDecoration(
-                          color: _D.surfaceAlt,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _D.border),
+                          color: c.surfaceAlt,
+                          borderRadius: AppRadius.brSm,
+                          border: Border.all(color: c.border),
                         ),
                         child: Column(
                           children: item.payloadDetails.entries.map((kv) {
                             return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppSpace.xxs / 2,
+                              ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -952,19 +974,14 @@ class _HistoryContent extends StatelessWidget {
                                     width: 110,
                                     child: Text(
                                       _formatPayloadKey(kv.key),
-                                      style: const TextStyle(
-                                        color: _D.txt3,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: text.caption,
                                     ),
                                   ),
                                   Expanded(
                                     child: Text(
                                       kv.value.isEmpty ? '—' : kv.value,
-                                      style: const TextStyle(
-                                        color: _D.txt1,
-                                        fontSize: 11,
+                                      style: text.caption.copyWith(
+                                        color: c.textPrimary,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -976,14 +993,8 @@ class _HistoryContent extends StatelessWidget {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 3),
-                    Text(
-                      item.role,
-                      style: const TextStyle(
-                        color: _D.txt3,
-                        fontSize: 11,
-                      ),
-                    ),
+                    const Gap.v(AppSpace.xxs - 1),
+                    Text(item.role, style: text.caption),
                   ],
                 ),
               ),
@@ -1003,136 +1014,68 @@ class _GuarantorSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = context.sellerText;
     return _SectionCard(
       title: 'Order Guarantors',
       icon: Icons.assignment_ind_outlined,
       child: state.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 10),
-                Text(
-                  'Loading guarantor...',
-                  style: TextStyle(
-                    color: _D.txt2,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          error: (error, _) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        loading: () => Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+          child: Row(
             children: [
-              _SheetError(
-                message: error.toString().replaceFirst('Exception: ', ''),
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-              const SizedBox(height: 10),
-              _InlineAction(
-                icon: Icons.add_rounded,
-                label: 'Add Guarantor',
-                onTap: onAdd,
-              ),
+              const Gap.h(AppSpace.sm),
+              Text('Loading guarantor...', style: text.bodySm),
             ],
           ),
-          data: (guarantor) {
-            if (!guarantor.exists) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'No guarantor added for this order.',
-                    style: TextStyle(
-                      color: _D.txt2,
-                      fontSize: 12,
-                      height: 1.4,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _InlineAction(
-                    icon: Icons.add_rounded,
-                    label: 'Add Guarantor',
-                    onTap: onAdd,
-                  ),
-                ],
-              );
-            }
+        ),
+        error: (error, _) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _SheetError(
+              message: error.toString().replaceFirst('Exception: ', ''),
+            ),
+            const Gap.v(AppSpace.sm),
+            SellerButton.secondary(
+              label: 'Add Guarantor',
+              icon: Icons.add_rounded,
+              onPressed: onAdd,
+            ),
+          ],
+        ),
+        data: (guarantor) {
+          if (!guarantor.exists) {
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _GridRow('Name', guarantor.name, 'Phone', guarantor.phone),
-                _GridRow('CNIC', guarantor.cnic, 'Added', guarantor.createdAt),
-                _GridRow('Address', guarantor.address, '', ''),
-                const SizedBox(height: 10),
-                _InlineAction(
-                  icon: Icons.edit_outlined,
-                  label: 'Update Guarantor',
-                  onTap: onAdd,
+                Text('No guarantor added for this order.', style: text.bodySm),
+                const Gap.v(AppSpace.sm),
+                SellerButton.secondary(
+                  label: 'Add Guarantor',
+                  icon: Icons.add_rounded,
+                  onPressed: onAdd,
                 ),
               ],
             );
-          },
-        ),
-    );
-  }
-}
-
-class _InlineAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _InlineAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _D.brand,
-        side: const BorderSide(color: _D.border),
-        minimumSize: const Size(double.infinity, 44),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color fg;
-  final Color bg;
-
-  const _StatusPill({required this.label, required this.fg, required this.bg});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: fg.withValues(alpha: 0.18)),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.w900),
+          }
+          return Column(
+            children: [
+              _GridRow('Name', guarantor.name, 'Phone', guarantor.phone),
+              _GridRow('CNIC', guarantor.cnic, 'Added', guarantor.createdAt),
+              _GridRow('Address', guarantor.address, '', ''),
+              const Gap.v(AppSpace.xs),
+              SellerButton.secondary(
+                label: 'Update Guarantor',
+                icon: Icons.edit_outlined,
+                onPressed: onAdd,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1145,90 +1088,35 @@ class _LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = context.sellerText;
+    if (initialOrder == null) {
+      return const SellerListSkeleton();
+    }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+      padding: AppInsets.pageWithNav,
       children: [
-        if (initialOrder != null)
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: _D.surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _D.border),
-            ),
-            child: Row(
-              children: [
-                const CircularProgressIndicator(strokeWidth: 2),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    'Loading ${initialOrder!.product.title}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _D.txt1,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          const Center(child: CircularProgressIndicator()),
-      ],
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorView({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: _D.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _D.border),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        SellerCard(
+          padding: const EdgeInsets.all(AppSpace.md + 2),
+          child: Row(
             children: [
-              const Icon(Icons.wifi_off_rounded, color: _D.danger, size: 34),
-              const SizedBox(height: 12),
-              const Text(
-                'Could not load order details',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _D.txt1,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const Gap.h(AppSpace.sm),
+              Expanded(
+                child: Text(
+                  'Loading ${initialOrder!.product.title}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodyLg.copyWith(fontWeight: FontWeight.w700),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: _D.txt2, fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Try again'),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -1242,28 +1130,14 @@ String _formatPayloadKey(String key) {
       .join(' ');
 }
 
-({Color fg, Color bg}) _statusColors(String status) {
-  final s = status.toLowerCase();
-  if (s.contains('complete') || s.contains('deliver')) {
-    return (fg: _D.success, bg: _D.success.withValues(alpha: 0.12));
-  }
-  if (s.contains('pending')) {
-    return (fg: _D.warning, bg: _D.warning.withValues(alpha: 0.14));
-  }
-  if (s.contains('cancel')) {
-    return (fg: _D.danger, bg: _D.danger.withValues(alpha: 0.12));
-  }
-  if (s.contains('verif')) {
-    return (fg: _D.info, bg: _D.info.withValues(alpha: 0.14));
-  }
-  return (fg: _D.brand, bg: _D.brand.withValues(alpha: 0.12));
-}
-
 String _cleanError(Object error) {
   final text = error.toString().replaceFirst('Exception: ', '').trim();
   return text.isEmpty ? 'Something went wrong. Please try again.' : text;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  MODAL SHEETS (status / close-deal / guarantor)
+// ═══════════════════════════════════════════════════════════════════════════
 Future<void> _showStatusSheet({
   required BuildContext context,
   required WidgetRef ref,
@@ -1271,14 +1145,18 @@ Future<void> _showStatusSheet({
   required String currentStatus,
   required String receivedBy,
 }) async {
+  final dark = context.sellerIsDark;
   final changed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _StatusUpdateSheet(
-      orderUuid: orderUuid,
-      currentStatus: currentStatus,
-      receivedBy: receivedBy,
+    builder: (_) => Theme(
+      data: dark ? SellerTheme.dark : SellerTheme.light,
+      child: _StatusUpdateSheet(
+        orderUuid: orderUuid,
+        currentStatus: currentStatus,
+        receivedBy: receivedBy,
+      ),
     ),
   );
 
@@ -1294,11 +1172,15 @@ Future<void> _showCloseDealSheet({
   required String orderUuid,
   required SellerCustomOrderDetailOrder order,
 }) async {
+  final dark = context.sellerIsDark;
   final changed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _CloseDealSheet(orderUuid: orderUuid, order: order),
+    builder: (_) => Theme(
+      data: dark ? SellerTheme.dark : SellerTheme.light,
+      child: _CloseDealSheet(orderUuid: orderUuid, order: order),
+    ),
   );
 
   if (changed == true) {
@@ -1313,11 +1195,15 @@ Future<void> _showGuarantorSheet({
   required String orderUuid,
   required SellerCustomOrderGuarantor? initial,
 }) async {
+  final dark = context.sellerIsDark;
   final changed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _GuarantorSheet(orderUuid: orderUuid, initial: initial),
+    builder: (_) => Theme(
+      data: dark ? SellerTheme.dark : SellerTheme.light,
+      child: _GuarantorSheet(orderUuid: orderUuid, initial: initial),
+    ),
   );
 
   if (changed == true) {
@@ -1411,11 +1297,11 @@ class _GuarantorSheetState extends ConsumerState<_GuarantorSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
+            _SheetField(
               controller: _nameCtrl,
+              label: 'Name',
               enabled: !_saving,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: 'Name'),
               validator: (value) {
                 if (value == null || value.trim().length < 3) {
                   return 'Enter guarantor name.';
@@ -1423,37 +1309,37 @@ class _GuarantorSheetState extends ConsumerState<_GuarantorSheet> {
                 return null;
               },
             ),
-            const SizedBox(height: 12),
-            TextFormField(
+            const Gap.v(AppSpace.sm),
+            _SheetField(
               controller: _phoneCtrl,
+              label: 'Phone',
               enabled: !_saving,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: 'Phone'),
               validator: (value) {
                 final digits = value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
                 if (digits.length < 10) return 'Enter a valid phone number.';
                 return null;
               },
             ),
-            const SizedBox(height: 12),
-            TextFormField(
+            const Gap.v(AppSpace.sm),
+            _SheetField(
               controller: _cnicCtrl,
+              label: 'CNIC',
               enabled: !_saving,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: 'CNIC'),
               validator: (value) {
                 final digits = value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
                 if (digits.length < 13) return 'Enter a valid CNIC.';
                 return null;
               },
             ),
-            const SizedBox(height: 12),
-            TextFormField(
+            const Gap.v(AppSpace.sm),
+            _SheetField(
               controller: _addressCtrl,
+              label: 'Address',
               enabled: !_saving,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Address'),
               validator: (value) {
                 if (value == null || value.trim().length < 8) {
                   return 'Enter guarantor address.';
@@ -1462,15 +1348,15 @@ class _GuarantorSheetState extends ConsumerState<_GuarantorSheet> {
               },
             ),
             if (_error != null) ...[
-              const SizedBox(height: 10),
+              const Gap.v(AppSpace.sm),
               _SheetError(message: _error!),
             ],
-            const SizedBox(height: 18),
-            _SheetButton(
+            const Gap.v(AppSpace.md),
+            SellerButton(
               label: editing ? 'Update Guarantor' : 'Save Guarantor',
               icon: Icons.assignment_ind_outlined,
               loading: _saving,
-              onTap: _submit,
+              onPressed: _saving ? null : _submit,
             ),
           ],
         ),
@@ -1555,6 +1441,7 @@ class _StatusUpdateSheetState extends ConsumerState<_StatusUpdateSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final text = context.sellerText;
     return _SheetShell(
       title: 'Update Status',
       child: Form(
@@ -1565,7 +1452,8 @@ class _StatusUpdateSheetState extends ConsumerState<_StatusUpdateSheet> {
           children: [
             DropdownButtonFormField<String>(
               initialValue: _status,
-              decoration: const InputDecoration(labelText: 'Status'),
+              style: text.body,
+              decoration: _inputDecoration(context, 'Status'),
               items: [
                 for (final status in _statusOptions)
                   DropdownMenuItem(value: status, child: Text(status)),
@@ -1576,14 +1464,12 @@ class _StatusUpdateSheetState extends ConsumerState<_StatusUpdateSheet> {
                       if (value != null) setState(() => _status = value);
                     },
             ),
-            const SizedBox(height: 12),
-            TextFormField(
+            const Gap.v(AppSpace.sm),
+            _SheetField(
               controller: _receivedByCtrl,
+              label: 'Received / handled by',
+              hint: 'Customer or receiver name',
               enabled: !_saving,
-              decoration: const InputDecoration(
-                labelText: 'Received / handled by',
-                hintText: 'Customer or receiver name',
-              ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Receiver name is required.';
@@ -1592,15 +1478,15 @@ class _StatusUpdateSheetState extends ConsumerState<_StatusUpdateSheet> {
               },
             ),
             if (_error != null) ...[
-              const SizedBox(height: 10),
+              const Gap.v(AppSpace.sm),
               _SheetError(message: _error!),
             ],
-            const SizedBox(height: 18),
-            _SheetButton(
+            const Gap.v(AppSpace.md),
+            SellerButton(
               label: 'Save Status',
               icon: Icons.save_outlined,
               loading: _saving,
-              onTap: _submit,
+              onPressed: _saving ? null : _submit,
             ),
           ],
         ),
@@ -1695,38 +1581,108 @@ class _CloseDealSheetState extends ConsumerState<_CloseDealSheet> {
               label: 'Total deal price',
               enabled: !_saving,
             ),
-            const SizedBox(height: 12),
+            const Gap.v(AppSpace.sm),
             _NumberField(
               controller: _advanceCtrl,
               label: 'Advance price',
               enabled: !_saving,
             ),
-            const SizedBox(height: 12),
+            const Gap.v(AppSpace.sm),
             _NumberField(
               controller: _tenureCtrl,
               label: 'Installment tenure',
               enabled: !_saving,
             ),
-            const SizedBox(height: 12),
+            const Gap.v(AppSpace.sm),
             _NumberField(
               controller: _percentageCtrl,
               label: 'Per month percentage',
               enabled: !_saving,
             ),
             if (_error != null) ...[
-              const SizedBox(height: 10),
+              const Gap.v(AppSpace.sm),
               _SheetError(message: _error!),
             ],
-            const SizedBox(height: 18),
-            _SheetButton(
+            const Gap.v(AppSpace.md),
+            SellerButton(
               label: 'Close Deal',
               icon: Icons.handshake_outlined,
               loading: _saving,
-              onTap: _submit,
+              onPressed: _saving ? null : _submit,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+InputDecoration _inputDecoration(
+  BuildContext context,
+  String label, {
+  String? hint,
+}) {
+  final c = context.sellerColors;
+  final text = context.sellerText;
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    labelStyle: text.bodySm,
+    floatingLabelStyle: text.labelSm.copyWith(color: c.accent),
+    hintStyle: text.bodySm.copyWith(color: c.textTertiary),
+    filled: true,
+    fillColor: c.surfaceAlt,
+    border: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.accent, width: 1.6),
+    ),
+  );
+}
+
+/// A generic themed form field used across the detail sheets.
+class _SheetField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String? hint;
+  final bool enabled;
+  final int maxLines;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final String? Function(String?)? validator;
+
+  const _SheetField({
+    required this.controller,
+    required this.label,
+    this.hint,
+    required this.enabled,
+    this.maxLines = 1,
+    this.keyboardType,
+    this.textInputAction,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      validator: validator,
+      style: text.body,
+      cursorColor: c.accent,
+      decoration: _inputDecoration(context, label, hint: hint),
     );
   }
 }
@@ -1744,12 +1700,16 @@ class _NumberField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return TextFormField(
       controller: controller,
       enabled: enabled,
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      decoration: InputDecoration(labelText: label),
+      style: text.body,
+      cursorColor: c.accent,
+      decoration: _inputDecoration(context, label),
       validator: (value) {
         final number = int.tryParse(value?.trim() ?? '');
         if (number == null || number <= 0) return '$label is required.';
@@ -1767,17 +1727,24 @@ class _SheetShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return Padding(
       padding: EdgeInsets.only(
-        left: 14,
-        right: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 14,
+        left: AppSpace.sm,
+        right: AppSpace.sm,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpace.sm,
       ),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.lg,
+          AppSpace.md,
+          AppSpace.lg,
+          AppSpace.lg,
+        ),
         decoration: BoxDecoration(
-          color: _D.surface,
-          borderRadius: BorderRadius.circular(18),
+          color: c.surface,
+          borderRadius: AppRadius.brXl,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -1786,24 +1753,15 @@ class _SheetShell extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: _D.txt1,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
+                  Expanded(child: Text(title, style: text.titleMd)),
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
+                    icon: Icon(Icons.close_rounded, color: c.textSecondary),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const Gap.v(AppSpace.xs),
               child,
             ],
           ),
@@ -1820,59 +1778,18 @@ class _SheetError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(AppSpace.xs + 2),
       decoration: BoxDecoration(
-        color: _D.danger.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _D.danger.withValues(alpha: 0.20)),
+        color: c.dangerSurface,
+        borderRadius: AppRadius.brSm,
+        border: Border.all(color: c.dangerTone.border),
       ),
       child: Text(
         message,
-        style: const TextStyle(
-          color: _D.danger,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _SheetButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool loading;
-  final VoidCallback onTap;
-
-  const _SheetButton({
-    required this.label,
-    required this.icon,
-    required this.loading,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: loading ? null : onTap,
-      icon: loading
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : Icon(icon, size: 18),
-      label: Text(loading ? 'Saving' : label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _D.brand,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        minimumSize: const Size(double.infinity, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        style: text.labelSm.copyWith(color: c.danger),
       ),
     );
   }

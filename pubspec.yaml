@@ -59,6 +59,7 @@ dependencies:
   file_picker: ^11.0.2
   path_provider: ^2.1.5
   open_filex: ^4.7.0
+  dropdown_search: ^7.0.0
 
 
 flutter_native_splash:

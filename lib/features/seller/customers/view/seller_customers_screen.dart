@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:atompro/core/services/snackbar_services.dart';
+import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
+import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
 import 'package:atompro/features/seller/customers/repository/seller_customers_repository.dart';
 import 'package:atompro/features/seller/customers/view/seller_customer_details_screen.dart';
@@ -12,20 +14,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-abstract final class _C {
-  static const bg = Color(0xFFF4F6FC);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceAlt = Color(0xFFF8FAFE);
-  static const brand = Color(0xFF3B5BDB);
-  static const brandDark = Color(0xFF1A2980);
-  static const text = Color(0xFF101828);
-  static const muted = Color(0xFF667085);
-  static const border = Color(0xFFE4E8F5);
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-  static const danger = Color(0xFFEF4444);
-}
-
 class SellerCustomersScreen extends ConsumerStatefulWidget {
   const SellerCustomersScreen({super.key});
 
@@ -35,7 +23,7 @@ class SellerCustomersScreen extends ConsumerStatefulWidget {
 }
 
 class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
-  final SellerCustomerScope _scope = SellerCustomerScope.mine;
+  SellerCustomerScope _scope = SellerCustomerScope.mine;
   int _page = 1;
   String _search = '';
   final _searchCtrl = TextEditingController();
@@ -49,18 +37,8 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
     super.dispose();
   }
 
-  Future<void> _showAddCustomerSheet() async {
-    final changed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _AddCustomerSheet(),
-    );
-    if (changed == true) {
-      ref.invalidate(sellerCustomersProvider(_query));
-      ref.invalidate(sellerCustomersNotificationCountProvider);
-    }
-  }
+  Future<void> _showAddCustomerSheet() =>
+      showSellerAddCustomerSheet(context, ref);
 
   Future<void> _importCustomers() async {
     try {
@@ -94,79 +72,154 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     final state = ref.watch(sellerCustomersProvider(_query));
     final notificationState = ref.watch(
       sellerCustomersNotificationCountProvider,
     );
 
+    final notifCount = notificationState.asData?.value;
+    final subtitle = notifCount == null
+        ? 'Manage seller customer records'
+        : '$notifCount new customer notifications';
+
+    // Map scope index → SellerCustomerScope enum
+    final scopeIndex = SellerCustomerScope.values.indexOf(_scope);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: c.isDark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: _C.bg,
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'seller_add_customer',
-          onPressed: _showAddCustomerSheet,
-          backgroundColor: _C.brand,
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.person_add_alt_1_outlined),
-          label: const Text('Add'),
-        ),
-        body: SafeArea(
-          child: RefreshIndicator(
-            color: _C.brand,
-            onRefresh: () async {
-              ref.invalidate(sellerCustomersProvider(_query));
-              ref.invalidate(sellerCustomersNotificationCountProvider);
-              await ref.read(sellerCustomersProvider(_query).future);
-            },
-            child: ListView(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
+        backgroundColor: c.canvas,
+        body: Column(
+          children: [
+            // ── Gradient header ──────────────────────────────────────────
+            SellerGradientHeader(
+              leading: SellerIconBadge(
+                icon: Icons.groups_2_outlined,
+                tone: SellerTone(
+                  fg: Colors.white,
+                  bg: Colors.white.withValues(alpha: 0.16),
+                  border: Colors.white.withValues(alpha: 0.20),
+                ),
+                size: 48,
+                iconSize: 26,
+                radius: AppRadius.lg,
               ),
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 118),
-              children: [
-                _Header(
-                  notificationState: notificationState,
-                  onImport: _importCustomers,
-                  onSample: _openImportSample,
+              title: 'Customers',
+              subtitle: subtitle,
+              actions: [
+                SellerHeaderIconButton(
+                  icon: Icons.download_outlined,
+                  onTap: _openImportSample,
+                  tooltip: 'Sample file',
                 ),
-                const SizedBox(height: 14),
-                _SearchBox(
-                  controller: _searchCtrl,
-                  onChanged: (value) => setState(() => _search = value),
+                SellerHeaderIconButton(
+                  icon: Icons.upload_file_outlined,
+                  onTap: _importCustomers,
+                  tooltip: 'Import customers',
                 ),
-                const SizedBox(height: 14),
-                state.when(
-                  loading: () => const _CustomerListSkeleton(),
-                  error: (error, _) => _ErrorCard(
+                SellerHeaderIconButton(
+                  icon: Icons.person_add_alt_1_outlined,
+                  onTap: _showAddCustomerSheet,
+                  tooltip: 'Add customer',
+                ),
+              ],
+            ),
+            // ── Search + scope ───────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.md,
+                AppSpace.md,
+                AppSpace.md,
+                AppSpace.xs,
+              ),
+              child: SellerSearchField(
+                controller: _searchCtrl,
+                hint: 'Search by name, phone, CNIC…',
+                onChanged: (v) => setState(() {
+                  _search = v;
+                  _page = 1;
+                }),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.md,
+                AppSpace.xs,
+                AppSpace.md,
+                AppSpace.xs,
+              ),
+              child: SellerSegmentedTabs(
+                labels: SellerCustomerScope.values
+                    .map((s) => s.shortLabel)
+                    .toList(),
+                selectedIndex: scopeIndex,
+                onChanged: (i) => setState(() {
+                  _scope = SellerCustomerScope.values[i];
+                  _page = 1;
+                  _search = '';
+                  _searchCtrl.clear();
+                }),
+              ),
+            ),
+            // ── Body ─────────────────────────────────────────────────────
+            Expanded(
+              child: RefreshIndicator(
+                color: c.accent,
+                backgroundColor: c.surface,
+                onRefresh: () async {
+                  ref.invalidate(sellerCustomersProvider(_query));
+                  ref.invalidate(sellerCustomersNotificationCountProvider);
+                  await ref.read(sellerCustomersProvider(_query).future);
+                },
+                child: state.when(
+                  loading: () => const SellerListSkeleton(),
+                  error: (error, _) => SellerErrorState(
                     message: _cleanError(error),
                     onRetry: () =>
                         ref.invalidate(sellerCustomersProvider(_query)),
                   ),
                   data: (data) {
                     final customers = _filter(data.customers, _search);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    return ListView(
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      padding: AppInsets.pageWithNav,
                       children: [
+                        // Summary strip
                         _SummaryStrip(
                           label: _scope.label,
                           total: data.pagination.total,
                           from: data.pagination.from,
                           to: data.pagination.to,
                         ),
-                        const SizedBox(height: 12),
+                        const Gap.v(AppSpace.sm),
+                        // Customer list or empty
                         if (customers.isEmpty)
-                          const _EmptyState()
+                          SellerEmptyState(
+                            icon: Icons.person_search_outlined,
+                            title: 'No customers found',
+                            message: _search.isNotEmpty
+                                ? 'Try a different search term.'
+                                : 'Add your first customer to get started.',
+                          )
                         else
                           ...customers.map(
                             (customer) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.only(
+                                bottom: AppSpace.sm,
+                              ),
                               child: _CustomerCard(
                                 customer: customer,
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => SellerCustomerDetailsScreen(
+                                    builder: (_) =>
+                                        SellerCustomerDetailsScreen(
                                       customerUuid: customer.uuid,
                                       initialCustomer: customer,
                                     ),
@@ -175,8 +228,11 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                               ),
                             ),
                           ),
+                        // Pagination
                         _PaginationBar(
                           pagination: data.pagination,
+                          text: text,
+                          c: c,
                           onPrevious: data.pagination.hasPrevious
                               ? () => setState(() => _page--)
                               : null,
@@ -188,173 +244,16 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                     );
                   },
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  final AsyncValue<int> notificationState;
-  final VoidCallback onImport;
-  final VoidCallback onSample;
-
-  const _Header({
-    required this.notificationState,
-    required this.onImport,
-    required this.onSample,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final count = notificationState.asData?.value;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_C.brandDark, _C.brand],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: _C.brand.withValues(alpha: 0.24),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-            ),
-            child: const Icon(
-              Icons.groups_2_outlined,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Customers',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  count == null
-                      ? 'Manage seller customer records'
-                      : '$count new customer notifications',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _HeaderAction(
-            tooltip: 'Sample file',
-            icon: Icons.download_outlined,
-            onTap: onSample,
-          ),
-          const SizedBox(width: 8),
-          _HeaderAction(
-            tooltip: 'Import customers',
-            icon: Icons.upload_file_outlined,
-            onTap: onImport,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderAction extends StatelessWidget {
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _HeaderAction({
-    required this.tooltip,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-class _SearchBox extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  const _SearchBox({required this.controller, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: 'Search current page by name, phone, CNIC',
-        prefixIcon: const Icon(Icons.search_rounded),
-        filled: true,
-        fillColor: _C.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _C.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _C.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _C.brand, width: 1.4),
-        ),
-      ),
-    );
-  }
-}
-
+// ── Summary strip ─────────────────────────────────────────────────────────────
 class _SummaryStrip extends StatelessWidget {
   final String label;
   final int total;
@@ -370,31 +269,27 @@ class _SummaryStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _C.border),
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
+    return SellerCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.sm,
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: _C.text,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-              ),
+              style: text.titleSm,
             ),
           ),
           Text(
-            total == 0 ? '0 records' : '${from ?? 0}-${to ?? 0} of $total',
-            style: const TextStyle(
-              color: _C.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+            total == 0 ? '0 records' : '${from ?? 0}–${to ?? 0} of $total',
+            style: text.caption.copyWith(
+              color: c.textSecondary,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -403,6 +298,7 @@ class _SummaryStrip extends StatelessWidget {
   }
 }
 
+// ── Customer card ─────────────────────────────────────────────────────────────
 class _CustomerCard extends StatelessWidget {
   final SellerCustomer customer;
   final VoidCallback onTap;
@@ -411,175 +307,122 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     final verified = customer.verified;
     final location = customer.profile.location;
-    return InkWell(
+
+    return SellerCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _C.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _C.border),
+      padding: EdgeInsets.zero,
+      accentEdge: verified ? c.success : c.warning,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.sm,
+          AppSpace.sm,
+          AppSpace.md,
+          AppSpace.sm,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(11),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Name + avatar + status pill ─────────────────────────────
+            Row(
               children: [
-                Container(
-                  width: 4,
-                  color: verified ? _C.success : _C.warning,
-                ),
+                SellerMonogram(name: customer.name, size: 40),
+                const Gap.h(AppSpace.sm),
                 Expanded(
-                  child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Name + status ───────────────────────────────────────
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: _C.brand.withValues(alpha: 0.1),
-                      child: Text(
-                        _initials(customer.name),
-                        style: const TextStyle(
-                          color: _C.brand,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                        ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        customer.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.titleSm,
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            customer.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _C.text,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            customer.phone,
-                            style: const TextStyle(
-                              color: _C.muted,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      const Gap.v(AppSpace.xxs),
+                      Text(
+                        customer.phone,
+                        style: text.bodySm,
                       ),
-                    ),
-                    _StatusPill(
-                      label: verified ? 'Verified' : 'Pending',
-                      fg: verified ? _C.success : _C.warning,
-                      bg: (verified ? _C.success : _C.warning)
-                          .withValues(alpha: 0.12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Divider(height: 1, color: _C.border),
-                const SizedBox(height: 8),
-
-                // ── City + Area ─────────────────────────────────────────
-                _CardInfoRow(
-                  icon: Icons.location_on_outlined,
-                  label: location.isEmpty ? 'Location N/A' : location,
-                ),
-                const SizedBox(height: 5),
-
-                // ── Address ─────────────────────────────────────────────
-                _CardInfoRow(
-                  icon: Icons.home_outlined,
-                  label: customer.profile.address,
-                ),
-                const SizedBox(height: 5),
-
-                // ── Joined + Date ────────────────────────────────────────
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.public_outlined,
-                      size: 13,
-                      color: _C.muted,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      customer.joinedThrough,
-                      style: const TextStyle(
-                        color: _C.muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      size: 13,
-                      color: _C.muted,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      customer.formattedCreatedAt,
-                      style: const TextStyle(
-                        color: _C.muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 16,
-                      color: _C.muted,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                    ],
                   ),
                 ),
+                SellerStatusPill(
+                  label: verified ? 'Verified' : 'Pending',
+                  tone: verified ? c.successTone : c.warningTone,
+                ),
               ],
             ),
-          ),
+            const Gap.v(AppSpace.xs),
+            Divider(color: c.divider, height: 1),
+            const Gap.v(AppSpace.xs),
+            // ── Location & address ──────────────────────────────────────
+            _InfoRow(
+              icon: Icons.location_on_outlined,
+              label: location.isEmpty ? 'Location N/A' : location,
+            ),
+            const Gap.v(AppSpace.xxs + 1),
+            _InfoRow(
+              icon: Icons.home_outlined,
+              label: customer.profile.address,
+            ),
+            const Gap.v(AppSpace.xxs + 1),
+            // ── Joined + date ────────────────────────────────────────────
+            Row(
+              children: [
+                Icon(Icons.public_outlined, size: 13, color: c.textTertiary),
+                const Gap.h(AppSpace.xxs),
+                Text(
+                  customer.joinedThrough,
+                  style: text.caption,
+                ),
+                const Gap.h(AppSpace.xs),
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 13,
+                  color: c.textTertiary,
+                ),
+                const Gap.h(AppSpace.xxs),
+                Text(
+                  customer.formattedCreatedAt,
+                  style: text.caption,
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: c.textTertiary,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _CardInfoRow extends StatelessWidget {
+class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _CardInfoRow({required this.icon, required this.label});
+  const _InfoRow({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     return Row(
       children: [
-        Icon(icon, size: 13, color: _C.muted),
-        const SizedBox(width: 5),
+        Icon(icon, size: 13, color: c.textTertiary),
+        const Gap.h(AppSpace.xxs),
         Expanded(
           child: Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _C.text,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            style: text.bodySm.copyWith(color: c.textPrimary),
           ),
         ),
       ],
@@ -587,75 +430,76 @@ class _CardInfoRow extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color fg;
-  final Color bg;
-
-  const _StatusPill({required this.label, required this.fg, required this.bg});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w900),
-      ),
-    );
-  }
-}
-
+// ── Pagination bar ────────────────────────────────────────────────────────────
 class _PaginationBar extends StatelessWidget {
   final SellerCustomersPagination pagination;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
+  final SellerTextTheme text;
+  final SellerColors c;
 
   const _PaginationBar({
     required this.pagination,
     required this.onPrevious,
     required this.onNext,
+    required this.text,
+    required this.c,
   });
 
   @override
   Widget build(BuildContext context) {
     if (pagination.lastPage <= 1) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.only(top: AppSpace.xs),
       child: Row(
         children: [
           Expanded(
-            child: OutlinedButton.icon(
+            child: SellerButton.secondary(
+              label: 'Previous',
+              icon: Icons.chevron_left_rounded,
               onPressed: onPrevious,
-              icon: const Icon(Icons.chevron_left_rounded),
-              label: const Text('Previous'),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
             child: Text(
-              '${pagination.currentPage}/${pagination.lastPage}',
-              style: const TextStyle(
-                color: _C.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
+              '${pagination.currentPage} / ${pagination.lastPage}',
+              style: text.labelSm.copyWith(color: c.textSecondary),
             ),
           ),
           Expanded(
-            child: OutlinedButton.icon(
+            child: SellerButton.secondary(
+              label: 'Next',
+              trailingIcon: Icons.chevron_right_rounded,
               onPressed: onNext,
-              icon: const Icon(Icons.chevron_right_rounded),
-              label: const Text('Next'),
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+// ── Add Customer Sheet ────────────────────────────────────────────────────────
+/// Opens the add-customer form. Reusable from the global + action so
+/// "New customer" creates in one tap instead of just navigating.
+Future<void> showSellerAddCustomerSheet(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final dark = context.sellerIsDark;
+  final changed = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => Theme(
+      data: dark ? SellerTheme.dark : SellerTheme.light,
+      child: const _AddCustomerSheet(),
+    ),
+  );
+  if (changed == true) {
+    ref.invalidate(sellerCustomersProvider);
+    ref.invalidate(sellerCustomersNotificationCountProvider);
   }
 }
 
@@ -695,7 +539,6 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   }
 
   Future<void> _pickFront() async => _pickImage(front: true);
-
   Future<void> _pickBack() async => _pickImage(front: false);
 
   Future<void> _pickImage({required bool front}) async {
@@ -723,9 +566,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
 
     setState(() => _saving = true);
     try {
-      await ref
-          .read(sellerCustomersRepositoryProvider)
-          .storeCustomer(
+      await ref.read(sellerCustomersRepositoryProvider).storeCustomer(
             name: _name.text.trim(),
             phone: _phone.text.trim(),
             email: _email.text.trim(),
@@ -749,121 +590,163 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     final areasState = ref.watch(sellerCustomerAreasProvider(_selectedCityId));
-    return _SheetShell(
-      title: 'Add Customer',
-      child: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            _SheetTextField(
-              controller: _name,
-              label: 'Name',
-              enabled: !_saving,
-              validator: _required,
-            ),
-            _SheetTextField(
-              controller: _phone,
-              label: 'Phone',
-              enabled: !_saving,
-              keyboardType: TextInputType.phone,
-              validator: _phoneValidator,
-            ),
-            _SheetTextField(
-              controller: _email,
-              label: 'Email',
-              enabled: !_saving,
-              keyboardType: TextInputType.emailAddress,
-              validator: _emailValidator,
-            ),
-            _SheetTextField(
-              controller: _father,
-              label: 'Father Name',
-              enabled: !_saving,
-              validator: _required,
-            ),
-            _SheetTextField(
-              controller: _cnic,
-              label: 'CNIC',
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              validator: _cnicValidator,
-            ),
-            _SheetTextField(
-              controller: _cityId,
-              label: 'City ID',
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              validator: _required,
-              onChanged: (_) => setState(() => _areaId = null),
-            ),
-            areasState.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: LinearProgressIndicator(minHeight: 2),
-              ),
-              error: (error, _) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  _cleanError(error),
-                  style: const TextStyle(
-                    color: _C.danger,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: AppRadius.sheet,
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          AppSpace.sm,
+          AppSpace.md,
+          AppSpace.md,
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: c.borderStrong,
+                        borderRadius: AppRadius.brPill,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              data: (areas) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DropdownButtonFormField<int>(
-                  initialValue: _areaId,
-                  decoration: _sheetDecoration('Area'),
-                  items: areas
-                      .map(
-                        (area) => DropdownMenuItem(
-                          value: area.id,
-                          child: Text(area.title),
+                  const Gap.v(AppSpace.md),
+                  Text('Add Customer', style: text.titleMd),
+                  const Gap.v(AppSpace.md),
+                  _SheetTextField(
+                    controller: _name,
+                    label: 'Name',
+                    enabled: !_saving,
+                    validator: _required,
+                  ),
+                  _SheetTextField(
+                    controller: _phone,
+                    label: 'Phone',
+                    enabled: !_saving,
+                    keyboardType: TextInputType.phone,
+                    validator: _phoneValidator,
+                  ),
+                  _SheetTextField(
+                    controller: _email,
+                    label: 'Email',
+                    enabled: !_saving,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: _emailValidator,
+                  ),
+                  _SheetTextField(
+                    controller: _father,
+                    label: 'Father Name',
+                    enabled: !_saving,
+                    validator: _required,
+                  ),
+                  _SheetTextField(
+                    controller: _cnic,
+                    label: 'CNIC',
+                    enabled: !_saving,
+                    keyboardType: TextInputType.number,
+                    validator: _cnicValidator,
+                  ),
+                  _SheetTextField(
+                    controller: _cityId,
+                    label: 'City ID',
+                    enabled: !_saving,
+                    keyboardType: TextInputType.number,
+                    validator: _required,
+                    onChanged: (_) => setState(() => _areaId = null),
+                  ),
+                  areasState.when(
+                    loading: () => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpace.sm),
+                      child: LinearProgressIndicator(
+                        minHeight: 2,
+                        color: c.accent,
+                        backgroundColor: c.surfaceMuted,
+                      ),
+                    ),
+                    error: (error, _) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpace.sm),
+                      child: Text(
+                        _cleanError(error),
+                        style: text.bodySm.copyWith(color: c.danger),
+                      ),
+                    ),
+                    data: (areas) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpace.sm),
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _areaId,
+                        decoration: _inputDecoration(c, 'Area'),
+                        items: areas
+                            .map(
+                              (area) => DropdownMenuItem(
+                                value: area.id,
+                                child: Text(area.title),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _saving
+                            ? null
+                            : (value) => setState(() => _areaId = value),
+                        validator: (value) =>
+                            value == null ? 'Required' : null,
+                      ),
+                    ),
+                  ),
+                  _SheetTextField(
+                    controller: _address,
+                    label: 'Address',
+                    enabled: !_saving,
+                    maxLines: 3,
+                    validator: _required,
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _FileButton(
+                          label:
+                              _front == null ? 'CNIC Front' : 'Front Selected',
+                          hasFile: _front != null,
+                          onTap: _saving ? null : _pickFront,
                         ),
-                      )
-                      .toList(),
-                  onChanged: _saving
-                      ? null
-                      : (value) => setState(() => _areaId = value),
-                  validator: (value) => value == null ? 'Required' : null,
-                ),
+                      ),
+                      const Gap.h(AppSpace.xs),
+                      Expanded(
+                        child: _FileButton(
+                          label:
+                              _back == null ? 'CNIC Back' : 'Back Selected',
+                          hasFile: _back != null,
+                          onTap: _saving ? null : _pickBack,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Gap.v(AppSpace.md),
+                  SellerButton(
+                    label: 'Save Customer',
+                    loading: _saving,
+                    onPressed: _submit,
+                    icon: Icons.save_outlined,
+                  ),
+                ],
               ),
             ),
-            _SheetTextField(
-              controller: _address,
-              label: 'Address',
-              enabled: !_saving,
-              maxLines: 3,
-              validator: _required,
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: _FileButton(
-                    label: _front == null ? 'CNIC Front' : 'Front Selected',
-                    onTap: _saving ? null : _pickFront,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _FileButton(
-                    label: _back == null ? 'CNIC Back' : 'Back Selected',
-                    onTap: _saving ? null : _pickBack,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _SheetButton(
-              label: 'Save Customer',
-              loading: _saving,
-              onTap: _submit,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -872,74 +755,53 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
 
 class _FileButton extends StatelessWidget {
   final String label;
+  final bool hasFile;
   final VoidCallback? onTap;
 
-  const _FileButton({required this.label, required this.onTap});
+  const _FileButton({
+    required this.label,
+    required this.hasFile,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.image_outlined, size: 18),
-      label: Text(label, overflow: TextOverflow.ellipsis),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 46),
-        foregroundColor: _C.brand,
-        side: const BorderSide(color: _C.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    );
-  }
-}
-
-class _SheetShell extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _SheetShell({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottom),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-        decoration: const BoxDecoration(
-          color: _C.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: _C.border,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _C.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                child,
-              ],
-            ),
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppMotion.fast,
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+        decoration: BoxDecoration(
+          color: hasFile ? c.accentSurface : c.surface,
+          borderRadius: AppRadius.brMd,
+          border: Border.all(
+            color: hasFile ? c.accent : c.border,
           ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.image_outlined,
+              size: 17,
+              color: hasFile ? c.accent : c.textSecondary,
+            ),
+            const Gap.h(AppSpace.xs),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text.bodySm.copyWith(
+                  color: hasFile ? c.accent : c.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -967,8 +829,9 @@ class _SheetTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpace.sm),
       child: TextFormField(
         controller: controller,
         enabled: enabled,
@@ -976,156 +839,48 @@ class _SheetTextField extends StatelessWidget {
         keyboardType: keyboardType,
         validator: validator,
         onChanged: onChanged,
-        decoration: _sheetDecoration(label),
+        style: context.sellerText.body,
+        decoration: _inputDecoration(c, label),
       ),
     );
   }
 }
 
-class _SheetButton extends StatelessWidget {
-  final String label;
-  final bool loading;
-  final VoidCallback onTap;
-
-  const _SheetButton({
-    required this.label,
-    required this.loading,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: FilledButton.icon(
-        onPressed: loading ? null : onTap,
-        icon: loading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.save_outlined, size: 18),
-        label: Text(label),
-        style: FilledButton.styleFrom(
-          backgroundColor: _C.brand,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CustomerListSkeleton extends StatelessWidget {
-  const _CustomerListSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        4,
-        (_) => Container(
-          height: 142,
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: _C.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _C.border),
-          ),
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorCard({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _C.border),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.error_outline_rounded, color: _C.danger),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: _C.text, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _C.border),
-      ),
-      child: const Column(
-        children: [
-          Icon(Icons.person_search_outlined, color: _C.muted, size: 32),
-          SizedBox(height: 10),
-          Text(
-            'No customers found.',
-            style: TextStyle(color: _C.text, fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-InputDecoration _sheetDecoration(String label) {
+InputDecoration _inputDecoration(SellerColors c, String label) {
+  const radius = AppRadius.md;
   return InputDecoration(
     labelText: label,
+    labelStyle: TextStyle(color: c.textSecondary, fontSize: 13),
     filled: true,
-    fillColor: _C.surfaceAlt,
+    fillColor: c.surfaceAlt,
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSpace.md,
+      vertical: AppSpace.sm,
+    ),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _C.border),
+      borderRadius: BorderRadius.circular(radius),
+      borderSide: BorderSide(color: c.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _C.border),
+      borderRadius: BorderRadius.circular(radius),
+      borderSide: BorderSide(color: c.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _C.brand, width: 1.4),
+      borderRadius: BorderRadius.circular(radius),
+      borderSide: BorderSide(color: c.accent, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(radius),
+      borderSide: BorderSide(color: c.danger),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(radius),
+      borderSide: BorderSide(color: c.danger, width: 1.6),
     ),
   );
 }
 
+// ── Pure business-logic helpers (unchanged) ───────────────────────────────────
 List<SellerCustomer> _filter(List<SellerCustomer> customers, String query) {
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return customers;
@@ -1164,14 +919,6 @@ String? _cnicValidator(String? value) {
   final digits = value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
   if (digits.length < 13) return 'Enter a valid CNIC';
   return null;
-}
-
-String _initials(String name) {
-  final parts = name.trim().split(RegExp(r'\s+'));
-  if (parts.isEmpty || parts.first.isEmpty) return 'C';
-  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return '${parts.first.substring(0, 1)}${parts[1].substring(0, 1)}'
-      .toUpperCase();
 }
 
 String _cleanError(Object error) {
