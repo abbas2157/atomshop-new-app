@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter:*)",
+      "Bash(dart:*)",
+      "WebFetch(domain:pub.dev)",
+      "Bash(kill %1)",
+      "Bash(curl -L \"https://dl.google.com/android/repository/commandlinetools-win-14742923_latest.zip\" -o \"C:/Users/Lenovo/AppData/Local/Temp/cmdline-tools.zip\" --progress-bar)",
+      "Bash(echo \"Download started in background, PID: $!\")",
+      "Bash(jobs)",
+      "Bash(git checkout:*)",
+      "Skill(update-config)"
+    ]
+  }
+}

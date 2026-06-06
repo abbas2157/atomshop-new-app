@@ -1,8 +1,24 @@
+// ============================================================
+//  seller_instalments_screen.dart  —  Design System v2
+//
+//  Reskinned onto the Seller Design System: unified tokens,
+//  SellerColors, SellerGradientHeader, SellerCard, SellerKpiCard,
+//  SellerSegmentedTabs, SellerSearchField, SellerStatusPill, and
+//  all state/skeleton components.  Business logic, providers,
+//  model fields, pay-sheet flow and ledger-detail sheet are
+//  100% preserved.
+// ============================================================
+
 import 'dart:io';
 
 import 'package:atompro/core/services/snackbar_services.dart';
+import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
+<<<<<<< HEAD
 import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_orders_viewmodel.dart';
+=======
+import 'package:atompro/features/seller/core/widgets/widgets.dart';
+>>>>>>> main
 import 'package:atompro/features/seller/instalments/model/seller_instalments_model.dart';
 import 'package:atompro/features/seller/instalments/repository/seller_instalments_repository.dart';
 import 'package:atompro/features/seller/instalments/viewmodel/seller_instalments_viewmodel.dart';
@@ -12,20 +28,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-abstract final class _I {
-  static const bg = Color(0xFFF4F6FC);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceAlt = Color(0xFFF8FAFE);
-  static const brand = Color(0xFF3B5BDB);
-  static const brandDark = Color(0xFF1A2980);
-  static const text = Color(0xFF101828);
-  static const muted = Color(0xFF667085);
-  static const border = Color(0xFFE4E8F5);
-  static const success = Color(0xFF10B981);
-  static const warning = Color(0xFFF59E0B);
-  static const danger = Color(0xFFEF4444);
+// ─── Tab enum ─────────────────────────────────────────────────────────────
+enum _StatusTab { all, unpaid, paid }
+
+extension _StatusTabX on _StatusTab {
+  String get label => switch (this) {
+    _StatusTab.all => 'All',
+    _StatusTab.unpaid => 'Unpaid',
+    _StatusTab.paid => 'Paid',
+  };
+
+  String? get apiValue => switch (this) {
+    _StatusTab.all => null,
+    _StatusTab.unpaid => 'Unpaid',
+    _StatusTab.paid => 'Paid',
+  };
 }
 
+// ═══════════════════════════════════════════════════════════
+//  SCREEN
+// ═══════════════════════════════════════════════════════════
 class SellerInstalmentsScreen extends ConsumerStatefulWidget {
   const SellerInstalmentsScreen({super.key});
 
@@ -36,13 +58,13 @@ class SellerInstalmentsScreen extends ConsumerStatefulWidget {
 
 class _SellerInstalmentsScreenState
     extends ConsumerState<SellerInstalmentsScreen> {
-  String? _status;
+  _StatusTab _tab = _StatusTab.all;
   int _page = 1;
   String _search = '';
   final _searchCtrl = TextEditingController();
 
   SellerInstalmentsQuery get _query =>
-      SellerInstalmentsQuery(page: _page, status: _status);
+      SellerInstalmentsQuery(page: _page, status: _tab.apiValue);
 
   @override
   void dispose() {
@@ -50,10 +72,10 @@ class _SellerInstalmentsScreenState
     super.dispose();
   }
 
-  void _setStatus(String? status) {
-    if (_status == status) return;
+  void _setTab(_StatusTab tab) {
+    if (_tab == tab) return;
     setState(() {
-      _status = status;
+      _tab = tab;
       _page = 1;
     });
   }
@@ -68,7 +90,7 @@ class _SellerInstalmentsScreenState
     try {
       final path = await ref
           .read(sellerInstalmentsRepositoryProvider)
-          .getExportUrl(status: _status);
+          .getExportUrl(status: _tab.apiValue);
       await SellerFileService.openLocalFile(path);
     } catch (e) {
       SnackbarService().showErrorSnackBar(_cleanError(e));
@@ -101,11 +123,17 @@ class _SellerInstalmentsScreenState
   }
 
   Future<void> _showPaymentSheet(SellerInstalment item) async {
+    final dark = context.sellerIsDark;
     final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PayInstalmentSheet(item: item),
+      builder: (_) => Theme(
+        data: dark ? SellerTheme.dark : SellerTheme.light,
+        child: Builder(
+          builder: (ctx) => _PayInstalmentSheet(item: item),
+        ),
+      ),
     );
     if (changed == true) {
       ref.invalidate(sellerInstalmentsProvider(_query));
@@ -113,51 +141,104 @@ class _SellerInstalmentsScreenState
   }
 
   Future<void> _showOrderLedgerSheet(_InstalmentOrderGroup group) async {
+    final dark = context.sellerIsDark;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _OrderLedgerSheet(
-        group: group,
-        onPay: _showPaymentSheet,
-        onInvoice: _openInvoice,
+      builder: (_) => Theme(
+        data: dark ? SellerTheme.dark : SellerTheme.light,
+        child: Builder(
+          builder: (ctx) => _OrderLedgerSheet(
+            group: group,
+            onPay: _showPaymentSheet,
+            onInvoice: _openInvoice,
+          ),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     final state = ref.watch(sellerInstalmentsProvider(_query));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _I.bg,
-        body: SafeArea(
-          child: RefreshIndicator(
-            color: _I.brand,
-            onRefresh: () async {
-              ref.invalidate(sellerInstalmentsProvider(_query));
-              await ref.read(sellerInstalmentsProvider(_query).future);
-            },
-            child: ListView(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 118),
-              children: [
-                _Header(onTopup: _openTopupPdf, onExport: _openExport),
-                const SizedBox(height: 14),
-                _StatusTabs(selected: _status, onChanged: _setStatus),
-                const SizedBox(height: 12),
-                _SearchBox(
-                  controller: _searchCtrl,
-                  onChanged: (value) => setState(() => _search = value),
+        backgroundColor: c.canvas,
+        body: Column(
+          children: [
+            // ── Header ────────────────────────────────────────────────
+            SellerGradientHeader(
+              leading: SellerIconBadge(
+                icon: Icons.payments_rounded,
+                tone: SellerTone(
+                  fg: Colors.white,
+                  bg: Colors.white.withValues(alpha: 0.18),
+                  border: Colors.white.withValues(alpha: 0.2),
                 ),
-                const SizedBox(height: 14),
-                state.when(
-                  loading: () => const _InstalmentSkeleton(),
-                  error: (error, _) => _ErrorCard(
+                size: 44,
+                iconSize: 22,
+                radius: AppRadius.md,
+              ),
+              title: 'Instalments',
+              subtitle: 'Track recovery and collect payments',
+              actions: [
+                SellerHeaderIconButton(
+                  icon: Icons.download_outlined,
+                  onTap: _openExport,
+                  tooltip: 'Export instalments',
+                ),
+                SellerHeaderIconButton(
+                  icon: Icons.picture_as_pdf_outlined,
+                  onTap: _openTopupPdf,
+                  tooltip: 'Top-up PDF',
+                ),
+              ],
+            ),
+            // ── Tab strip ─────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.md,
+                AppSpace.md,
+                AppSpace.md,
+                AppSpace.xs,
+              ),
+              child: SellerSegmentedTabs(
+                labels: _StatusTab.values.map((t) => t.label).toList(),
+                selectedIndex: _tab.index,
+                onChanged: (i) => _setTab(_StatusTab.values[i]),
+              ),
+            ),
+            // ── Search ────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.md,
+                AppSpace.xs,
+                AppSpace.md,
+                AppSpace.xs,
+              ),
+              child: SellerSearchField(
+                controller: _searchCtrl,
+                hint: 'Search by month, product, order…',
+                onChanged: (v) => setState(() => _search = v),
+                onClear: () => setState(() => _search = ''),
+              ),
+            ),
+            // ── Body ──────────────────────────────────────────────────
+            Expanded(
+              child: RefreshIndicator(
+                color: c.accent,
+                backgroundColor: c.surface,
+                onRefresh: () async {
+                  ref.invalidate(sellerInstalmentsProvider(_query));
+                  await ref.read(sellerInstalmentsProvider(_query).future);
+                },
+                child: state.when(
+                  loading: () => const SellerListSkeleton(count: 5, itemHeight: 200),
+                  error: (error, _) => SellerErrorState(
                     message: _cleanError(error),
                     onRetry: () =>
                         ref.invalidate(sellerInstalmentsProvider(_query)),
@@ -165,30 +246,55 @@ class _SellerInstalmentsScreenState
                   data: (data) {
                     final items = _filter(data.instalments, _search);
                     final orderGroups = _groupByOrder(items, data.customers);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    return ListView(
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      padding: AppInsets.pageWithNav,
                       children: [
-                        _TotalsStrip(data: data),
-                        const SizedBox(height: 12),
-                        _RangeStrip(
+                        // KPI strip
+                        _EvenGrid(
+                          children: [
+                            SellerKpiCard(
+                              label: 'Paid',
+                              value: data.formattedTotalPaid,
+                              icon: Icons.check_circle_outline_rounded,
+                              tone: c.successTone,
+                            ),
+                            SellerKpiCard(
+                              label: 'Unpaid',
+                              value: data.formattedTotalUnpaid,
+                              icon: Icons.schedule_rounded,
+                              tone: c.warningTone,
+                            ),
+                          ],
+                        ),
+                        const Gap.v(AppSpace.sm),
+                        // Range strip
+                        _RangeRow(
                           total: data.pagination.total,
                           from: data.pagination.from,
                           to: data.pagination.to,
                         ),
-                        const SizedBox(height: 12),
+                        const Gap.v(AppSpace.sm),
+                        // List
                         if (orderGroups.isEmpty)
-                          const _EmptyState()
+                          const SellerEmptyState(
+                            icon: Icons.payments_outlined,
+                            title: 'No instalments found',
+                            message:
+                                'There are no records matching the current filter.',
+                          )
                         else
-                          ...orderGroups.map(
-                            (group) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _OrderLedgerCard(
-                                group: group,
-                                onTap: () => _showOrderLedgerSheet(group),
-                                onInvoice: () => _openInvoice(group.latest),
-                              ),
+                          for (final group in orderGroups) ...[
+                            _OrderLedgerCard(
+                              group: group,
+                              onTap: () => _showOrderLedgerSheet(group),
+                              onInvoice: () => _openInvoice(group.latest),
                             ),
-                          ),
+                            const Gap.v(AppSpace.sm),
+                          ],
+                        // Pagination
                         _PaginationBar(
                           pagination: data.pagination,
                           onPrevious: data.pagination.hasPrevious
@@ -202,317 +308,24 @@ class _SellerInstalmentsScreenState
                     );
                   },
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  final VoidCallback onTopup;
-  final VoidCallback onExport;
-
-  const _Header({required this.onTopup, required this.onExport});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_I.brandDark, _I.brand],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: _I.brand.withValues(alpha: 0.24),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-            ),
-            child: const Icon(
-              Icons.payments_outlined,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Instalments',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Track recovery and collect payments',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _HeaderAction(
-            tooltip: 'Export instalments',
-            icon: Icons.download_outlined,
-            onTap: onExport,
-          ),
-          const SizedBox(width: 8),
-          _HeaderAction(
-            tooltip: 'Top-up PDF',
-            icon: Icons.picture_as_pdf_outlined,
-            onTap: onTopup,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderAction extends StatelessWidget {
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _HeaderAction({
-    required this.tooltip,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusTabs extends StatelessWidget {
-  final String? selected;
-  final ValueChanged<String?> onChanged;
-
-  const _StatusTabs({required this.selected, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    const options = <String?>[null, 'Unpaid', 'Paid'];
-    return Container(
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: _I.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _I.border),
-      ),
-      child: Row(
-        children: options.map((status) {
-          final active = selected == status;
-          final label = status ?? 'All';
-          return Expanded(
-            child: InkWell(
-              onTap: () => onChanged(status),
-              borderRadius: BorderRadius.circular(14),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                decoration: BoxDecoration(
-                  color: active ? _I.brand : Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: active ? Colors.white : _I.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
               ),
             ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _SearchBox extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  const _SearchBox({required this.controller, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: 'Search current page by month, product, order',
-        prefixIcon: const Icon(Icons.search_rounded),
-        filled: true,
-        fillColor: _I.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _I.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _I.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _I.brand, width: 1.4),
+          ],
         ),
       ),
     );
   }
 }
 
-class _TotalsStrip extends StatelessWidget {
-  final SellerInstalmentsResponse data;
-
-  const _TotalsStrip({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _TotalCard(
-            label: 'Paid',
-            value: data.formattedTotalPaid,
-            color: _I.success,
-            icon: Icons.check_circle_outline_rounded,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _TotalCard(
-            label: 'Unpaid',
-            value: data.formattedTotalUnpaid,
-            color: _I.warning,
-            icon: Icons.schedule_outlined,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TotalCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-
-  const _TotalCard({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _I.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _I.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: _I.muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _I.text,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RangeStrip extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════
+//  RANGE ROW
+// ═══════════════════════════════════════════════════════════
+class _RangeRow extends StatelessWidget {
   final int total;
   final int? from;
   final int? to;
 
-  const _RangeStrip({
+  const _RangeRow({
     required this.total,
     required this.from,
     required this.to,
@@ -520,39 +333,32 @@ class _RangeStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _I.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _I.border),
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final rangeText =
+        total == 0 ? '0 records' : '${from ?? 0}–${to ?? 0} of $total';
+
+    return SellerCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.sm,
       ),
       child: Row(
         children: [
-          const Expanded(
-            child: Text(
-              'Records',
-              style: TextStyle(
-                color: _I.text,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          Text(
-            total == 0 ? '0 records' : '${from ?? 0}-${to ?? 0} of $total',
-            style: const TextStyle(
-              color: _I.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Icon(Icons.format_list_bulleted_rounded,
+              size: 16, color: c.textTertiary),
+          const Gap.h(AppSpace.xs),
+          Expanded(child: Text('Records', style: text.bodyLg)),
+          Text(rangeText, style: text.caption),
         ],
       ),
     );
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  ORDER LEDGER CARD (list item)
+// ═══════════════════════════════════════════════════════════
 class _OrderLedgerCard extends StatelessWidget {
   final _InstalmentOrderGroup group;
   final VoidCallback onTap;
@@ -566,152 +372,123 @@ class _OrderLedgerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _statusColors(group.statusLabel);
-    return InkWell(
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
+    return SellerCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: _I.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _I.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: colors.bg,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(Icons.receipt_long_outlined, color: colors.fg),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Order #${group.order.id}',
-                        style: const TextStyle(
-                          color: _I.text,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        group.order.productTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _I.muted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _StatusPill(
-                  label: group.statusLabel,
-                  fg: colors.fg,
-                  bg: colors.bg,
-                ),
-              ],
-            ),
-            const SizedBox(height: 13),
-            Row(
-              children: [
-                Expanded(
-                  child: _MiniInfo(
-                    label: 'Customer',
-                    value: group.customerName,
-                    icon: Icons.person_outline_rounded,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _MiniInfo(
-                    label: 'Next Due',
-                    value: group.nextDue?.formattedDate ?? 'Cleared',
-                    icon: Icons.calendar_today_outlined,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _MiniInfo(
-                    label: 'Pending',
-                    value: group.formattedPending,
-                    icon: Icons.account_balance_wallet_outlined,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _MiniInfo(
-                    label: 'Ledger',
-                    value: '${group.paidCount}/${group.items.length} paid',
-                    icon: Icons.list_alt_rounded,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onInvoice,
-                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
-                    label: const Text('Invoice'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _I.brand,
-                      side: const BorderSide(color: _I.border),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+      padding: const EdgeInsets.all(AppSpace.md),
+      accentEdge: SellerStatus.toneFor(group.statusLabel, c).fg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header row ──────────────────────────────────────────────
+          Row(
+            children: [
+              SellerIconBadge(
+                icon: Icons.receipt_long_rounded,
+                tone: SellerStatus.toneFor(group.statusLabel, c),
+                size: 44,
+                iconSize: 22,
+              ),
+              const Gap.h(AppSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Order #${group.order.id}',
+                      style: text.titleSm,
                     ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: onTap,
-                    icon: const Icon(Icons.visibility_outlined, size: 17),
-                    label: const Text('Ledger'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _I.brand,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                    const Gap.v(AppSpace.xxs),
+                    Text(
+                      group.order.productTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodySm,
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+              const Gap.h(AppSpace.xs),
+              SellerStatusPill(label: group.statusLabel),
+            ],
+          ),
+          const Gap.v(AppSpace.sm),
+          Divider(color: c.divider, height: 1),
+          const Gap.v(AppSpace.sm),
+          // ── Info grid ───────────────────────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: _InfoTile(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Customer',
+                  value: group.customerName,
+                ),
+              ),
+              const Gap.h(AppSpace.xs),
+              Expanded(
+                child: _InfoTile(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Next Due',
+                  value: group.nextDue?.formattedDate ?? 'Cleared',
+                ),
+              ),
+            ],
+          ),
+          const Gap.v(AppSpace.xs),
+          Row(
+            children: [
+              Expanded(
+                child: _InfoTile(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Pending',
+                  value: group.formattedPending,
+                ),
+              ),
+              const Gap.h(AppSpace.xs),
+              Expanded(
+                child: _InfoTile(
+                  icon: Icons.list_alt_rounded,
+                  label: 'Ledger',
+                  value: '${group.paidCount}/${group.items.length} paid',
+                ),
+              ),
+            ],
+          ),
+          const Gap.v(AppSpace.sm),
+          // ── Actions ─────────────────────────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: SellerButton.secondary(
+                  label: 'Invoice',
+                  icon: Icons.picture_as_pdf_outlined,
+                  size: SellerButtonSize.small,
+                  onPressed: onInvoice,
+                ),
+              ),
+              const Gap.h(AppSpace.xs),
+              Expanded(
+                child: SellerButton(
+                  label: 'Ledger',
+                  icon: Icons.visibility_outlined,
+                  size: SellerButtonSize.small,
+                  onPressed: onTap,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  INSTALMENT CARD (inside ledger sheet)
+// ═══════════════════════════════════════════════════════════
 class _InstalmentCard extends StatelessWidget {
   final SellerInstalment item;
   final VoidCallback? onPay;
@@ -725,119 +502,84 @@ class _InstalmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _statusColors(item.status);
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: _I.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _I.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final tone = SellerStatus.toneFor(item.status, c);
+
+    return SellerCard(
+      padding: const EdgeInsets.all(AppSpace.md),
+      accentEdge: tone.fg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: colors.bg,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(Icons.payments_outlined, color: colors.fg),
+              SellerIconBadge(
+                icon: Icons.payments_rounded,
+                tone: tone,
+                size: 44,
+                iconSize: 22,
               ),
-              const SizedBox(width: 12),
+              const Gap.h(AppSpace.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.month,
-                      style: const TextStyle(
-                        color: _I.text,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
+                    Text(item.month, style: text.titleSm),
+                    const Gap.v(AppSpace.xxs),
                     Text(
                       item.productTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _I.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: text.bodySm,
                     ),
                   ],
                 ),
               ),
-              _StatusPill(label: item.status, fg: colors.fg, bg: colors.bg),
+              const Gap.h(AppSpace.xs),
+              SellerStatusPill(label: item.status),
             ],
           ),
-          const SizedBox(height: 13),
+          const Gap.v(AppSpace.sm),
+          Divider(color: c.divider, height: 1),
+          const Gap.v(AppSpace.sm),
           Row(
             children: [
               Expanded(
-                child: _MiniInfo(
+                child: _InfoTile(
+                  icon: Icons.account_balance_wallet_outlined,
                   label: 'Due',
                   value: item.formattedPrice,
-                  icon: Icons.account_balance_wallet_outlined,
                 ),
               ),
-              const SizedBox(width: 8),
+              const Gap.h(AppSpace.xs),
               Expanded(
-                child: _MiniInfo(
+                child: _InfoTile(
+                  icon: Icons.calendar_today_outlined,
                   label: 'Date',
                   value: item.formattedDate,
-                  icon: Icons.calendar_today_outlined,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const Gap.v(AppSpace.sm),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: SellerButton.secondary(
+                  label: 'Invoice',
+                  icon: Icons.receipt_long_outlined,
+                  size: SellerButtonSize.small,
                   onPressed: onInvoice,
-                  icon: const Icon(Icons.receipt_long_outlined, size: 17),
-                  label: const Text('Invoice'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _I.brand,
-                    side: const BorderSide(color: _I.border),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const Gap.h(AppSpace.xs),
               Expanded(
-                child: FilledButton.icon(
+                child: SellerButton(
+                  label: item.paid ? 'Paid' : 'Pay',
+                  icon: Icons.check_circle_outline_rounded,
+                  size: SellerButtonSize.small,
                   onPressed: onPay,
-                  icon: const Icon(
-                    Icons.check_circle_outline_rounded,
-                    size: 17,
-                  ),
-                  label: Text(item.paid ? 'Paid' : 'Pay'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _I.brand,
-                    disabledBackgroundColor: _I.success.withValues(alpha: 0.2),
-                    disabledForegroundColor: _I.success,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
                 ),
               ),
             ],
@@ -848,52 +590,47 @@ class _InstalmentCard extends StatelessWidget {
   }
 }
 
-class _MiniInfo extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════
+//  INFO TILE (shared mini detail chip)
+// ═══════════════════════════════════════════════════════════
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
-  final IconData icon;
 
-  const _MiniInfo({
+  const _InfoTile({
+    required this.icon,
     required this.label,
     required this.value,
-    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(AppSpace.xs),
       decoration: BoxDecoration(
-        color: _I.surfaceAlt,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: _I.border),
+        color: c.surfaceAlt,
+        borderRadius: AppRadius.brSm,
+        border: Border.all(color: c.border),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 15, color: _I.brand),
-          const SizedBox(width: 7),
+          Icon(icon, size: 14, color: c.accent),
+          const Gap.h(AppSpace.xxs + 2),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: _I.muted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
+                Text(label, style: text.caption),
+                const Gap.v(1),
                 Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _I.text,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: text.labelSm.copyWith(color: c.textPrimary),
                 ),
               ],
             ),
@@ -904,6 +641,9 @@ class _MiniInfo extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  ORDER LEDGER SHEET
+// ═══════════════════════════════════════════════════════════
 class _OrderLedgerSheet extends StatelessWidget {
   final _InstalmentOrderGroup group;
   final Future<void> Function(SellerInstalment item) onPay;
@@ -922,40 +662,31 @@ class _OrderLedgerSheet extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _I.surfaceAlt,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _I.border),
-            ),
+          // Order summary card
+          SellerCard(
+            color: context.sellerColors.surfaceAlt,
+            elevated: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  group.order.productTitle,
-                  style: const TextStyle(
-                    color: _I.text,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                Text(group.order.productTitle,
+                    style: context.sellerText.titleSm),
+                const Gap.v(AppSpace.xs),
                 Row(
                   children: [
                     Expanded(
-                      child: _MiniInfo(
+                      child: _InfoTile(
+                        icon: Icons.person_outline_rounded,
                         label: 'Customer',
                         value: group.customerName,
-                        icon: Icons.person_outline_rounded,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const Gap.h(AppSpace.xs),
                     Expanded(
-                      child: _MiniInfo(
+                      child: _InfoTile(
+                        icon: Icons.shopping_bag_outlined,
                         label: 'Deal',
                         value: group.order.formattedTotalDealPrice,
-                        icon: Icons.shopping_bag_outlined,
                       ),
                     ),
                   ],
@@ -963,10 +694,10 @@ class _OrderLedgerSheet extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const Gap.v(AppSpace.sm),
           ...group.items.map(
             (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: AppSpace.xs),
               child: _InstalmentCard(
                 item: item,
                 onPay: item.canPay ? () => onPay(item) : null,
@@ -980,6 +711,9 @@ class _OrderLedgerSheet extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  PAY INSTALMENT SHEET
+// ═══════════════════════════════════════════════════════════
 class _PayInstalmentSheet extends ConsumerStatefulWidget {
   final SellerInstalment item;
 
@@ -1047,35 +781,72 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     final recoveryMembers = ref
             .watch(sellerCustomOrderDetailsProvider(widget.item.order.uuid))
             .asData
             ?.value
             .recoveryMembers ??
         const [];
+=======
+    final c = context.sellerColors;
+    final text = context.sellerText;
+>>>>>>> main
 
     return _SheetShell(
       title: 'Pay Instalment',
       child: Form(
         key: _formKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _PaymentSummary(item: widget.item),
-            const SizedBox(height: 12),
-            _SheetTextField(
-              controller: _amount,
-              label: 'Instalment Amount',
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                final amount = int.tryParse(value?.trim() ?? '') ?? 0;
-                if (amount <= 0) return 'Enter a valid amount';
-                return null;
-              },
+            // Summary
+            SellerCard(
+              color: c.surfaceAlt,
+              elevated: false,
+              child: Row(
+                children: [
+                  SellerIconBadge(
+                    icon: Icons.receipt_long_rounded,
+                    tone: c.accentTone,
+                    size: 38,
+                    iconSize: 19,
+                  ),
+                  const Gap.h(AppSpace.sm),
+                  Expanded(
+                    child: Text(
+                      '${widget.item.month} • ${widget.item.productTitle}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodyLg,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const Gap.v(AppSpace.sm),
+            // Amount
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpace.sm),
+              child: TextFormField(
+                controller: _amount,
+                enabled: !_saving,
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  final amount = int.tryParse(value?.trim() ?? '') ?? 0;
+                  if (amount <= 0) return 'Enter a valid amount';
+                  return null;
+                },
+                style: text.body,
+                decoration: _sheetInputDecoration(c, 'Instalment Amount'),
+              ),
+            ),
+            // Method
             DropdownButtonFormField<String>(
               initialValue: _method,
-              decoration: _sheetDecoration('Payment Method'),
+              decoration: _sheetInputDecoration(c, 'Payment Method'),
+              style: text.body.copyWith(color: c.textPrimary),
+              dropdownColor: c.surface,
               items: const [
                 DropdownMenuItem(value: 'By Hand', child: Text('By Hand')),
                 DropdownMenuItem(value: 'JazzCash', child: Text('JazzCash')),
@@ -1086,6 +857,7 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
                   ? null
                   : (value) => setState(() => _method = value ?? _method),
             ),
+<<<<<<< HEAD
             if (recoveryMembers.isNotEmpty) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<int?>(
@@ -1116,12 +888,22 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
+=======
+            const Gap.v(AppSpace.sm),
+            // Receipt picker
+            SellerButton.secondary(
+              label: _receipt == null ? 'Attach Receipt' : 'Receipt Added ✓',
+              icon: Icons.image_outlined,
+              onPressed: _saving ? null : _pickReceipt,
+>>>>>>> main
             ),
-            const SizedBox(height: 16),
-            _SheetButton(
+            const Gap.v(AppSpace.md),
+            // Submit
+            SellerButton(
               label: 'Submit Payment',
+              icon: Icons.save_outlined,
               loading: _saving,
-              onTap: _submit,
+              onPressed: _saving ? null : _submit,
             ),
           ],
         ),
@@ -1130,42 +912,9 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
   }
 }
 
-class _PaymentSummary extends StatelessWidget {
-  final SellerInstalment item;
-
-  const _PaymentSummary({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _I.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _I.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.receipt_long_outlined, color: _I.brand),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '${item.month} • ${item.productTitle}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _I.text,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+// ═══════════════════════════════════════════════════════════
+//  SHEET SHELL — shared bottom sheet container
+// ═══════════════════════════════════════════════════════════
 class _SheetShell extends StatelessWidget {
   final String title;
   final Widget child;
@@ -1174,14 +923,22 @@ class _SheetShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+
     return Padding(
       padding: EdgeInsets.only(bottom: bottom),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-        decoration: const BoxDecoration(
-          color: _I.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: AppRadius.sheet,
+        ),
+        padding: EdgeInsets.fromLTRB(
+          AppSpace.lg,
+          AppSpace.sm,
+          AppSpace.lg,
+          AppSpace.lg + MediaQuery.of(context).padding.bottom,
         ),
         child: SafeArea(
           top: false,
@@ -1190,26 +947,20 @@ class _SheetShell extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Drag handle
                 Center(
                   child: Container(
-                    width: 42,
+                    width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: _I.border,
-                      borderRadius: BorderRadius.circular(999),
+                      color: c.borderStrong,
+                      borderRadius: AppRadius.brPill,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _I.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const Gap.v(AppSpace.md),
+                Text(title, style: text.titleMd),
+                const Gap.v(AppSpace.md),
                 child,
               ],
             ),
@@ -1220,98 +971,9 @@ class _SheetShell extends StatelessWidget {
   }
 }
 
-class _SheetTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final bool enabled;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-
-  const _SheetTextField({
-    required this.controller,
-    required this.label,
-    required this.enabled,
-    this.keyboardType,
-    this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        enabled: enabled,
-        keyboardType: keyboardType,
-        validator: validator,
-        decoration: _sheetDecoration(label),
-      ),
-    );
-  }
-}
-
-class _SheetButton extends StatelessWidget {
-  final String label;
-  final bool loading;
-  final VoidCallback onTap;
-
-  const _SheetButton({
-    required this.label,
-    required this.loading,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: FilledButton.icon(
-        onPressed: loading ? null : onTap,
-        icon: loading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.save_outlined, size: 18),
-        label: Text(label),
-        style: FilledButton.styleFrom(
-          backgroundColor: _I.brand,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color fg;
-  final Color bg;
-
-  const _StatusPill({required this.label, required this.fg, required this.bg});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w900),
-      ),
-    );
-  }
-}
-
+// ═══════════════════════════════════════════════════════════
+//  PAGINATION BAR
+// ═══════════════════════════════════════════════════════════
 class _PaginationBar extends StatelessWidget {
   final SellerInstalmentsPagination pagination;
   final VoidCallback? onPrevious;
@@ -1326,31 +988,32 @@ class _PaginationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (pagination.lastPage <= 1) return const SizedBox.shrink();
+
+    final text = context.sellerText;
+    final c = context.sellerColors;
+
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton.icon(
+          child: SellerButton.secondary(
+            label: 'Previous',
+            icon: Icons.chevron_left_rounded,
+            size: SellerButtonSize.small,
             onPressed: onPrevious,
-            icon: const Icon(Icons.chevron_left_rounded),
-            label: const Text('Previous'),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            '${pagination.currentPage}/${pagination.lastPage}',
-            style: const TextStyle(
-              color: _I.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+        const Gap.h(AppSpace.sm),
+        Text(
+          '${pagination.currentPage}/${pagination.lastPage}',
+          style: text.labelSm.copyWith(color: c.textTertiary),
         ),
+        const Gap.h(AppSpace.sm),
         Expanded(
-          child: OutlinedButton.icon(
+          child: SellerButton.secondary(
+            label: 'Next',
+            trailingIcon: Icons.chevron_right_rounded,
+            size: SellerButtonSize.small,
             onPressed: onNext,
-            icon: const Icon(Icons.chevron_right_rounded),
-            label: const Text('Next'),
           ),
         ),
       ],
@@ -1358,110 +1021,51 @@ class _PaginationBar extends StatelessWidget {
   }
 }
 
-class _InstalmentSkeleton extends StatelessWidget {
-  const _InstalmentSkeleton();
+// ═══════════════════════════════════════════════════════════
+//  EVEN GRID — 2-column equal-width layout helper
+// ═══════════════════════════════════════════════════════════
+class _EvenGrid extends StatelessWidget {
+  final List<Widget> children;
+
+  const _EvenGrid({required this.children});
+
+  static const int columns = 2;
+
+  static const double _spacing = AppSpace.sm;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        4,
-        (_) => Container(
-          height: 178,
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: _I.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _I.border),
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i += columns) {
+      final cells = <Widget>[];
+      for (var j = 0; j < columns; j++) {
+        final index = i + j;
+        cells.add(
+          Expanded(
+            child: index < children.length
+                ? children[index]
+                : const SizedBox.shrink(),
           ),
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        );
+        if (j < columns - 1) cells.add(const Gap.h(_spacing));
+      }
+      if (rows.isNotEmpty) rows.add(const Gap.v(_spacing));
+      rows.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: cells,
+          ),
         ),
-      ),
-    );
+      );
+    }
+    return Column(children: rows);
   }
 }
 
-class _ErrorCard extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorCard({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _I.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _I.border),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.error_outline_rounded, color: _I.danger),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: _I.text, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: _I.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _I.border),
-      ),
-      child: const Column(
-        children: [
-          Icon(Icons.payments_outlined, color: _I.muted, size: 32),
-          SizedBox(height: 10),
-          Text(
-            'No instalments found.',
-            style: TextStyle(color: _I.text, fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-InputDecoration _sheetDecoration(String label) {
-  return InputDecoration(
-    labelText: label,
-    filled: true,
-    fillColor: _I.surfaceAlt,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _I.border),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _I.border),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _I.brand, width: 1.4),
-    ),
-  );
-}
+// ═══════════════════════════════════════════════════════════
+//  DATA HELPERS — grouping, formatting, filtering
+// ═══════════════════════════════════════════════════════════
 
 class _InstalmentOrderGroup {
   final SellerInstalmentOrder order;
@@ -1536,7 +1140,10 @@ String _moneyAmount(int amount) {
   return 'Rs. ${buffer.toString()}';
 }
 
-List<SellerInstalment> _filter(List<SellerInstalment> items, String query) {
+List<SellerInstalment> _filter(
+  List<SellerInstalment> items,
+  String query,
+) {
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return items;
   return items
@@ -1550,21 +1157,36 @@ List<SellerInstalment> _filter(List<SellerInstalment> items, String query) {
       .toList(growable: false);
 }
 
-({Color fg, Color bg}) _statusColors(String status) {
-  final lower = status.toLowerCase();
-  if (lower.contains('paid') && !lower.contains('unpaid')) {
-    return (fg: _I.success, bg: _I.success.withValues(alpha: 0.12));
-  }
-  if (lower.contains('unpaid') || lower.contains('pending')) {
-    return (fg: _I.warning, bg: _I.warning.withValues(alpha: 0.12));
-  }
-  if (lower.contains('cancel') || lower.contains('lost')) {
-    return (fg: _I.danger, bg: _I.danger.withValues(alpha: 0.12));
-  }
-  return (fg: _I.brand, bg: _I.brand.withValues(alpha: 0.12));
+String _cleanError(Object error) {
+  final msg = error.toString().replaceFirst('Exception: ', '').trim();
+  return msg.isEmpty ? 'Something went wrong. Please try again.' : msg;
 }
 
-String _cleanError(Object error) {
-  final text = error.toString().replaceFirst('Exception: ', '').trim();
-  return text.isEmpty ? 'Something went wrong. Please try again.' : text;
+InputDecoration _sheetInputDecoration(SellerColors c, String label) {
+  return InputDecoration(
+    labelText: label,
+    labelStyle: TextStyle(color: c.textSecondary),
+    filled: true,
+    fillColor: c.surfaceAlt,
+    border: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.accent, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.danger),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.danger, width: 1.6),
+    ),
+  );
 }

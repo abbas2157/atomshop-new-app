@@ -1,6 +1,6 @@
 import 'package:atompro/core/mode/app_mode_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
-import 'package:atompro/core/style/color_palette.dart';
+import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:flutter/material.dart';
 
 class SellerModeGateScreen extends StatefulWidget {
@@ -26,10 +26,47 @@ class _SellerModeGateScreenState extends State<SellerModeGateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: ColorPalette.background,
-      body: Center(
-        child: CircularProgressIndicator(color: ColorPalette.secondary),
+    // Pushed as its own route → wrap in the seller theme scope for dark mode.
+    return SellerThemeScope(
+      child: Builder(
+        builder: (context) {
+          final c = context.sellerColors;
+          return Scaffold(
+            backgroundColor: c.canvas,
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      gradient: c.headerGradient,
+                      borderRadius: AppRadius.brXl,
+                      boxShadow: c.floatingShadow,
+                    ),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  const Gap.v(AppSpace.lg),
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: c.accent,
+                    ),
+                  ),
+                  const Gap.v(AppSpace.md),
+                  Text('Entering Seller Mode', style: context.sellerText.bodySm),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

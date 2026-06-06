@@ -1,7 +1,18 @@
+// ============================================================
+//  seller_profile_screen.dart  —  v2 (Design System)
+//
+//  Rebuilt on the Seller Design System: unified tokens, colour
+//  extension (light + dark), shared component library. 100% of
+//  business logic, providers, API calls and navigation are
+//  preserved — only presentation / styling has changed.
+// ============================================================
+
 import 'dart:io';
 
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/auth/viewmodel/seller_auth_viewmodel.dart';
+import 'package:atompro/features/seller/core/design/design.dart';
+import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/fee_charge/view/seller_fee_charge_screen.dart';
 import 'package:atompro/features/seller/investments/view/seller_investments_screen.dart';
 import 'package:atompro/features/seller/profile/model/seller_profile_model.dart';
@@ -9,216 +20,314 @@ import 'package:atompro/features/seller/profile/repository/seller_profile_reposi
 import 'package:atompro/features/seller/profile/viewmodel/seller_profile_viewmodel.dart';
 import 'package:atompro/features/seller/sales_team/view/seller_sales_team_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-abstract final class _P {
-  static const bg = Color(0xFFF4F6FC);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceAlt = Color(0xFFF8FAFE);
-  static const brand = Color(0xFF3B5BDB);
-  static const brandDark = Color(0xFF1A2980);
-  static const text = Color(0xFF101828);
-  static const muted = Color(0xFF667085);
-  static const border = Color(0xFFE4E8F5);
-  static const danger = Color(0xFFEF4444);
-}
-
+// ═══════════════════════════════════════════════════════════
+//  ROOT SCREEN
+// ═══════════════════════════════════════════════════════════
 class SellerProfileScreen extends ConsumerWidget {
   const SellerProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.sellerColors;
     final state = ref.watch(sellerProfileBundleProvider);
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: _P.bg,
-        body: SafeArea(
-          child: state.when(
-            loading: () => const _LoadingView(),
-            error: (error, _) => _ErrorView(
-              message: _cleanError(error),
-              onRetry: () => ref.invalidate(sellerProfileBundleProvider),
+    return Scaffold(
+      backgroundColor: c.canvas,
+      body: state.when(
+        loading: () => const _ProfileSkeleton(),
+        error: (error, _) => SafeArea(
+          child: SellerErrorState(
+            message: _cleanError(error),
+            onRetry: () => ref.invalidate(sellerProfileBundleProvider),
+          ),
+        ),
+        data: (bundle) => Column(
+          children: [
+            _ProfileHeader(
+              bundle: bundle,
+              onPickImage: () => _updatePicture(context, ref),
+              onLogout: () => _confirmLogout(context, ref),
             ),
-            data: (bundle) => RefreshIndicator(
-              color: _P.brand,
-              onRefresh: () async {
-                ref.invalidate(sellerProfileBundleProvider);
-                await ref.read(sellerProfileBundleProvider.future);
-              },
-              child: ListView(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
-                children: [
-                  _Header(
-                    bundle: bundle,
-                    onPickImage: () => _updatePicture(context, ref),
-                    onLogout: () => _confirmLogout(context, ref),
+            Expanded(
+              child: RefreshIndicator(
+                color: c.accent,
+                backgroundColor: c.surface,
+                onRefresh: () async {
+                  ref.invalidate(sellerProfileBundleProvider);
+                  await ref.read(sellerProfileBundleProvider.future);
+                },
+                child: ListView(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
                   ),
-                  const SizedBox(height: 14),
-
-                  // ACCOUNT
-                  _SectionCard(
-                    title: 'Account',
-                    icon: Icons.person_outline_rounded,
-                    trailing: _EditButton(
-                      onTap: () =>
+                  padding: AppInsets.pageWithNav,
+                  children: [
+                    // ── Account ──────────────────────────────────────────
+                    SellerSectionHeader(
+                      overline: 'User',
+                      title: 'Account',
+                      actionLabel: 'Edit',
+                      actionIcon: Icons.edit_outlined,
+                      onAction: () =>
                           _showUserInfoSheet(context, ref, bundle),
                     ),
-                    child: Column(
-                      children: [
-                        _GRow('Name', bundle.profile.name,
-                            'Phone', bundle.profile.phone),
-                        _GRow('Email', bundle.profile.email,
-                            'Status', bundle.profile.status),
-                      ],
+                    const Gap.v(AppSpace.sm),
+                    SellerCard(
+                      child: Column(
+                        children: [
+                          SellerDataRow(
+                            label: 'Name',
+                            value: bundle.profile.name,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'Phone',
+                            value: bundle.profile.phone,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'Email',
+                            value: bundle.profile.email,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'Status',
+                            value: bundle.profile.status,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const Gap.v(AppSpace.lg),
 
-                  // SELLER INFO
-                  _SectionCard(
-                    title: 'Seller Info',
-                    icon: Icons.badge_outlined,
-                    trailing: _EditButton(
-                      onTap: () =>
+                    // ── Seller Info ───────────────────────────────────────
+                    SellerSectionHeader(
+                      overline: 'Identity',
+                      title: 'Seller Info',
+                      actionLabel: 'Edit',
+                      actionIcon: Icons.edit_outlined,
+                      onAction: () =>
                           _showSellerInfoSheet(context, ref, bundle),
                     ),
-                    child: Column(
-                      children: [
-                        _GRow('Seller Code', bundle.sellerInfo.code,
-                            'CNIC', bundle.sellerInfo.cnicNumber),
-                        _GRow('Website', bundle.sellerInfo.website,
-                            'WhatsApp', bundle.sellerInfo.whatsappPhone),
-                      ],
+                    const Gap.v(AppSpace.sm),
+                    SellerCard(
+                      child: Column(
+                        children: [
+                          SellerDataRow(
+                            label: 'Seller Code',
+                            value: bundle.sellerInfo.code,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'CNIC',
+                            value: bundle.sellerInfo.cnicNumber,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'Website',
+                            value: bundle.sellerInfo.website,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'WhatsApp',
+                            value: bundle.sellerInfo.whatsappPhone,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const Gap.v(AppSpace.lg),
 
-                  // BUSINESS INFO
-                  _SectionCard(
-                    title: 'Business Info',
-                    icon: Icons.storefront_outlined,
-                    trailing: _EditButton(
-                      onTap: () =>
+                    // ── Business Info ─────────────────────────────────────
+                    SellerSectionHeader(
+                      overline: 'Store',
+                      title: 'Business Info',
+                      actionLabel: 'Edit',
+                      actionIcon: Icons.edit_outlined,
+                      onAction: () =>
                           _showBusinessInfoSheet(context, ref, bundle),
                     ),
-                    child: Column(
-                      children: [
-                        _GRow('Business', bundle.sellerInfo.businessName,
-                            'City', bundle.sellerInfo.cityTitle),
-                        _GRow('Address', bundle.sellerInfo.address,
-                            'Investment', bundle.sellerInfo.investmentCapacity),
-                        _GRow('Experience',
-                            bundle.sellerInfo.previousExperience,
-                            'Business Phone',
-                            bundle.sellerInfo.businessPhone),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ACTIVE COVERAGE AREAS — own section, always visible
-                  _SectionCard(
-                    title: 'Active Coverage Areas',
-                    icon: Icons.location_on_outlined,
-                    child: bundle.sellerInfo.activeAreas.isEmpty
-                        ? const Text(
-                            'No active areas assigned yet.',
-                            style: TextStyle(
-                              color: Color(0xFF9CA3AF),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        : Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: bundle.sellerInfo.activeAreas
-                                .map(
-                                  (area) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _P.brand.withValues(alpha: 0.07),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color:
-                                            _P.brand.withValues(alpha: 0.20),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      area.title,
-                                      style: const TextStyle(
-                                        color: _P.brand,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
+                    const Gap.v(AppSpace.sm),
+                    SellerCard(
+                      child: Column(
+                        children: [
+                          SellerDataRow(
+                            label: 'Business',
+                            value: bundle.sellerInfo.businessName,
                           ),
-                  ),
-                  const SizedBox(height: 12),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'City',
+                            value: bundle.sellerInfo.cityTitle,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'Address',
+                            value: bundle.sellerInfo.address,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'Investment',
+                            value: bundle.sellerInfo.investmentCapacity,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'Experience',
+                            value: bundle.sellerInfo.previousExperience,
+                          ),
+                          Divider(color: c.divider, height: 1),
+                          SellerDataRow(
+                            label: 'Business Phone',
+                            value: bundle.sellerInfo.businessPhone,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Gap.v(AppSpace.lg),
 
-                  // SECURITY
-                  _SecurityCard(
-                    onChangePassword: () =>
-                        _showPasswordSheet(context, ref),
-                  ),
-                  const SizedBox(height: 12),
+                    // ── Active Coverage Areas ─────────────────────────────
+                    const SellerSectionHeader(
+                      overline: 'Logistics',
+                      title: 'Active Coverage Areas',
+                    ),
+                    const Gap.v(AppSpace.sm),
+                    SellerCard(
+                      child: bundle.sellerInfo.activeAreas.isEmpty
+                          ? Text(
+                              'No active areas assigned yet.',
+                              style: context.sellerText.bodySm,
+                            )
+                          : Wrap(
+                              spacing: AppSpace.xs,
+                              runSpacing: AppSpace.xs,
+                              children: bundle.sellerInfo.activeAreas
+                                  .map(
+                                    (area) => SellerStatusPill(
+                                      label: area.title,
+                                      tone: c.accentTone,
+                                      showDot: false,
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                    ),
+                    const Gap.v(AppSpace.lg),
 
-                  // QUICK ACTIONS
-                  _ProfileActionCard(
-                    icon: Icons.groups_2_outlined,
-                    title: 'Sales Team',
-                    subtitle: 'Manage sales and recovery members',
-                    color: _P.brand,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SellerSalesTeamScreen(),
+                    // ── Security ──────────────────────────────────────────
+                    const SellerSectionHeader(
+                      overline: 'Privacy',
+                      title: 'Security',
+                    ),
+                    const Gap.v(AppSpace.sm),
+                    SellerCard(
+                      onTap: () => _showPasswordSheet(context, ref),
+                      child: Row(
+                        children: [
+                          SellerIconBadge(
+                            icon: Icons.lock_outline_rounded,
+                            tone: c.dangerTone,
+                          ),
+                          const Gap.h(AppSpace.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Change Password',
+                                  style: context.sellerText.titleSm,
+                                ),
+                                const Gap.v(AppSpace.xxs),
+                                Text(
+                                  'Manage seller account password',
+                                  style: context.sellerText.bodySm,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: c.textTertiary,
+                            size: 20,
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  _ProfileActionCard(
-                    icon: Icons.account_balance_wallet_outlined,
-                    title: 'Fee Charge',
-                    subtitle: 'Review seller fees and payments',
-                    color: const Color(0xFFF59E0B),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SellerFeeChargeScreen(),
+                    const Gap.v(AppSpace.lg),
+
+                    // ── Quick Actions ─────────────────────────────────────
+                    const SellerSectionHeader(
+                      overline: 'Navigation',
+                      title: 'Quick Actions',
+                    ),
+                    const Gap.v(AppSpace.sm),
+                    _QuickActionCard(
+                      icon: Icons.groups_2_outlined,
+                      title: 'Sales Team',
+                      subtitle: 'Manage sales and recovery members',
+                      tone: c.accentTone,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SellerThemeScope(
+                            child: Builder(
+                              builder: (context) =>
+                                  const SellerSalesTeamScreen(),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  _ProfileActionCard(
-                    icon: Icons.trending_up_rounded,
-                    title: 'Investments',
-                    subtitle: 'Track investment records and status',
-                    color: const Color(0xFF10B981),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SellerInvestmentsScreen(),
+                    const Gap.v(AppSpace.sm),
+                    _QuickActionCard(
+                      icon: Icons.account_balance_wallet_outlined,
+                      title: 'Fee Charge',
+                      subtitle: 'Review seller fees and payments',
+                      tone: c.warningTone,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SellerThemeScope(
+                            child: Builder(
+                              builder: (context) =>
+                                  const SellerFeeChargeScreen(),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const Gap.v(AppSpace.sm),
+                    _QuickActionCard(
+                      icon: Icons.trending_up_rounded,
+                      title: 'Investments',
+                      subtitle: 'Track investment records and status',
+                      tone: c.successTone,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SellerThemeScope(
+                            child: Builder(
+                              builder: (context) =>
+                                  const SellerInvestmentsScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Gap.v(AppSpace.lg),
+
+                    // ── Logout ────────────────────────────────────────────
+                    SellerButton(
+                      label: 'Log out',
+                      variant: SellerButtonVariant.danger,
+                      icon: Icons.logout_rounded,
+                      onPressed: () => _confirmLogout(context, ref),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -244,34 +353,22 @@ class SellerProfileScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Do you want to logout from Seller Mode?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await ref.read(sellerAuthViewModelProvider.notifier).logout();
+    final ok = await _showLogoutDialog(context);
+    if (ok == true && context.mounted) {
+      await ref.read(sellerAuthViewModelProvider.notifier).logout();
+    }
   }
 }
 
-class _Header extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════
+//  HEADER
+// ═══════════════════════════════════════════════════════════
+class _ProfileHeader extends StatelessWidget {
   final SellerProfileBundle bundle;
   final VoidCallback onPickImage;
   final VoidCallback onLogout;
 
-  const _Header({
+  const _ProfileHeader({
     required this.bundle,
     required this.onPickImage,
     required this.onLogout,
@@ -279,94 +376,44 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     final seller = bundle.sellerInfo;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_P.brandDark, _P.brand],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+
+    return SellerGradientHeader(
+      leading: SellerMonogram(name: bundle.profile.name, size: 46),
+      title: seller.businessName,
+      subtitle: bundle.profile.email,
+      actions: [
+        SellerHeaderIconButton(
+          icon: Icons.photo_camera_outlined,
+          onTap: onPickImage,
+          tooltip: 'Change picture',
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: _P.brand.withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        SellerHeaderIconButton(
+          icon: Icons.logout_rounded,
+          onTap: onLogout,
+          tooltip: 'Log out',
+        ),
+      ],
+      bottom: Wrap(
+        spacing: AppSpace.xs,
+        runSpacing: AppSpace.xs,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white.withValues(alpha: 0.16),
-                child: Text(
-                  _initials(bundle.profile.name),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              _HeaderIconButton(
-                tooltip: 'Change picture',
-                icon: Icons.photo_camera_outlined,
-                onTap: onPickImage,
-              ),
-              const SizedBox(width: 8),
-              _HeaderIconButton(
-                tooltip: 'Logout',
-                icon: Icons.logout_rounded,
-                onTap: onLogout,
-              ),
-            ],
+          _HeaderPill(
+            icon: seller.verified
+                ? Icons.verified_rounded
+                : Icons.verified_outlined,
+            label: seller.verified ? 'Verified' : 'Not verified',
+            color: seller.verified ? c.success : c.warning,
           ),
-          const SizedBox(height: 18),
-          Text(
-            seller.businessName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              height: 1.1,
-              fontWeight: FontWeight.w900,
+          if (seller.topRated)
+            const _HeaderPill(
+              icon: Icons.workspace_premium_outlined,
+              label: 'Top Rated',
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            bundle.profile.email,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _HeaderChip(
-                icon: Icons.verified_outlined,
-                label: seller.verified ? 'Verified' : 'Not verified',
-                accentColor: seller.verified
-                    ? const Color(0xFF10B981)  // green when verified
-                    : const Color(0xFFF59E0B), // amber when not
-              ),
-              if (seller.topRated)
-                const _HeaderChip(
-                  icon: Icons.workspace_premium_outlined,
-                  label: 'Top rated',
-                ),
-              _HeaderChip(icon: Icons.qr_code_2_rounded, label: seller.code),
-            ],
+          _HeaderPill(
+            icon: Icons.qr_code_2_rounded,
+            label: seller.code,
           ),
         ],
       ),
@@ -374,374 +421,232 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _HeaderIconButton extends StatelessWidget {
-  final String tooltip;
+/// A frosted pill chip for the gradient header bottom row.
+class _HeaderPill extends StatelessWidget {
   final IconData icon;
+  final String label;
+
+  /// When provided, tints the pill with this colour instead of white.
+  final Color? color;
+
+  const _HeaderPill({required this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = color ?? Colors.white;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.sm,
+        vertical: AppSpace.xxs + 2,
+      ),
+      decoration: BoxDecoration(
+        color: fg.withValues(alpha: color != null ? 0.18 : 0.12),
+        borderRadius: AppRadius.brPill,
+        border: Border.all(
+          color: fg.withValues(alpha: color != null ? 0.35 : 0.18),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: fg, size: 13),
+          const Gap.h(AppSpace.xxs + 1),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Roboto',
+              color: fg,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  QUICK ACTION CARD
+// ═══════════════════════════════════════════════════════════
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final SellerTone tone;
   final VoidCallback onTap;
 
-  const _HeaderIconButton({
-    required this.tooltip,
+  const _QuickActionCard({
     required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.tone,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? accentColor; // when set, uses colored bg instead of white
-
-  const _HeaderChip({
-    required this.icon,
-    required this.label,
-    this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = accentColor ?? Colors.white;
-    final bgAlpha = accentColor != null ? 0.20 : 0.12;
-    final borderAlpha = accentColor != null ? 0.40 : 0.16;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: fg.withValues(alpha: bgAlpha),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: fg.withValues(alpha: borderAlpha)),
-      ),
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return SellerCard(
+      onTap: onTap,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: fg, size: 14),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Reusable section card ────────────────────────────────────────────────────
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Widget child;
-  final Widget? trailing;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.child,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _P.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _P.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 11, 10, 11),
-            decoration: BoxDecoration(
-              color: _P.brand.withValues(alpha: 0.05),
-              border: const Border(bottom: BorderSide(color: _P.border)),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(13)),
-            ),
-            child: Row(
+          SellerIconBadge(icon: icon, tone: tone),
+          const Gap.h(AppSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 15, color: _P.brand),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    title.toUpperCase(),
-                    style: const TextStyle(
-                      color: _P.text,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.7,
-                    ),
-                  ),
-                ),
-                if (trailing != null) trailing!,
+                Text(title, style: text.titleSm),
+                const Gap.v(AppSpace.xxs),
+                Text(subtitle, style: text.bodySm),
               ],
             ),
           ),
-          Padding(padding: const EdgeInsets.all(14), child: child),
+          Icon(Icons.chevron_right_rounded, color: c.textTertiary, size: 20),
         ],
       ),
     );
   }
 }
 
-class _EditButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _EditButton({required this.onTap});
+// ═══════════════════════════════════════════════════════════
+//  SKELETON
+// ═══════════════════════════════════════════════════════════
+class _ProfileSkeleton extends StatelessWidget {
+  const _ProfileSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: _P.brand.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.edit_outlined, size: 12, color: _P.brand),
-            SizedBox(width: 4),
-            Text(
-              'Edit',
-              style: TextStyle(
-                color: _P.brand,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── 2-column grid ────────────────────────────────────────────────────────────
-class _GRow extends StatelessWidget {
-  final String l1, v1, l2, v2;
-  const _GRow(this.l1, this.v1, this.l2, this.v2);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: _GCell(label: l1, value: v1)),
-          if (l2.isNotEmpty) ...[
-            const SizedBox(width: 12),
-            Expanded(child: _GCell(label: l2, value: v2)),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _GCell extends StatelessWidget {
-  final String label;
-  final String value;
-  const _GCell({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
+    final c = context.sellerColors;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: _P.muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+        Container(
+          height: 160,
+          decoration: BoxDecoration(
+            gradient: c.headerGradient,
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(AppRadius.xxl),
+            ),
           ),
         ),
-        const SizedBox(height: 3),
-        Text(
-          value.isEmpty || value == 'Not available' ? '—' : value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: _P.text,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            height: 1.3,
+        const Gap.v(AppSpace.md),
+        Expanded(
+          child: SellerShimmer(
+            child: ListView(
+              padding: AppInsets.pageWithNav,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _skelBox(c, 120),
+                const Gap.v(AppSpace.md),
+                _skelBox(c, 100),
+                const Gap.v(AppSpace.md),
+                _skelBox(c, 160),
+                const Gap.v(AppSpace.md),
+                _skelBox(c, 80),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
+
+  Widget _skelBox(SellerColors c, double h) => Container(
+    height: h,
+    decoration: BoxDecoration(
+      color: c.surface,
+      borderRadius: AppRadius.brLg,
+    ),
+  );
 }
 
-class _SecurityCard extends StatelessWidget {
-  final VoidCallback onChangePassword;
-
-  const _SecurityCard({required this.onChangePassword});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _P.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _P.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: _P.danger.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.lock_outline_rounded, color: _P.danger),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Security',
-                  style: TextStyle(
-                    color: _P.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Manage seller account password',
-                  style: TextStyle(
-                    color: _P.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: onChangePassword,
-            icon: const Icon(Icons.chevron_right_rounded),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ProfileActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _P.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _P.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
+// ═══════════════════════════════════════════════════════════
+//  LOGOUT DIALOG  (matches dashboard pattern)
+// ═══════════════════════════════════════════════════════════
+Future<bool?> _showLogoutDialog(BuildContext context) {
+  final isDark = context.sellerIsDark;
+  return showDialog<bool>(
+    context: context,
+    builder: (_) => Theme(
+      data: isDark ? SellerTheme.dark : SellerTheme.light,
+      child: Builder(
+        builder: (context) {
+          final c = context.sellerColors;
+          final text = context.sellerText;
+          return Dialog(
+            backgroundColor: c.surface,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.brXl),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpace.lg),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _P.text,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  SellerIconBadge(
+                    icon: Icons.logout_rounded,
+                    tone: c.dangerTone,
+                    size: 52,
+                    iconSize: 26,
+                    radius: AppRadius.lg,
                   ),
-                  const SizedBox(height: 3),
+                  const Gap.v(AppSpace.md),
+                  Text('Log out?', style: text.titleMd),
+                  const Gap.v(AppSpace.xs),
                   Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: _P.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    'You will need to sign in again to access Seller Mode.',
+                    textAlign: TextAlign.center,
+                    style: text.bodySm,
+                  ),
+                  const Gap.v(AppSpace.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SellerButton.secondary(
+                          label: 'Cancel',
+                          onPressed: () => Navigator.of(context).pop(false),
+                        ),
+                      ),
+                      const Gap.h(AppSpace.sm),
+                      Expanded(
+                        child: SellerButton(
+                          label: 'Log out',
+                          variant: SellerButtonVariant.danger,
+                          onPressed: () => Navigator.of(context).pop(true),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: _P.muted),
-          ],
-        ),
+          );
+        },
       ),
-    );
-  }
+    ),
+  );
 }
 
+// ═══════════════════════════════════════════════════════════
+//  BOTTOM SHEETS — helpers
+// ═══════════════════════════════════════════════════════════
 Future<void> _showUserInfoSheet(
   BuildContext context,
   WidgetRef ref,
   SellerProfileBundle bundle,
 ) {
+  final isDark = context.sellerIsDark;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _UserInfoSheet(bundle: bundle),
+    builder: (_) => Theme(
+      data: isDark ? SellerTheme.dark : SellerTheme.light,
+      child: Builder(
+        builder: (context) => _UserInfoSheet(bundle: bundle),
+      ),
+    ),
   );
 }
 
@@ -750,11 +655,17 @@ Future<void> _showSellerInfoSheet(
   WidgetRef ref,
   SellerProfileBundle bundle,
 ) {
+  final isDark = context.sellerIsDark;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _SellerInfoSheet(bundle: bundle),
+    builder: (_) => Theme(
+      data: isDark ? SellerTheme.dark : SellerTheme.light,
+      child: Builder(
+        builder: (context) => _SellerInfoSheet(bundle: bundle),
+      ),
+    ),
   );
 }
 
@@ -763,26 +674,40 @@ Future<void> _showBusinessInfoSheet(
   WidgetRef ref,
   SellerProfileBundle bundle,
 ) {
+  final isDark = context.sellerIsDark;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _BusinessInfoSheet(bundle: bundle),
+    builder: (_) => Theme(
+      data: isDark ? SellerTheme.dark : SellerTheme.light,
+      child: Builder(
+        builder: (context) => _BusinessInfoSheet(bundle: bundle),
+      ),
+    ),
   );
 }
 
 Future<void> _showPasswordSheet(BuildContext context, WidgetRef ref) {
+  final isDark = context.sellerIsDark;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => const _PasswordSheet(),
+    builder: (_) => Theme(
+      data: isDark ? SellerTheme.dark : SellerTheme.light,
+      child: Builder(
+        builder: (context) => const _PasswordSheet(),
+      ),
+    ),
   );
 }
 
+// ═══════════════════════════════════════════════════════════
+//  EDIT SHEETS
+// ═══════════════════════════════════════════════════════════
 class _UserInfoSheet extends ConsumerStatefulWidget {
   final SellerProfileBundle bundle;
-
   const _UserInfoSheet({required this.bundle});
 
   @override
@@ -817,7 +742,7 @@ class _UserInfoSheetState extends ConsumerState<_UserInfoSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     await _submitMutation(
       ref: ref,
-      setSaving: (value) => setState(() => _saving = value),
+      setSaving: (v) => setState(() => _saving = v),
       mutation: () => ref
           .read(sellerProfileRepositoryProvider)
           .updateUserInfo(
@@ -858,7 +783,12 @@ class _UserInfoSheetState extends ConsumerState<_UserInfoSheet> {
               keyboardType: TextInputType.phone,
               validator: _required,
             ),
-            _SheetButton(label: 'Save Account', loading: _saving, onTap: _save),
+            SellerButton(
+              label: 'Save Account',
+              icon: Icons.save_outlined,
+              loading: _saving,
+              onPressed: _saving ? null : _save,
+            ),
           ],
         ),
       ),
@@ -868,7 +798,6 @@ class _UserInfoSheetState extends ConsumerState<_UserInfoSheet> {
 
 class _SellerInfoSheet extends ConsumerStatefulWidget {
   final SellerProfileBundle bundle;
-
   const _SellerInfoSheet({required this.bundle});
 
   @override
@@ -907,7 +836,7 @@ class _SellerInfoSheetState extends ConsumerState<_SellerInfoSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     await _submitMutation(
       ref: ref,
-      setSaving: (value) => setState(() => _saving = value),
+      setSaving: (v) => setState(() => _saving = v),
       mutation: () => ref
           .read(sellerProfileRepositoryProvider)
           .updateSellerInfo(
@@ -923,6 +852,7 @@ class _SellerInfoSheetState extends ConsumerState<_SellerInfoSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     return _SheetShell(
       title: 'Edit Seller Info',
       child: Form(
@@ -948,23 +878,21 @@ class _SellerInfoSheetState extends ConsumerState<_SellerInfoSheet> {
             ),
             DropdownButtonFormField<String>(
               initialValue: _feeType,
-              decoration: _sheetDecoration('Fee Charge Type'),
+              decoration: _sheetDecoration('Fee Charge Type', c),
               items: const [
-                DropdownMenuItem(
-                  value: 'percentage',
-                  child: Text('Percentage'),
-                ),
+                DropdownMenuItem(value: 'percentage', child: Text('Percentage')),
                 DropdownMenuItem(value: 'fixed', child: Text('Fixed')),
               ],
               onChanged: _saving
                   ? null
                   : (value) => setState(() => _feeType = value ?? _feeType),
             ),
-            const SizedBox(height: 14),
-            _SheetButton(
+            const Gap.v(AppSpace.md),
+            SellerButton(
               label: 'Save Seller Info',
+              icon: Icons.save_outlined,
               loading: _saving,
-              onTap: _save,
+              onPressed: _saving ? null : _save,
             ),
           ],
         ),
@@ -975,7 +903,6 @@ class _SellerInfoSheetState extends ConsumerState<_SellerInfoSheet> {
 
 class _BusinessInfoSheet extends ConsumerStatefulWidget {
   final SellerProfileBundle bundle;
-
   const _BusinessInfoSheet({required this.bundle});
 
   @override
@@ -1023,7 +950,7 @@ class _BusinessInfoSheetState extends ConsumerState<_BusinessInfoSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     await _submitMutation(
       ref: ref,
-      setSaving: (value) => setState(() => _saving = value),
+      setSaving: (v) => setState(() => _saving = v),
       mutation: () => ref
           .read(sellerProfileRepositoryProvider)
           .updateBusinessInfo(
@@ -1085,13 +1012,13 @@ class _BusinessInfoSheetState extends ConsumerState<_BusinessInfoSheet> {
               controller: _areaIds,
               label: 'Area IDs ($areaCount available, comma separated)',
               enabled: !_saving,
-              keyboardType: TextInputType.text,
               validator: _required,
             ),
-            _SheetButton(
+            SellerButton(
               label: 'Save Business Info',
+              icon: Icons.save_outlined,
               loading: _saving,
-              onTap: _save,
+              onPressed: _saving ? null : _save,
             ),
           ],
         ),
@@ -1126,7 +1053,7 @@ class _PasswordSheetState extends ConsumerState<_PasswordSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     await _submitMutation(
       ref: ref,
-      setSaving: (value) => setState(() => _saving = value),
+      setSaving: (v) => setState(() => _saving = v),
       mutation: () => ref
           .read(sellerProfileRepositoryProvider)
           .changePassword(
@@ -1177,10 +1104,11 @@ class _PasswordSheetState extends ConsumerState<_PasswordSheet> {
                 return null;
               },
             ),
-            _SheetButton(
+            SellerButton(
               label: 'Change Password',
+              icon: Icons.lock_reset_rounded,
               loading: _saving,
-              onTap: _save,
+              onPressed: _saving ? null : _save,
             ),
           ],
         ),
@@ -1189,6 +1117,9 @@ class _PasswordSheetState extends ConsumerState<_PasswordSheet> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  SHEET SHELL
+// ═══════════════════════════════════════════════════════════
 class _SheetShell extends StatelessWidget {
   final String title;
   final Widget child;
@@ -1197,14 +1128,22 @@ class _SheetShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+
     return Padding(
       padding: EdgeInsets.only(bottom: bottom),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-        decoration: const BoxDecoration(
-          color: _P.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          AppSpace.sm,
+          AppSpace.md,
+          AppSpace.md,
+        ),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: AppRadius.sheet,
         ),
         child: SafeArea(
           top: false,
@@ -1215,24 +1154,17 @@ class _SheetShell extends StatelessWidget {
               children: [
                 Center(
                   child: Container(
-                    width: 42,
+                    width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: _P.border,
-                      borderRadius: BorderRadius.circular(999),
+                      color: c.borderStrong,
+                      borderRadius: AppRadius.brPill,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _P.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const Gap.v(AppSpace.md),
+                Text(title, style: text.titleMd),
+                const Gap.v(AppSpace.md),
                 child,
               ],
             ),
@@ -1243,6 +1175,9 @@ class _SheetShell extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+//  SHEET TEXT FIELD
+// ═══════════════════════════════════════════════════════════
 class _SheetTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -1264,8 +1199,9 @@ class _SheetTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpace.sm),
       child: TextFormField(
         controller: controller,
         enabled: enabled,
@@ -1273,113 +1209,41 @@ class _SheetTextField extends StatelessWidget {
         maxLines: obscureText ? 1 : maxLines,
         keyboardType: keyboardType,
         validator: validator,
-        decoration: _sheetDecoration(label),
+        style: context.sellerText.body,
+        decoration: _sheetDecoration(label, c),
       ),
     );
   }
 }
 
-class _SheetButton extends StatelessWidget {
-  final String label;
-  final bool loading;
-  final VoidCallback onTap;
-
-  const _SheetButton({
-    required this.label,
-    required this.loading,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      child: FilledButton.icon(
-        onPressed: loading ? null : onTap,
-        icon: loading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.save_outlined, size: 18),
-        label: Text(label),
-        style: FilledButton.styleFrom(
-          backgroundColor: _P.brand,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator(color: _P.brand));
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorView({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, color: _P.danger, size: 34),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _P.text,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-InputDecoration _sheetDecoration(String label) {
+// ═══════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════
+InputDecoration _sheetDecoration(String label, SellerColors c) {
   return InputDecoration(
     labelText: label,
+    labelStyle: TextStyle(color: c.textSecondary),
     filled: true,
-    fillColor: _P.surfaceAlt,
+    fillColor: c.surfaceAlt,
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _P.border),
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _P.border),
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: _P.brand, width: 1.4),
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.accent, width: 1.4),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.danger),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: AppRadius.brMd,
+      borderSide: BorderSide(color: c.danger, width: 1.4),
     ),
   );
 }
@@ -1425,14 +1289,6 @@ List<int> _parseIds(String value) {
       .map((item) => int.tryParse(item.trim()) ?? 0)
       .where((item) => item > 0)
       .toList(growable: false);
-}
-
-String _initials(String name) {
-  final parts = name.trim().split(RegExp(r'\s+'));
-  if (parts.isEmpty || parts.first.isEmpty) return 'S';
-  if (parts.length == 1) return parts.first.characters.first.toUpperCase();
-  return '${parts.first.characters.first}${parts[1].characters.first}'
-      .toUpperCase();
 }
 
 String _cleanError(Object error) {
