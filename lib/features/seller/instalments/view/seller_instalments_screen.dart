@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
+import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_orders_viewmodel.dart';
 import 'package:atompro/features/seller/instalments/model/seller_instalments_model.dart';
 import 'package:atompro/features/seller/instalments/repository/seller_instalments_repository.dart';
 import 'package:atompro/features/seller/instalments/viewmodel/seller_instalments_viewmodel.dart';
@@ -992,7 +993,8 @@ class _PayInstalmentSheet extends ConsumerStatefulWidget {
 class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amount;
-  String _method = 'Cash';
+  String _method = 'By Hand';
+  int? _recoveryMemberId;
   File? _receipt;
   bool _saving = false;
 
@@ -1030,6 +1032,7 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
             orderId: widget.item.orderId,
             instalmentPrice: _amount.text.trim(),
             paymentMethod: _method,
+            recoveryMemberId: _recoveryMemberId,
             receipt: _receipt,
           );
       if (!mounted) return;
@@ -1044,6 +1047,13 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final recoveryMembers = ref
+            .watch(sellerCustomOrderDetailsProvider(widget.item.order.uuid))
+            .asData
+            ?.value
+            .recoveryMembers ??
+        const [];
+
     return _SheetShell(
       title: 'Pay Instalment',
       child: Form(
@@ -1067,26 +1077,41 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
               initialValue: _method,
               decoration: _sheetDecoration('Payment Method'),
               items: const [
-                DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                DropdownMenuItem(value: 'Bank', child: Text('Bank')),
+                DropdownMenuItem(value: 'By Hand', child: Text('By Hand')),
                 DropdownMenuItem(value: 'JazzCash', child: Text('JazzCash')),
-                DropdownMenuItem(value: 'EasyPaisa', child: Text('EasyPaisa')),
+                DropdownMenuItem(value: 'Easypaisa', child: Text('Easypaisa')),
+                DropdownMenuItem(value: 'Bank', child: Text('Bank')),
               ],
               onChanged: _saving
                   ? null
                   : (value) => setState(() => _method = value ?? _method),
             ),
+            if (recoveryMembers.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int?>(
+                initialValue: _recoveryMemberId,
+                decoration: _sheetDecoration('Recovery Member (Optional)'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('None')),
+                  for (final m in recoveryMembers)
+                    DropdownMenuItem(value: m.user.id, child: Text(m.user.name)),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() => _recoveryMemberId = value),
+              ),
+            ],
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: _saving ? null : _pickReceipt,
               icon: const Icon(Icons.image_outlined),
               label: Text(
-                _receipt == null ? 'Attach Receipt' : 'Receipt Added',
+                _receipt == null ? 'Attach Receipt' : 'Receipt Added ✓',
               ),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 48),
-                foregroundColor: _I.brand,
-                side: const BorderSide(color: _I.border),
+                foregroundColor: _receipt == null ? _I.brand : _I.success,
+                side: BorderSide(color: _receipt == null ? _I.border : _I.success),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),

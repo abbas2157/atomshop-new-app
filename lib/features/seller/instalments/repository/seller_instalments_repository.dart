@@ -35,19 +35,23 @@ class SellerInstalmentsRepository {
     required int orderId,
     required String instalmentPrice,
     required String paymentMethod,
+    int? recoveryMemberId,
     File? receipt,
   }) async {
     final token = await SellerSessionManager.getToken();
     final files = <String, File>{};
     if (receipt != null) files['instalment_pictrue'] = receipt;
 
+    final body = <String, dynamic>{
+      'order_id': orderId.toString(),
+      'instalment_price': instalmentPrice,
+      'payment_method': paymentMethod,
+      if (recoveryMemberId != null) 'recovery_member_id': recoveryMemberId,
+    };
+
     final response = await _network.postMultipartRequest(
       ApiEndpoints.sellerPayInstalment,
-      {
-        'order_id': orderId.toString(),
-        'instalment_price': instalmentPrice,
-        'payment_method': paymentMethod,
-      },
+      body,
       files,
       token: token,
     );

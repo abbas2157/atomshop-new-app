@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:atompro/core/auth/seller_session_manager.dart';
 import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/network/network_manager.dart';
@@ -113,16 +115,25 @@ class SellerCustomOrdersRepository {
 
   Future<void> updateCustomOrderStatus({
     required String orderUuid,
-    required String status,
-    required String receivedBy,
+    required Map<String, dynamic> body,
+    Map<String, File> files = const {},
   }) async {
     final token = await SellerSessionManager.getToken();
-    final response = await _network.postRequest(
-      ApiEndpoints.sellerCustomOrderStatus(orderUuid),
-      {'status': status, 'recieved_by': receivedBy},
-      token: token,
-    );
-
+    final dynamic response;
+    if (files.isEmpty) {
+      response = await _network.postRequest(
+        ApiEndpoints.sellerCustomOrderStatus(orderUuid),
+        body,
+        token: token,
+      );
+    } else {
+      response = await _network.postMultipartRequest(
+        ApiEndpoints.sellerCustomOrderStatus(orderUuid),
+        body,
+        files,
+        token: token,
+      );
+    }
     if (response['success'] != true) {
       throw Exception(response['message'] ?? 'Failed to update status.');
     }
@@ -149,20 +160,33 @@ class SellerCustomOrdersRepository {
 
   Future<void> closeCustomOrderDeal({
     required String orderUuid,
-    required String totalDealPrice,
-    required String advancePrice,
-    required String installmentTenure,
-    required String perMonthPercentage,
+    required String paymentMethod,
+    int? outstandingAmount,
+    int? settlementAmount,
+    int? recoveryMemberId,
+    File? receipt,
   }) async {
     final token = await SellerSessionManager.getToken();
-    final response = await _network
-        .postRequest(ApiEndpoints.sellerCustomOrderCloseDeal(orderUuid), {
-          'total_deal_price': totalDealPrice,
-          'advance_price': advancePrice,
-          'installment_tenure': installmentTenure,
-          'per_month_percentage': perMonthPercentage,
-        }, token: token);
+    final body = <String, dynamic>{'payment_method': paymentMethod};
+    if (outstandingAmount != null) body['outstanding_amount'] = outstandingAmount;
+    if (settlementAmount != null) body['settlement_amount'] = settlementAmount;
+    if (recoveryMemberId != null) body['recovery_member_id'] = recoveryMemberId;
 
+    final dynamic response;
+    if (receipt == null) {
+      response = await _network.postRequest(
+        ApiEndpoints.sellerCustomOrderCloseDeal(orderUuid),
+        body,
+        token: token,
+      );
+    } else {
+      response = await _network.postMultipartRequest(
+        ApiEndpoints.sellerCustomOrderCloseDeal(orderUuid),
+        body,
+        {'receipt': receipt},
+        token: token,
+      );
+    }
     if (response['success'] != true) {
       throw Exception(response['message'] ?? 'Failed to close deal.');
     }

@@ -668,12 +668,14 @@ class SellerRecoveryMember {
 }
 
 class SellerRecoveryUser {
+  final int id;
   final String name;
   final String email;
   final String phone;
   final String status;
 
   const SellerRecoveryUser({
+    required this.id,
     required this.name,
     required this.email,
     required this.phone,
@@ -682,6 +684,7 @@ class SellerRecoveryUser {
 
   factory SellerRecoveryUser.fromJson(Map<String, dynamic> json) {
     return SellerRecoveryUser(
+      id: _asInt(json['id']),
       name: _text(json['name'], fallback: 'Recovery member'),
       email: _text(json['email']),
       phone: _text(json['phone']),

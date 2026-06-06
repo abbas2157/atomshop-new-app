@@ -1,9 +1,14 @@
+import 'dart:io';
+
+import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_order_details_screen.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
 import 'package:atompro/features/seller/customers/viewmodel/seller_customers_viewmodel.dart';
+import 'package:atompro/features/seller/instalments/repository/seller_instalments_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 abstract final class _C {
@@ -196,7 +201,20 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
                         : Column(
                             children: data.instalments
                                 .take(10)
-                                .map((item) => _InstalmentTile(item: item))
+                                .map((item) => _InstalmentTile(
+                                      item: item,
+                                      onPay: item.status.toLowerCase() ==
+                                              'paid'
+                                          ? null
+                                          : () => _showPayInstalmentSheet(
+                                                context: context,
+                                                ref: ref,
+                                                customerUuid: customerUuid,
+                                                orderId: item.orderId,
+                                                instalmentPrice:
+                                                    item.installmentPrice,
+                                              ),
+                                    ))
                                 .toList(growable: false),
                           ),
                   ),
@@ -563,7 +581,8 @@ class _OrderTile extends StatelessWidget {
 // ── Instalment tile ───────────────────────────────────────────────────────────
 class _InstalmentTile extends StatelessWidget {
   final SellerCustomerInstalment item;
-  const _InstalmentTile({required this.item});
+  final VoidCallback? onPay;
+  const _InstalmentTile({required this.item, this.onPay});
 
   @override
   Widget build(BuildContext context) {
@@ -573,42 +592,299 @@ class _InstalmentTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: isPaid
-            ? _C.success.withValues(alpha: 0.04)
-            : _C.surfaceAlt,
+        color: isPaid ? _C.success.withValues(alpha: 0.04) : _C.surfaceAlt,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isPaid ? _C.success.withValues(alpha: 0.25) : _C.border,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.month,
+                      style: const TextStyle(
+                        color: _C.text,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${item.formattedPrice} · ${item.installmentDate}',
+                      style: const TextStyle(
+                        color: _C.muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _StatusPill(label: item.status, fg: colors.fg, bg: colors.bg),
+            ],
+          ),
+          if (!isPaid && onPay != null) ...[
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: onPay,
+              icon: const Icon(Icons.payment_rounded, size: 15),
+              label: const Text('Pay Instalment'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _C.brand,
+                minimumSize: const Size(double.infinity, 36),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Pay instalment sheet ──────────────────────────────────────────────────────
+void _showPayInstalmentSheet({
+  required BuildContext context,
+  required WidgetRef ref,
+  required String customerUuid,
+  required int orderId,
+  required int instalmentPrice,
+}) {
+  showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _PayInstalmentSheet(
+      orderId: orderId,
+      instalmentPrice: instalmentPrice,
+      onSuccess: () {
+        ref.invalidate(sellerCustomerInstalmentsProvider(customerUuid));
+        SnackbarService().showSuccessSnackBar('Instalment payment recorded.');
+      },
+    ),
+  );
+}
+
+class _PayInstalmentSheet extends ConsumerStatefulWidget {
+  final int orderId;
+  final int instalmentPrice;
+  final VoidCallback onSuccess;
+
+  const _PayInstalmentSheet({
+    required this.orderId,
+    required this.instalmentPrice,
+    required this.onSuccess,
+  });
+
+  @override
+  ConsumerState<_PayInstalmentSheet> createState() =>
+      _PayInstalmentSheetState();
+}
+
+class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
+  late final TextEditingController _amountCtrl;
+  final _formKey = GlobalKey<FormState>();
+  String _method = 'By Hand';
+  XFile? _receipt;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountCtrl =
+        TextEditingController(text: widget.instalmentPrice.toString());
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref.read(sellerInstalmentsRepositoryProvider).payInstalment(
+            orderId: widget.orderId,
+            instalmentPrice: _amountCtrl.text.trim(),
+            paymentMethod: _method,
+            receipt: _receipt == null ? null : File(_receipt!.path),
+          );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      widget.onSuccess();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = _cleanError(e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 14,
+        right: 14,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 14,
+      ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        decoration: BoxDecoration(
+          color: _C.surface,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  item.month,
-                  style: const TextStyle(
-                    color: _C.text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Pay Instalment',
+                        style: TextStyle(
+                          color: _C.text,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _amountCtrl,
+                  enabled: !_saving,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    labelText: 'Instalment Amount *',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  validator: (v) {
+                    final n = int.tryParse(v?.trim() ?? '');
+                    if (n == null || n <= 0) return 'Enter a valid amount';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _method,
+                  decoration: InputDecoration(
+                    labelText: 'Payment Method *',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'By Hand', child: Text('By Hand')),
+                    DropdownMenuItem(
+                        value: 'JazzCash', child: Text('JazzCash')),
+                    DropdownMenuItem(
+                        value: 'Easypaisa', child: Text('Easypaisa')),
+                    DropdownMenuItem(value: 'Bank', child: Text('Bank')),
+                  ],
+                  onChanged: _saving
+                      ? null
+                      : (v) {
+                          if (v != null) setState(() => _method = v);
+                        },
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _saving
+                      ? null
+                      : () async {
+                          final f = await ImagePicker().pickImage(
+                              source: ImageSource.gallery, imageQuality: 80);
+                          if (f != null) setState(() => _receipt = f);
+                        },
+                  icon: Icon(
+                    _receipt != null
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.photo_library_outlined,
+                  ),
+                  label: Text(
+                      _receipt != null ? 'Receipt Added' : 'Attach Receipt (Optional)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor:
+                        _receipt != null ? _C.success : _C.brand,
+                    side: BorderSide(
+                        color: _receipt != null ? _C.success : _C.border),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${item.formattedPrice} · ${item.installmentDate}',
-                  style: const TextStyle(
-                    color: _C.muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                if (_error != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _C.danger.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: _C.danger.withValues(alpha: 0.20)),
+                    ),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: _C.danger,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                ElevatedButton.icon(
+                  onPressed: _saving ? null : _submit,
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.payment_rounded, size: 18),
+                  label: Text(_saving ? 'Processing…' : 'Submit Payment'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _C.brand,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],
             ),
           ),
-          _StatusPill(label: item.status, fg: colors.fg, bg: colors.bg),
-        ],
+        ),
       ),
     );
   }

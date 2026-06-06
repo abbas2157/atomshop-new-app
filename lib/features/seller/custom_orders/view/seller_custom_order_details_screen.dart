@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
 import 'package:atompro/features/seller/custom_orders/model/seller_custom_orders_model.dart';
@@ -6,6 +8,8 @@ import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_or
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:atompro/features/seller/instalments/repository/seller_instalments_repository.dart';
+import 'package:image_picker/image_picker.dart';
 
 abstract final class _D {
   static const brand = Color(0xFF3B5BDB);
@@ -86,8 +90,7 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
               context: context,
               ref: ref,
               orderUuid: orderUuid,
-              currentStatus: details.order.status,
-              receivedBy: details.user.name,
+              details: details,
             ),
             // Close Deal is only relevant once the order is on Instalments
             onCloseDeal: (!details.order.dealClosed &&
@@ -98,7 +101,7 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
                     context: context,
                     ref: ref,
                     orderUuid: orderUuid,
-                    order: details.order,
+                    details: details,
                   )
                 : null,
             onAddGuarantor: (initial) => _showGuarantorSheet(
@@ -106,6 +109,14 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
               ref: ref,
               orderUuid: orderUuid,
               initial: initial,
+            ),
+            onPayInstalment: (item) => _showPayInstalmentSheet(
+              context: context,
+              ref: ref,
+              orderUuid: orderUuid,
+              orderId: details.order.id,
+              item: item,
+              recoveryMembers: details.recoveryMembers,
             ),
             onRefresh: () async {
               ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
@@ -141,6 +152,7 @@ class _DetailsContent extends StatelessWidget {
   final VoidCallback? onCloseDeal;
   final ValueChanged<SellerCustomOrderGuarantor?> onAddGuarantor;
   final Future<void> Function() onRefresh;
+  final void Function(SellerCustomOrderInstalment) onPayInstalment;
 
   const _DetailsContent({
     required this.details,
@@ -150,6 +162,7 @@ class _DetailsContent extends StatelessWidget {
     required this.onCloseDeal,
     required this.onAddGuarantor,
     required this.onRefresh,
+    required this.onPayInstalment,
   });
 
   @override
@@ -236,7 +249,10 @@ class _DetailsContent extends StatelessWidget {
             _SectionCard(
               title: 'Instalment Details',
               icon: Icons.payments_outlined,
-              child: _InstalmentsContent(items: details.instalments),
+              child: _InstalmentsContent(
+                items: details.instalments,
+                onPayInstalment: onPayInstalment,
+              ),
             ),
           ],
 
@@ -784,7 +800,8 @@ class _CustomerContent extends StatelessWidget {
 // ── Instalments ───────────────────────────────────────────────────────────────
 class _InstalmentsContent extends StatelessWidget {
   final List<SellerCustomOrderInstalment> items;
-  const _InstalmentsContent({required this.items});
+  final void Function(SellerCustomOrderInstalment)? onPayInstalment;
+  const _InstalmentsContent({required this.items, this.onPayInstalment});
 
   @override
   Widget build(BuildContext context) {
@@ -844,6 +861,22 @@ class _InstalmentsContent extends StatelessWidget {
               ),
               if (item.paymentMethod != 'Not available')
                 _GridRow('Payment Method', item.paymentMethod, '', ''),
+              if (!item.isPaid && onPayInstalment != null) ...[
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: () => onPayInstalment!(item),
+                  icon: const Icon(Icons.payment_rounded, size: 15),
+                  label: const Text('Pay Instalment'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _D.brand,
+                    minimumSize: const Size(double.infinity, 38),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -1268,8 +1301,7 @@ Future<void> _showStatusSheet({
   required BuildContext context,
   required WidgetRef ref,
   required String orderUuid,
-  required String currentStatus,
-  required String receivedBy,
+  required SellerCustomOrderDetails details,
 }) async {
   final changed = await showModalBottomSheet<bool>(
     context: context,
@@ -1277,8 +1309,11 @@ Future<void> _showStatusSheet({
     backgroundColor: Colors.transparent,
     builder: (_) => _StatusUpdateSheet(
       orderUuid: orderUuid,
-      currentStatus: currentStatus,
-      receivedBy: receivedBy,
+      currentStatus: details.order.status,
+      customerVerified: details.user.customer.verified,
+      advancePrice: details.order.advancePrice,
+      sourcingAgentFee: details.order.sourcingAgentFee,
+      recoveryMembers: details.recoveryMembers,
     ),
   );
 
@@ -1292,13 +1327,17 @@ Future<void> _showCloseDealSheet({
   required BuildContext context,
   required WidgetRef ref,
   required String orderUuid,
-  required SellerCustomOrderDetailOrder order,
+  required SellerCustomOrderDetails details,
 }) async {
   final changed = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _CloseDealSheet(orderUuid: orderUuid, order: order),
+    builder: (_) => _CloseDealSheet(
+      orderUuid: orderUuid,
+      outstandingPrincipal: details.outstandingPrincipal,
+      recoveryMembers: details.recoveryMembers,
+    ),
   );
 
   if (changed == true) {
@@ -1323,6 +1362,179 @@ Future<void> _showGuarantorSheet({
   if (changed == true) {
     ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
     ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
+  }
+}
+
+void _showPayInstalmentSheet({
+  required BuildContext context,
+  required WidgetRef ref,
+  required String orderUuid,
+  required int orderId,
+  required SellerCustomOrderInstalment item,
+  required List<SellerRecoveryMember> recoveryMembers,
+}) {
+  showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _PayInstalmentSheet(
+      orderId: orderId,
+      instalmentPrice: item.instalmentPrice,
+      recoveryMembers: recoveryMembers,
+      onSuccess: () {
+        ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
+        SnackbarService().showSuccessSnackBar('Instalment payment recorded.');
+      },
+    ),
+  );
+}
+
+class _PayInstalmentSheet extends ConsumerStatefulWidget {
+  final int orderId;
+  final int instalmentPrice;
+  final List<SellerRecoveryMember> recoveryMembers;
+  final VoidCallback onSuccess;
+
+  const _PayInstalmentSheet({
+    required this.orderId,
+    required this.instalmentPrice,
+    required this.recoveryMembers,
+    required this.onSuccess,
+  });
+
+  @override
+  ConsumerState<_PayInstalmentSheet> createState() =>
+      _PayInstalmentSheetState();
+}
+
+class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
+  late final TextEditingController _amountCtrl;
+  final _formKey = GlobalKey<FormState>();
+  String _method = 'By Hand';
+  int? _recoveryMemberId;
+  XFile? _receipt;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountCtrl =
+        TextEditingController(text: widget.instalmentPrice.toString());
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref.read(sellerInstalmentsRepositoryProvider).payInstalment(
+            orderId: widget.orderId,
+            instalmentPrice: _amountCtrl.text.trim(),
+            paymentMethod: _method,
+            recoveryMemberId: _recoveryMemberId,
+            receipt: _receipt == null ? null : File(_receipt!.path),
+          );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      widget.onSuccess();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = _cleanError(e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final members = widget.recoveryMembers;
+    return _SheetShell(
+      title: 'Pay Instalment',
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _amountCtrl,
+              enabled: !_saving,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration:
+                  const InputDecoration(labelText: 'Instalment Amount *'),
+              validator: (v) {
+                final n = int.tryParse(v?.trim() ?? '');
+                if (n == null || n <= 0) return 'Enter a valid amount';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _method,
+              decoration:
+                  const InputDecoration(labelText: 'Payment Method *'),
+              items: _kPaymentMethods
+                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                  .toList(),
+              onChanged:
+                  _saving ? null : (v) {
+                    if (v != null) setState(() => _method = v);
+                  },
+            ),
+            if (members.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                initialValue: _recoveryMemberId,
+                decoration: const InputDecoration(
+                    labelText: 'Recovery Member (Optional)'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('None')),
+                  ...members.map((m) => DropdownMenuItem(
+                        value: m.user.id,
+                        child: Text(m.user.name),
+                      )),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (v) => setState(() => _recoveryMemberId = v),
+              ),
+            ],
+            const SizedBox(height: 12),
+            _ImagePickerTile(
+              label: 'Receipt Photo (Optional)',
+              file: _receipt,
+              onPick: () async {
+                final f = await ImagePicker().pickImage(
+                    source: ImageSource.gallery, imageQuality: 80);
+                if (f != null) setState(() => _receipt = f);
+              },
+              onClear: () => setState(() => _receipt = null),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              _SheetError(message: _error!),
+            ],
+            const SizedBox(height: 18),
+            _SheetButton(
+              label: 'Submit Payment',
+              icon: Icons.payment_rounded,
+              loading: _saving,
+              onTap: _submit,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1479,15 +1691,59 @@ class _GuarantorSheetState extends ConsumerState<_GuarantorSheet> {
   }
 }
 
+// ── Status flow ───────────────────────────────────────────────────────────────
+List<String> _nextStatuses(String current) {
+  final s = current.toLowerCase();
+  if (s.contains('pending')) return ['Varification', 'Cancelled'];
+  if (s.contains('varif')) return ['Processing', 'Cancelled'];
+  if (s.contains('process')) return ['Delivered', 'Cancelled'];
+  if (s.contains('deliver')) return ['Instalments', 'Cancelled'];
+  if (s.contains('instalment')) return ['Completed', 'Cancelled'];
+  return ['Varification', 'Processing', 'Delivered', 'Instalments', 'Completed', 'Cancelled'];
+}
+
+const _kPaymentMethods = ['By Hand', 'JazzCash', 'Easypaisa', 'Bank'];
+
+const _kCustVerFailedOptions = [
+  'N/A',
+  'Invalid Contact Details (Wrong/Unreachable phone number)',
+  'Incorrect Customer Information (Mismatch in name, CNIC, or address)',
+  'Unresponsive Customer (No answer to calls/messages)',
+  'Suspicious/Fraudulent Activity (Fake documents or identity concerns)',
+];
+
+const _kPlanRejectedOptions = [
+  'N/A',
+  'Credit Criteria Not Met (Low score or insufficient income)',
+  'Required Documents Missing/Invalid (ID, salary slip, bank statement, etc.)',
+  'Poor Payment History (Previous defaults on installments)',
+  'High Financial Risk Detected (Red flags from verification team)',
+];
+
+const _kProductUnavailableOptions = [
+  '',
+  'Out of Stock (Product no longer available)',
+  'Discontinued by Seller (No longer being sold)',
+  'Listing Error (Wrong price, details, or duplicate listing)',
+  'Delivery Issue (Seller unable to deliver in requested location)',
+];
+
+// ── Status update sheet ───────────────────────────────────────────────────────
 class _StatusUpdateSheet extends ConsumerStatefulWidget {
   final String orderUuid;
   final String currentStatus;
-  final String receivedBy;
+  final bool customerVerified;
+  final int advancePrice;
+  final int sourcingAgentFee;
+  final List<SellerRecoveryMember> recoveryMembers;
 
   const _StatusUpdateSheet({
     required this.orderUuid,
     required this.currentStatus,
-    required this.receivedBy,
+    required this.customerVerified,
+    required this.advancePrice,
+    required this.sourcingAgentFee,
+    required this.recoveryMembers,
   });
 
   @override
@@ -1496,67 +1752,177 @@ class _StatusUpdateSheet extends ConsumerStatefulWidget {
 
 class _StatusUpdateSheetState extends ConsumerState<_StatusUpdateSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _receivedByCtrl = TextEditingController();
-
-  late String _status = _statusOptions.contains(widget.currentStatus)
-      ? widget.currentStatus
-      : _statusOptions.first;
+  late List<String> _statusOptions;
+  late String _status;
   bool _saving = false;
   String? _error;
 
-  static const _statusOptions = [
-    'Pending',
-    'Varification',
-    'Instalments',
-    'Delivered',
-    'Cancelled',
-  ];
+  // Varification
+  final _commentCtrl = TextEditingController();
+
+  // Processing – guarantors
+  bool _addGuarantors = false;
+  bool _add2ndGuarantor = false;
+  final _g1Name = TextEditingController();
+  final _g1FatherName = TextEditingController();
+  final _g1Cnic = TextEditingController();
+  final _g1Profession = TextEditingController();
+  final _g1Relation = TextEditingController();
+  final _g1ResAddress = TextEditingController();
+  final _g1OfficeAddress = TextEditingController();
+  final _g1ResTel = TextEditingController();
+  final _g1OfficeTel = TextEditingController();
+  String _g1HouseType = 'owned';
+  final _g2Name = TextEditingController();
+  final _g2FatherName = TextEditingController();
+  final _g2Cnic = TextEditingController();
+  final _g2Profession = TextEditingController();
+  final _g2Relation = TextEditingController();
+  final _g2ResAddress = TextEditingController();
+  final _g2OfficeAddress = TextEditingController();
+  final _g2ResTel = TextEditingController();
+  final _g2OfficeTel = TextEditingController();
+  String _g2HouseType = 'owned';
+
+  // Delivered
+  String _recievedBy = 'By Himself';
+  XFile? _deliveredPicture;
+
+  // Instalments
+  late final TextEditingController _advancePriceCtrl;
+  late final TextEditingController _sourcingFeeCtrl;
+  String _perMonthPct = '4.0';
+  String _instalmentTenure = '12';
+  String _instalmentPaymentMethod = 'By Hand';
+  int _dayOfMonth = 5;
+  int? _instalmentRecoveryMemberId;
+  XFile? _instalmentPicture;
+
+  // Cancelled
+  String _custVerFailed = 'N/A';
+  String _planRejected = 'N/A';
+  String _productUnavailable = '';
+  final _cancelReasonCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    final value = widget.receivedBy.trim();
-    if (value.isNotEmpty && value != 'Not available') {
-      _receivedByCtrl.text = value;
-    }
+    _statusOptions = _nextStatuses(widget.currentStatus);
+    _status = _statusOptions.first;
+    _advancePriceCtrl = TextEditingController(
+      text: widget.advancePrice > 0 ? widget.advancePrice.toString() : '',
+    );
+    _sourcingFeeCtrl = TextEditingController(
+      text: widget.sourcingAgentFee >= 0 ? widget.sourcingAgentFee.toString() : '',
+    );
   }
 
   @override
   void dispose() {
-    _receivedByCtrl.dispose();
+    _commentCtrl.dispose();
+    for (final c in [
+      _g1Name, _g1FatherName, _g1Cnic, _g1Profession, _g1Relation,
+      _g1ResAddress, _g1OfficeAddress, _g1ResTel, _g1OfficeTel,
+      _g2Name, _g2FatherName, _g2Cnic, _g2Profession, _g2Relation,
+      _g2ResAddress, _g2OfficeAddress, _g2ResTel, _g2OfficeTel,
+      _advancePriceCtrl, _sourcingFeeCtrl, _cancelReasonCtrl,
+    ]) { c.dispose(); }
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  bool get _blocked => !widget.customerVerified && _status != 'Cancelled';
 
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
+  Future<void> _submit() async {
+    if (_blocked) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() { _saving = true; _error = null; });
 
     try {
-      await ref
-          .read(sellerCustomOrdersRepositoryProvider)
-          .updateCustomOrderStatus(
-            orderUuid: widget.orderUuid,
-            status: _status,
-            receivedBy: _receivedByCtrl.text.trim(),
-          );
+      final body = <String, dynamic>{'status': _status};
+      final files = <String, File>{};
+
+      switch (_status) {
+        case 'Varification':
+          body['comment'] = _commentCtrl.text.trim();
+        case 'Processing':
+          if (_addGuarantors) {
+            final list = [
+              _buildGuarantorMap(
+                _g1Name, _g1FatherName, _g1Cnic, _g1Profession, _g1Relation,
+                _g1ResAddress, _g1OfficeAddress, _g1ResTel, _g1OfficeTel, _g1HouseType,
+              ),
+              if (_add2ndGuarantor)
+                _buildGuarantorMap(
+                  _g2Name, _g2FatherName, _g2Cnic, _g2Profession, _g2Relation,
+                  _g2ResAddress, _g2OfficeAddress, _g2ResTel, _g2OfficeTel, _g2HouseType,
+                ),
+            ];
+            body['guarantor'] = list;
+          }
+        case 'Delivered':
+          body['recieved_by'] = _recievedBy;
+          if (_deliveredPicture != null) files['delivered_pictrue'] = File(_deliveredPicture!.path);
+        case 'Instalments':
+          body['advance_price'] = _advancePriceCtrl.text.trim();
+          body['per_month_percentage'] = _perMonthPct;
+          body['sourcing_agent_fee'] = _sourcingFeeCtrl.text.trim();
+          body['installment_tenure'] = int.parse(_instalmentTenure);
+          body['payment_method'] = _instalmentPaymentMethod;
+          body['day_of_month'] = _dayOfMonth;
+          if (_instalmentRecoveryMemberId != null) body['recovery_member_id'] = _instalmentRecoveryMemberId;
+          if (_instalmentPicture != null) files['instalment_pictrue'] = File(_instalmentPicture!.path);
+        case 'Cancelled':
+          body['customer_verification_failed'] = _custVerFailed;
+          body['installment_plan_rejected'] = _planRejected;
+          body['product_unavailable'] = _productUnavailable;
+          final r = _cancelReasonCtrl.text.trim();
+          if (r.isNotEmpty) body['reason'] = r;
+        default:
+          break;
+      }
+
+      await ref.read(sellerCustomOrdersRepositoryProvider).updateCustomOrderStatus(
+        orderUuid: widget.orderUuid,
+        body: body,
+        files: files,
+      );
       if (!mounted) return;
+      SnackbarService().showSuccessSnackBar('Order status updated.');
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = _cleanError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
+  Map<String, dynamic> _buildGuarantorMap(
+    TextEditingController name, TextEditingController fatherName,
+    TextEditingController cnic, TextEditingController profession,
+    TextEditingController relation, TextEditingController resAddress,
+    TextEditingController officeAddress, TextEditingController resTel,
+    TextEditingController officeTel, String houseType,
+  ) {
+    String t(TextEditingController c) => c.text.trim();
+    return {
+      if (t(name).isNotEmpty) 'name': t(name),
+      if (t(fatherName).isNotEmpty) 'father_name': t(fatherName),
+      if (t(cnic).isNotEmpty) 'cnic': t(cnic),
+      if (t(profession).isNotEmpty) 'profession': t(profession),
+      if (t(relation).isNotEmpty) 'relation': t(relation),
+      if (t(resAddress).isNotEmpty) 'res_address': t(resAddress),
+      if (t(officeAddress).isNotEmpty) 'office_address': t(officeAddress),
+      if (t(resTel).isNotEmpty) 'res_tel': t(resTel),
+      if (t(officeTel).isNotEmpty) 'office_tel': t(officeTel),
+      'house_type': houseType,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return _SheetShell(
-      title: 'Update Status',
+      title: 'Update Order Status',
       child: Form(
         key: _formKey,
         child: Column(
@@ -1564,33 +1930,30 @@ class _StatusUpdateSheetState extends ConsumerState<_StatusUpdateSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             DropdownButtonFormField<String>(
-              initialValue: _status,
-              decoration: const InputDecoration(labelText: 'Status'),
+              value: _status,
+              decoration: const InputDecoration(labelText: 'New Status'),
               items: [
-                for (final status in _statusOptions)
-                  DropdownMenuItem(value: status, child: Text(status)),
+                for (final s in _statusOptions)
+                  DropdownMenuItem(value: s, child: Text(s)),
               ],
               onChanged: _saving
                   ? null
-                  : (value) {
-                      if (value != null) setState(() => _status = value);
-                    },
+                  : (v) { if (v != null) setState(() => _status = v); },
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _receivedByCtrl,
-              enabled: !_saving,
-              decoration: const InputDecoration(
-                labelText: 'Received / handled by',
-                hintText: 'Customer or receiver name',
+            if (_blocked) ...[
+              const SizedBox(height: 10),
+              _WarningBanner(
+                message: 'This customer is not verified. Verify them first to proceed. Only Cancelled is allowed without verification.',
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Receiver name is required.';
-                }
-                return null;
-              },
-            ),
+            ],
+            if (!_blocked) ...[
+              if (_status == 'Varification') ..._varificationFields(),
+              if (_status == 'Processing') ..._processingFields(),
+              if (_status == 'Delivered') ..._deliveredFields(),
+              if (_status == 'Instalments') ..._instalmentsFields(),
+              if (_status == 'Cancelled') ..._cancelledFields(),
+              if (_status == 'Completed') ..._completedNote(),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 10),
               _SheetError(message: _error!),
@@ -1600,20 +1963,265 @@ class _StatusUpdateSheetState extends ConsumerState<_StatusUpdateSheet> {
               label: 'Save Status',
               icon: Icons.save_outlined,
               loading: _saving,
-              onTap: _submit,
+              onTap: _blocked ? () {} : _submit,
             ),
           ],
         ),
       ),
     );
   }
+
+  List<Widget> _varificationFields() => [
+    const SizedBox(height: 12),
+    TextFormField(
+      controller: _commentCtrl,
+      enabled: !_saving,
+      maxLines: 3,
+      decoration: const InputDecoration(labelText: 'Verification Notes *'),
+      validator: (v) =>
+          (v == null || v.trim().isEmpty) ? 'Comment is required.' : null,
+    ),
+  ];
+
+  List<Widget> _processingFields() => [
+    const SizedBox(height: 10),
+    Row(
+      children: [
+        Checkbox(
+          value: _addGuarantors,
+          activeColor: _D.brand,
+          onChanged: _saving ? null : (v) => setState(() => _addGuarantors = v ?? false),
+        ),
+        const Text(
+          'Add Guarantors (Optional)',
+          style: TextStyle(color: _D.txt1, fontWeight: FontWeight.w700, fontSize: 13),
+        ),
+      ],
+    ),
+    if (_addGuarantors) ...[
+      _GuarantorFormSection(
+        label: 'Guarantor 1',
+        saving: _saving,
+        name: _g1Name, fatherName: _g1FatherName, cnic: _g1Cnic,
+        profession: _g1Profession, relation: _g1Relation,
+        resAddress: _g1ResAddress, officeAddress: _g1OfficeAddress,
+        resTel: _g1ResTel, officeTel: _g1OfficeTel,
+        houseType: _g1HouseType,
+        onHouseTypeChanged: (v) => setState(() => _g1HouseType = v),
+      ),
+      const SizedBox(height: 8),
+      if (!_add2ndGuarantor)
+        OutlinedButton.icon(
+          onPressed: _saving ? null : () => setState(() => _add2ndGuarantor = true),
+          icon: const Icon(Icons.person_add_outlined, size: 15),
+          label: const Text('Add 2nd Guarantor'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _D.brand,
+            side: const BorderSide(color: _D.border),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        )
+      else ...[
+        const SizedBox(height: 4),
+        _GuarantorFormSection(
+          label: 'Guarantor 2',
+          saving: _saving,
+          name: _g2Name, fatherName: _g2FatherName, cnic: _g2Cnic,
+          profession: _g2Profession, relation: _g2Relation,
+          resAddress: _g2ResAddress, officeAddress: _g2OfficeAddress,
+          resTel: _g2ResTel, officeTel: _g2OfficeTel,
+          houseType: _g2HouseType,
+          onHouseTypeChanged: (v) => setState(() => _g2HouseType = v),
+        ),
+      ],
+    ],
+  ];
+
+  List<Widget> _deliveredFields() => [
+    const SizedBox(height: 12),
+    DropdownButtonFormField<String>(
+      value: _recievedBy,
+      decoration: const InputDecoration(labelText: 'Received By *'),
+      items: const [
+        DropdownMenuItem(value: 'By Himself', child: Text('By Himself')),
+        DropdownMenuItem(value: 'By Someone else', child: Text('By Someone else')),
+      ],
+      onChanged: _saving ? null : (v) { if (v != null) setState(() => _recievedBy = v); },
+    ),
+    const SizedBox(height: 12),
+    _ImagePickerTile(
+      label: 'Delivery Photo (Optional)',
+      file: _deliveredPicture,
+      onPick: () async {
+        final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+        if (f != null) setState(() => _deliveredPicture = f);
+      },
+      onClear: () => setState(() => _deliveredPicture = null),
+    ),
+  ];
+
+  List<Widget> _instalmentsFields() {
+    final pctOptions = [for (var i = 0; i <= 60; i++) (i / 10).toStringAsFixed(1)];
+    final tenureOptions = [for (var t = 3; t <= 24; t++) '$t'];
+    final dayOptions = [for (var d = 1; d <= 31; d++) d];
+    return [
+      const SizedBox(height: 12),
+      TextFormField(
+        controller: _advancePriceCtrl,
+        enabled: !_saving,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: const InputDecoration(labelText: 'Advance Price *'),
+        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required.' : null,
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(
+        value: _perMonthPct,
+        decoration: const InputDecoration(labelText: 'Per Month % *'),
+        items: pctOptions
+            .map((p) => DropdownMenuItem(value: p, child: Text('$p%')))
+            .toList(),
+        onChanged: _saving ? null : (v) { if (v != null) setState(() => _perMonthPct = v); },
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        controller: _sourcingFeeCtrl,
+        enabled: !_saving,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: const InputDecoration(labelText: 'Sourcing Agent Fee *'),
+        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required.' : null,
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(
+        value: _instalmentTenure,
+        decoration: const InputDecoration(labelText: 'Installment Tenure *'),
+        items: tenureOptions
+            .map((t) => DropdownMenuItem(value: t, child: Text('$t months')))
+            .toList(),
+        onChanged: _saving ? null : (v) { if (v != null) setState(() => _instalmentTenure = v); },
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(
+        value: _instalmentPaymentMethod,
+        decoration: const InputDecoration(labelText: 'Payment Method *'),
+        items: _kPaymentMethods
+            .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+            .toList(),
+        onChanged: _saving ? null : (v) { if (v != null) setState(() => _instalmentPaymentMethod = v); },
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<int>(
+        value: _dayOfMonth,
+        decoration: const InputDecoration(labelText: 'Monthly Due Day'),
+        items: dayOptions
+            .map((d) => DropdownMenuItem(value: d, child: Text('$d')))
+            .toList(),
+        onChanged: _saving ? null : (v) { if (v != null) setState(() => _dayOfMonth = v); },
+      ),
+      if (widget.recoveryMembers.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        DropdownButtonFormField<int?>(
+          value: _instalmentRecoveryMemberId,
+          decoration: const InputDecoration(labelText: 'Recovery Member (Optional)'),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('None')),
+            for (final m in widget.recoveryMembers)
+              DropdownMenuItem(value: m.user.id, child: Text(m.user.name)),
+          ],
+          onChanged: _saving ? null : (v) => setState(() => _instalmentRecoveryMemberId = v),
+        ),
+      ],
+      const SizedBox(height: 12),
+      _ImagePickerTile(
+        label: 'Receipt Photo (Optional)',
+        file: _instalmentPicture,
+        onPick: () async {
+          final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+          if (f != null) setState(() => _instalmentPicture = f);
+        },
+        onClear: () => setState(() => _instalmentPicture = null),
+      ),
+    ];
+  }
+
+  List<Widget> _cancelledFields() => [
+    const SizedBox(height: 12),
+    DropdownButtonFormField<String>(
+      value: _custVerFailed,
+      decoration: const InputDecoration(labelText: 'Customer Verification Issue'),
+      items: _kCustVerFailedOptions
+          .map((o) => DropdownMenuItem(value: o, child: Text(o, overflow: TextOverflow.ellipsis)))
+          .toList(),
+      onChanged: _saving ? null : (v) { if (v != null) setState(() => _custVerFailed = v); },
+    ),
+    const SizedBox(height: 12),
+    DropdownButtonFormField<String>(
+      value: _planRejected,
+      decoration: const InputDecoration(labelText: 'Installment Plan Issue'),
+      items: _kPlanRejectedOptions
+          .map((o) => DropdownMenuItem(value: o, child: Text(o, overflow: TextOverflow.ellipsis)))
+          .toList(),
+      onChanged: _saving ? null : (v) { if (v != null) setState(() => _planRejected = v); },
+    ),
+    const SizedBox(height: 12),
+    DropdownButtonFormField<String>(
+      value: _productUnavailable,
+      decoration: const InputDecoration(labelText: 'Product Unavailability'),
+      items: _kProductUnavailableOptions
+          .map((o) => DropdownMenuItem(value: o, child: Text(o.isEmpty ? 'N/A' : o, overflow: TextOverflow.ellipsis)))
+          .toList(),
+      onChanged: _saving ? null : (v) { if (v != null) setState(() => _productUnavailable = v); },
+    ),
+    const SizedBox(height: 12),
+    TextFormField(
+      controller: _cancelReasonCtrl,
+      enabled: !_saving,
+      maxLines: 2,
+      decoration: const InputDecoration(labelText: 'Additional Reason (Optional)'),
+    ),
+  ];
+
+  List<Widget> _completedNote() => [
+    const SizedBox(height: 10),
+    Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _D.success.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _D.success.withValues(alpha: 0.25)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle_outline, color: _D.success, size: 16),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'All installments must be Paid before the order can be Completed. The server will validate this.',
+              style: TextStyle(
+                color: _D.success, fontSize: 12,
+                fontWeight: FontWeight.w700, height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ];
 }
 
+// ── Close Deal sheet ──────────────────────────────────────────────────────────
 class _CloseDealSheet extends ConsumerStatefulWidget {
   final String orderUuid;
-  final SellerCustomOrderDetailOrder order;
+  final int outstandingPrincipal;
+  final List<SellerRecoveryMember> recoveryMembers;
 
-  const _CloseDealSheet({required this.orderUuid, required this.order});
+  const _CloseDealSheet({
+    required this.orderUuid,
+    required this.outstandingPrincipal,
+    required this.recoveryMembers,
+  });
 
   @override
   ConsumerState<_CloseDealSheet> createState() => _CloseDealSheetState();
@@ -1621,61 +2229,48 @@ class _CloseDealSheet extends ConsumerStatefulWidget {
 
 class _CloseDealSheetState extends ConsumerState<_CloseDealSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _totalCtrl;
-  late final TextEditingController _advanceCtrl;
-  late final TextEditingController _tenureCtrl;
-  late final TextEditingController _percentageCtrl;
-
+  late final TextEditingController _outstandingCtrl;
+  final _settlementCtrl = TextEditingController(text: '0');
+  String _paymentMethod = 'By Hand';
+  int? _recoveryMemberId;
+  XFile? _receipt;
   bool _saving = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _totalCtrl = TextEditingController(
-      text: widget.order.totalDealPrice.toString(),
-    );
-    _advanceCtrl = TextEditingController(
-      text: widget.order.advancePrice.toString(),
-    );
-    _tenureCtrl = TextEditingController(text: widget.order.tenure.toString());
-    _percentageCtrl = TextEditingController(
-      text: widget.order.perMonthPercentage.toString(),
+    _outstandingCtrl = TextEditingController(
+      text: widget.outstandingPrincipal > 0 ? widget.outstandingPrincipal.toString() : '',
     );
   }
 
   @override
   void dispose() {
-    _totalCtrl.dispose();
-    _advanceCtrl.dispose();
-    _tenureCtrl.dispose();
-    _percentageCtrl.dispose();
+    _outstandingCtrl.dispose();
+    _settlementCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() { _saving = true; _error = null; });
 
     try {
-      await ref
-          .read(sellerCustomOrdersRepositoryProvider)
-          .closeCustomOrderDeal(
-            orderUuid: widget.orderUuid,
-            totalDealPrice: _totalCtrl.text.trim(),
-            advancePrice: _advanceCtrl.text.trim(),
-            installmentTenure: _tenureCtrl.text.trim(),
-            perMonthPercentage: _percentageCtrl.text.trim(),
-          );
+      await ref.read(sellerCustomOrdersRepositoryProvider).closeCustomOrderDeal(
+        orderUuid: widget.orderUuid,
+        paymentMethod: _paymentMethod,
+        outstandingAmount: int.tryParse(_outstandingCtrl.text.trim()),
+        settlementAmount: int.tryParse(_settlementCtrl.text.trim()),
+        recoveryMemberId: _recoveryMemberId,
+        receipt: _receipt != null ? File(_receipt!.path) : null,
+      );
       if (!mounted) return;
+      SnackbarService().showSuccessSnackBar('Deal closed successfully.');
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = _cleanError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1689,29 +2284,54 @@ class _CloseDealSheetState extends ConsumerState<_CloseDealSheet> {
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _NumberField(
-              controller: _totalCtrl,
-              label: 'Total deal price',
+            TextFormField(
+              controller: _outstandingCtrl,
               enabled: !_saving,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(labelText: 'Outstanding Amount (Optional)'),
             ),
             const SizedBox(height: 12),
-            _NumberField(
-              controller: _advanceCtrl,
-              label: 'Advance price',
+            TextFormField(
+              controller: _settlementCtrl,
               enabled: !_saving,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(labelText: 'Settlement / Waiver Amount'),
             ),
             const SizedBox(height: 12),
-            _NumberField(
-              controller: _tenureCtrl,
-              label: 'Installment tenure',
-              enabled: !_saving,
+            DropdownButtonFormField<String>(
+              value: _paymentMethod,
+              decoration: const InputDecoration(labelText: 'Payment Method *'),
+              items: _kPaymentMethods
+                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                  .toList(),
+              onChanged: _saving ? null : (v) { if (v != null) setState(() => _paymentMethod = v); },
             ),
+            if (widget.recoveryMembers.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int?>(
+                value: _recoveryMemberId,
+                decoration: const InputDecoration(labelText: 'Recovery Member (Optional)'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('None')),
+                  for (final m in widget.recoveryMembers)
+                    DropdownMenuItem(value: m.user.id, child: Text(m.user.name)),
+                ],
+                onChanged: _saving ? null : (v) => setState(() => _recoveryMemberId = v),
+              ),
+            ],
             const SizedBox(height: 12),
-            _NumberField(
-              controller: _percentageCtrl,
-              label: 'Per month percentage',
-              enabled: !_saving,
+            _ImagePickerTile(
+              label: 'Receipt Photo (Optional)',
+              file: _receipt,
+              onPick: () async {
+                final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+                if (f != null) setState(() => _receipt = f);
+              },
+              onClear: () => setState(() => _receipt = null),
             ),
             if (_error != null) ...[
               const SizedBox(height: 10),
@@ -1731,30 +2351,188 @@ class _CloseDealSheetState extends ConsumerState<_CloseDealSheet> {
   }
 }
 
-class _NumberField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final bool enabled;
+// ── Shared helper widgets ─────────────────────────────────────────────────────
+class _WarningBanner extends StatelessWidget {
+  final String message;
+  const _WarningBanner({required this.message});
 
-  const _NumberField({
-    required this.controller,
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _D.warning.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _D.warning.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: _D.warning, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: _D.txt1, fontSize: 12,
+                fontWeight: FontWeight.w600, height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImagePickerTile extends StatelessWidget {
+  final String label;
+  final XFile? file;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  const _ImagePickerTile({
     required this.label,
-    required this.enabled,
+    required this.file,
+    required this.onPick,
+    required this.onClear,
   });
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: _D.txt3, fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        if (file == null)
+          OutlinedButton.icon(
+            onPressed: onPick,
+            icon: const Icon(Icons.photo_library_outlined, size: 16),
+            label: const Text('Select Photo'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _D.brand,
+              side: const BorderSide(color: _D.border),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          )
+        else
+          Row(
+            children: [
+              const Icon(Icons.check_circle, color: _D.success, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  file!.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _D.txt2, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              IconButton(
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded, color: _D.danger, size: 18),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _GuarantorFormSection extends StatelessWidget {
+  final String label;
+  final bool saving;
+  final TextEditingController name, fatherName, cnic, profession, relation,
+      resAddress, officeAddress, resTel, officeTel;
+  final String houseType;
+  final ValueChanged<String> onHouseTypeChanged;
+
+  const _GuarantorFormSection({
+    required this.label,
+    required this.saving,
+    required this.name,
+    required this.fatherName,
+    required this.cnic,
+    required this.profession,
+    required this.relation,
+    required this.resAddress,
+    required this.officeAddress,
+    required this.resTel,
+    required this.officeTel,
+    required this.houseType,
+    required this.onHouseTypeChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _D.surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _D.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _D.txt1, fontSize: 13, fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _tf(name, 'Name', saving),
+          const SizedBox(height: 10),
+          _tf(fatherName, "Father's Name", saving),
+          const SizedBox(height: 10),
+          _tf(cnic, 'CNIC (xxxxx-xxxxxxx-x)', saving),
+          const SizedBox(height: 10),
+          _tf(profession, 'Profession', saving),
+          const SizedBox(height: 10),
+          _tf(relation, 'Relation to Customer', saving),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: houseType,
+            decoration: const InputDecoration(labelText: 'House Type'),
+            items: const [
+              DropdownMenuItem(value: 'owned', child: Text('Owned')),
+              DropdownMenuItem(value: 'rented', child: Text('Rented')),
+              DropdownMenuItem(value: 'family', child: Text('Family')),
+            ],
+            onChanged: saving ? null : (v) { if (v != null) onHouseTypeChanged(v); },
+          ),
+          const SizedBox(height: 10),
+          _tf(resAddress, 'Residential Address', saving),
+          const SizedBox(height: 10),
+          _tf(officeAddress, 'Office Address', saving),
+          const SizedBox(height: 10),
+          _tf(resTel, 'Residential Phone', saving, type: TextInputType.phone),
+          const SizedBox(height: 10),
+          _tf(officeTel, 'Office Phone', saving, type: TextInputType.phone),
+        ],
+      ),
+    );
+  }
+
+  static Widget _tf(
+    TextEditingController ctrl,
+    String lbl,
+    bool saving, {
+    TextInputType type = TextInputType.text,
+  }) {
     return TextFormField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      decoration: InputDecoration(labelText: label),
-      validator: (value) {
-        final number = int.tryParse(value?.trim() ?? '');
-        if (number == null || number <= 0) return '$label is required.';
-        return null;
-      },
+      controller: ctrl,
+      enabled: !saving,
+      keyboardType: type,
+      decoration: InputDecoration(labelText: lbl),
     );
   }
 }

@@ -596,40 +596,41 @@ class _LeadCard extends StatelessWidget {
           const SizedBox(height: 12),
 
           // ── Actions ─────────────────────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onStatus,
-                  icon: const Icon(Icons.edit_outlined, size: 15),
-                  label: const Text('Status'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _L.brand,
-                    side: const BorderSide(color: _L.border),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+          if (!lead.status.toLowerCase().contains('custom'))
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onStatus,
+                    icon: const Icon(Icons.edit_outlined, size: 15),
+                    label: const Text('Status'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _L.brand,
+                      side: const BorderSide(color: _L.border),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onCustomOrder,
-                  icon: const Icon(Icons.add_shopping_cart_outlined, size: 15),
-                  label: const Text('Order'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _L.brand,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onCustomOrder,
+                    icon: const Icon(Icons.add_shopping_cart_outlined, size: 15),
+                    label: const Text('Order'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _L.brand,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
                 ),
