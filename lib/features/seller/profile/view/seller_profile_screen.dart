@@ -21,6 +21,7 @@ import 'package:atompro/features/seller/profile/viewmodel/seller_profile_viewmod
 import 'package:atompro/features/seller/sales_team/view/seller_sales_team_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:atompro/features/seller/subscription/view/seller_subscription_screen.dart';
 import 'package:image_picker/image_picker.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -259,6 +260,24 @@ class SellerProfileScreen extends ConsumerWidget {
                     const SellerSectionHeader(
                       overline: 'Navigation',
                       title: 'Quick Actions',
+                    ),
+                    const Gap.v(AppSpace.sm),
+                    _QuickActionCard(
+                      icon: Icons.workspace_premium_outlined,
+                      title: 'My Subscription Plan',
+                      subtitle: 'View plan, pay fees & commission',
+                      tone: c.violetTone,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SellerThemeScope(
+                            child: Builder(
+                              builder: (context) =>
+                                  const SellerSubscriptionScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     const Gap.v(AppSpace.sm),
                     _QuickActionCard(

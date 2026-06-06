@@ -8,6 +8,9 @@ import 'package:atompro/features/seller/insights/view/seller_insights_screen.dar
 import 'package:atompro/features/seller/leads/view/seller_leads_screen.dart';
 import 'package:atompro/features/seller/orders/view/seller_orders_hub_screen.dart';
 import 'package:atompro/features/seller/standard_orders/view/seller_standard_orders_screen.dart';
+import 'package:atompro/features/seller/subscription/model/seller_subscription_model.dart';
+import 'package:atompro/features/seller/subscription/view/seller_subscription_screen.dart';
+import 'package:atompro/features/seller/subscription/viewmodel/seller_subscription_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -52,22 +55,64 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
       child: Builder(
         builder: (context) {
           final c = context.sellerColors;
-          return Scaffold(
-            backgroundColor: c.canvas,
-            extendBody: true,
-            body: IndexedStack(index: _index, children: _pages),
-            // Orders surfaces its own create FAB; hide the global one there to
-            // avoid two stacked FABs.
-            floatingActionButton: _index == 2
-                ? null
-                : _CreateButton(onTap: () => _showCreate(context)),
-            bottomNavigationBar: _FloatingNavBar(
-              items: _navItems,
-              selectedIndex: _index,
-              onTap: _select,
+          // ── Subscription access gate ──────────────────────────────────
+          // No plan → full access. Plan assigned but no payment confirmed →
+          // locked on the subscription page (fail-open on network error; the
+          // backend enforces the same rule on every API call).
+          final gate = ref.watch(sellerSubscriptionProvider);
+          return gate.when(
+            loading: () => Scaffold(
+              backgroundColor: c.canvas,
+              body: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: c.accent,
+                  ),
+                ),
+              ),
             ),
+            error: (_, _) => _buildShell(context, c),
+            data: (sub) {
+              final locked =
+                  sub.hasActivePlan && !sub.payments.any((p) => p.isReceived);
+              if (!locked) return _buildShell(context, c);
+              final underReview = _hasPendingPayment(sub);
+              return SellerSubscriptionScreen(
+                locked: true,
+                underReview: underReview,
+              );
+            },
           );
         },
+      ),
+    );
+  }
+
+  bool _hasPendingPayment(SellerSubscriptionData sub) {
+    if (sub.payments.any((p) => p.status.toLowerCase() == 'pending')) {
+      return true;
+    }
+    final plan = sub.plan;
+    return plan != null &&
+        (plan.monthly.isPending || plan.commissionAction.isPending);
+  }
+
+  Widget _buildShell(BuildContext context, SellerColors c) {
+    return Scaffold(
+      backgroundColor: c.canvas,
+      extendBody: true,
+      body: IndexedStack(index: _index, children: _pages),
+      // Orders surfaces its own create FAB; hide the global one there to
+      // avoid two stacked FABs.
+      floatingActionButton:
+          _index == 2 ? null : _CreateButton(onTap: () => _showCreate(context)),
+      bottomNavigationBar: _FloatingNavBar(
+        items: _navItems,
+        selectedIndex: _index,
+        onTap: _select,
       ),
     );
   }

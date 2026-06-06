@@ -64,6 +64,8 @@ class ApiEndpoints {
   static const String sellerFeeCharge = "seller-app/fee-charge";
   static const String sellerPayFeeCharge = "seller-app/fee-charge/pay";
   static const String sellerInvestments = "seller-app/investments";
+  static const String sellerSubscription = "seller-app/subscription";
+  static const String sellerSubscriptionPay = "seller-app/subscription/pay";
 
   static String sellerInvestmentDetails(int investmentId) =>
       "seller-app/investments/$investmentId";
