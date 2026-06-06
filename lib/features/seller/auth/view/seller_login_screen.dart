@@ -91,6 +91,7 @@ class _SellerLoginScreenState extends ConsumerState<SellerLoginScreen> {
                           size: 30,
                         ),
                       ),
+
                       const Gap.v(AppSpace.lg),
                       Text('Seller Login', style: text.display),
                       const Gap.v(AppSpace.xs),
