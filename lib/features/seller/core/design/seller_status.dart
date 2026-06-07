@@ -69,7 +69,7 @@ abstract final class SellerStatus {
     }
 
     // ── Neutral informational (new / contacted / draft) ──────────────────
-    if (_has(s, const ['new', 'contact', 'open', 'draft', 'lead', 'created'])) {
+    if (_has(s, const ['new', 'contact', 'open', 'draft', 'lead', 'created', 'trial'])) {
       return c.infoTone;
     }
 

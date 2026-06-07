@@ -1,18 +1,12 @@
-import 'dart:io';
-
-import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
-import 'package:atompro/features/seller/core/services/seller_file_service.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
-import 'package:atompro/features/seller/customers/repository/seller_customers_repository.dart';
 import 'package:atompro/features/seller/customers/view/seller_customer_details_screen.dart';
+import 'package:atompro/features/seller/customers/view/seller_customer_form_screen.dart';
 import 'package:atompro/features/seller/customers/viewmodel/seller_customers_viewmodel.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
 class SellerCustomersScreen extends ConsumerStatefulWidget {
   const SellerCustomersScreen({super.key});
@@ -37,38 +31,20 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
     super.dispose();
   }
 
-  Future<void> _showAddCustomerSheet() =>
-      showSellerAddCustomerSheet(context, ref);
-
-  Future<void> _importCustomers() async {
-    try {
-      final picked = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx', 'xls', 'csv'],
-      );
-      final path = picked?.files.single.path;
-      if (path == null) return;
-      await ref
-          .read(sellerCustomersRepositoryProvider)
-          .importCustomers(File(path));
-      ref.invalidate(sellerCustomersProvider(_query));
-      ref.invalidate(sellerCustomersNotificationCountProvider);
-      SnackbarService().showSuccessSnackBar('Customers imported.');
-    } catch (e) {
-      SnackbarService().showErrorSnackBar(_cleanError(e));
-    }
+  Future<void> _showAddCustomerSheet() async {
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const SellerCustomerFormScreen()),
+    );
+    ref.invalidate(sellerCustomersProvider(_query));
+    ref.invalidate(sellerCustomersNotificationCountProvider);
   }
 
-  Future<void> _openImportSample() async {
-    try {
-      final path = await ref
-          .read(sellerCustomersRepositoryProvider)
-          .downloadImportSample();
-      await SellerFileService.openLocalFile(path);
-    } catch (e) {
-      SnackbarService().showErrorSnackBar(_cleanError(e));
-    }
-  }
+  /// Only "My" and "Other" scopes are shown ("All" is dropped).
+  static const _visibleScopes = <SellerCustomerScope>[
+    SellerCustomerScope.mine,
+    SellerCustomerScope.other,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -84,8 +60,8 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
         ? 'Manage seller customer records'
         : '$notifCount new customer notifications';
 
-    // Map scope index → SellerCustomerScope enum
-    final scopeIndex = SellerCustomerScope.values.indexOf(_scope);
+    // Map scope → index within the 2-item visible list (My / Other).
+    final scopeIndex = _visibleScopes.indexOf(_scope);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: c.isDark
@@ -111,16 +87,6 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
               title: 'Customers',
               subtitle: subtitle,
               actions: [
-                SellerHeaderIconButton(
-                  icon: Icons.download_outlined,
-                  onTap: _openImportSample,
-                  tooltip: 'Sample file',
-                ),
-                SellerHeaderIconButton(
-                  icon: Icons.upload_file_outlined,
-                  onTap: _importCustomers,
-                  tooltip: 'Import customers',
-                ),
                 SellerHeaderIconButton(
                   icon: Icons.person_add_alt_1_outlined,
                   onTap: _showAddCustomerSheet,
@@ -153,12 +119,10 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                 AppSpace.xs,
               ),
               child: SellerSegmentedTabs(
-                labels: SellerCustomerScope.values
-                    .map((s) => s.shortLabel)
-                    .toList(),
-                selectedIndex: scopeIndex,
+                labels: _visibleScopes.map((s) => s.shortLabel).toList(),
+                selectedIndex: scopeIndex < 0 ? 0 : scopeIndex,
                 onChanged: (i) => setState(() {
-                  _scope = SellerCustomerScope.values[i];
+                  _scope = _visibleScopes[i];
                   _page = 1;
                   _search = '';
                   _searchCtrl.clear();
@@ -480,406 +444,6 @@ class _PaginationBar extends StatelessWidget {
   }
 }
 
-// ── Add Customer Sheet ────────────────────────────────────────────────────────
-/// Opens the add-customer form. Reusable from the global + action so
-/// "New customer" creates in one tap instead of just navigating.
-Future<void> showSellerAddCustomerSheet(
-  BuildContext context,
-  WidgetRef ref,
-) async {
-  final dark = context.sellerIsDark;
-  final changed = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => Theme(
-      data: dark ? SellerTheme.dark : SellerTheme.light,
-      child: const _AddCustomerSheet(),
-    ),
-  );
-  if (changed == true) {
-    ref.invalidate(sellerCustomersProvider);
-    ref.invalidate(sellerCustomersNotificationCountProvider);
-  }
-}
-
-class _AddCustomerSheet extends ConsumerStatefulWidget {
-  const _AddCustomerSheet();
-
-  @override
-  ConsumerState<_AddCustomerSheet> createState() => _AddCustomerSheetState();
-}
-
-class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _name = TextEditingController();
-  final _phone = TextEditingController();
-  final _email = TextEditingController();
-  final _father = TextEditingController();
-  final _cnic = TextEditingController();
-  final _cityId = TextEditingController(text: '1');
-  final _address = TextEditingController();
-  int? _areaId;
-  File? _front;
-  File? _back;
-  bool _saving = false;
-
-  int get _selectedCityId => int.tryParse(_cityId.text.trim()) ?? 1;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _phone.dispose();
-    _email.dispose();
-    _father.dispose();
-    _cnic.dispose();
-    _cityId.dispose();
-    _address.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickFront() async => _pickImage(front: true);
-  Future<void> _pickBack() async => _pickImage(front: false);
-
-  Future<void> _pickImage({required bool front}) async {
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 78,
-      maxWidth: 1400,
-    );
-    if (picked == null) return;
-    setState(() {
-      if (front) {
-        _front = File(picked.path);
-      } else {
-        _back = File(picked.path);
-      }
-    });
-  }
-
-  Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_areaId == null) {
-      SnackbarService().showErrorSnackBar('Select an area.');
-      return;
-    }
-
-    setState(() => _saving = true);
-    try {
-      await ref.read(sellerCustomersRepositoryProvider).storeCustomer(
-            name: _name.text.trim(),
-            phone: _phone.text.trim(),
-            email: _email.text.trim(),
-            fatherName: _father.text.trim(),
-            cnicNo: _cnic.text.trim(),
-            cityId: _cityId.text.trim(),
-            areaId: _areaId.toString(),
-            address: _address.text.trim(),
-            idCardFrontSide: _front,
-            idCardBackSide: _back,
-          );
-      if (!mounted) return;
-      SnackbarService().showSuccessSnackBar('Customer added.');
-      Navigator.pop(context, true);
-    } catch (e) {
-      SnackbarService().showErrorSnackBar(_cleanError(e));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.sellerColors;
-    final text = context.sellerText;
-    final areasState = ref.watch(sellerCustomerAreasProvider(_selectedCityId));
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: AppRadius.sheet,
-        ),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.md,
-          AppSpace.sm,
-          AppSpace.md,
-          AppSpace.md,
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: c.borderStrong,
-                        borderRadius: AppRadius.brPill,
-                      ),
-                    ),
-                  ),
-                  const Gap.v(AppSpace.md),
-                  Text('Add Customer', style: text.titleMd),
-                  const Gap.v(AppSpace.md),
-                  _SheetTextField(
-                    controller: _name,
-                    label: 'Name',
-                    enabled: !_saving,
-                    validator: _required,
-                  ),
-                  _SheetTextField(
-                    controller: _phone,
-                    label: 'Phone',
-                    enabled: !_saving,
-                    keyboardType: TextInputType.phone,
-                    validator: _phoneValidator,
-                  ),
-                  _SheetTextField(
-                    controller: _email,
-                    label: 'Email',
-                    enabled: !_saving,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: _emailValidator,
-                  ),
-                  _SheetTextField(
-                    controller: _father,
-                    label: 'Father Name',
-                    enabled: !_saving,
-                    validator: _required,
-                  ),
-                  _SheetTextField(
-                    controller: _cnic,
-                    label: 'CNIC',
-                    enabled: !_saving,
-                    keyboardType: TextInputType.number,
-                    validator: _cnicValidator,
-                  ),
-                  _SheetTextField(
-                    controller: _cityId,
-                    label: 'City ID',
-                    enabled: !_saving,
-                    keyboardType: TextInputType.number,
-                    validator: _required,
-                    onChanged: (_) => setState(() => _areaId = null),
-                  ),
-                  areasState.when(
-                    loading: () => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpace.sm),
-                      child: LinearProgressIndicator(
-                        minHeight: 2,
-                        color: c.accent,
-                        backgroundColor: c.surfaceMuted,
-                      ),
-                    ),
-                    error: (error, _) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpace.sm),
-                      child: Text(
-                        _cleanError(error),
-                        style: text.bodySm.copyWith(color: c.danger),
-                      ),
-                    ),
-                    data: (areas) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpace.sm),
-                      child: DropdownButtonFormField<int>(
-                        initialValue: _areaId,
-                        decoration: _inputDecoration(c, 'Area'),
-                        items: areas
-                            .map(
-                              (area) => DropdownMenuItem(
-                                value: area.id,
-                                child: Text(area.title),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _saving
-                            ? null
-                            : (value) => setState(() => _areaId = value),
-                        validator: (value) =>
-                            value == null ? 'Required' : null,
-                      ),
-                    ),
-                  ),
-                  _SheetTextField(
-                    controller: _address,
-                    label: 'Address',
-                    enabled: !_saving,
-                    maxLines: 3,
-                    validator: _required,
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _FileButton(
-                          label:
-                              _front == null ? 'CNIC Front' : 'Front Selected',
-                          hasFile: _front != null,
-                          onTap: _saving ? null : _pickFront,
-                        ),
-                      ),
-                      const Gap.h(AppSpace.xs),
-                      Expanded(
-                        child: _FileButton(
-                          label:
-                              _back == null ? 'CNIC Back' : 'Back Selected',
-                          hasFile: _back != null,
-                          onTap: _saving ? null : _pickBack,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Gap.v(AppSpace.md),
-                  SellerButton(
-                    label: 'Save Customer',
-                    loading: _saving,
-                    onPressed: _submit,
-                    icon: Icons.save_outlined,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FileButton extends StatelessWidget {
-  final String label;
-  final bool hasFile;
-  final VoidCallback? onTap;
-
-  const _FileButton({
-    required this.label,
-    required this.hasFile,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.sellerColors;
-    final text = context.sellerText;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppMotion.fast,
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
-        decoration: BoxDecoration(
-          color: hasFile ? c.accentSurface : c.surface,
-          borderRadius: AppRadius.brMd,
-          border: Border.all(
-            color: hasFile ? c.accent : c.border,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.image_outlined,
-              size: 17,
-              color: hasFile ? c.accent : c.textSecondary,
-            ),
-            const Gap.h(AppSpace.xs),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: text.bodySm.copyWith(
-                  color: hasFile ? c.accent : c.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SheetTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final bool enabled;
-  final int maxLines;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-  final ValueChanged<String>? onChanged;
-
-  const _SheetTextField({
-    required this.controller,
-    required this.label,
-    required this.enabled,
-    this.maxLines = 1,
-    this.keyboardType,
-    this.validator,
-    this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.sellerColors;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpace.sm),
-      child: TextFormField(
-        controller: controller,
-        enabled: enabled,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        validator: validator,
-        onChanged: onChanged,
-        style: context.sellerText.body,
-        decoration: _inputDecoration(c, label),
-      ),
-    );
-  }
-}
-
-InputDecoration _inputDecoration(SellerColors c, String label) {
-  const radius = AppRadius.md;
-  return InputDecoration(
-    labelText: label,
-    labelStyle: TextStyle(color: c.textSecondary, fontSize: 13),
-    filled: true,
-    fillColor: c.surfaceAlt,
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: AppSpace.md,
-      vertical: AppSpace.sm,
-    ),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(radius),
-      borderSide: BorderSide(color: c.border),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(radius),
-      borderSide: BorderSide(color: c.border),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(radius),
-      borderSide: BorderSide(color: c.accent, width: 1.6),
-    ),
-    errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(radius),
-      borderSide: BorderSide(color: c.danger),
-    ),
-    focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(radius),
-      borderSide: BorderSide(color: c.danger, width: 1.6),
-    ),
-  );
-}
-
 // ── Pure business-logic helpers (unchanged) ───────────────────────────────────
 List<SellerCustomer> _filter(List<SellerCustomer> customers, String query) {
   final q = query.trim().toLowerCase();
@@ -893,32 +457,6 @@ List<SellerCustomer> _filter(List<SellerCustomer> customers, String query) {
             customer.profile.identifier.toLowerCase().contains(q);
       })
       .toList(growable: false);
-}
-
-String? _required(String? value) {
-  if ((value ?? '').trim().isEmpty) return 'Required';
-  return null;
-}
-
-String? _emailValidator(String? value) {
-  final email = value?.trim() ?? '';
-  if (email.isEmpty) return 'Required';
-  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-    return 'Enter a valid email';
-  }
-  return null;
-}
-
-String? _phoneValidator(String? value) {
-  final digits = value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
-  if (digits.length < 10) return 'Enter a valid phone number';
-  return null;
-}
-
-String? _cnicValidator(String? value) {
-  final digits = value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
-  if (digits.length < 13) return 'Enter a valid CNIC';
-  return null;
 }
 
 String _cleanError(Object error) {

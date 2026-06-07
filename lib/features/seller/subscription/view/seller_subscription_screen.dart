@@ -296,7 +296,7 @@ class _PlanCard extends StatelessWidget {
               label: 'Sales commission',
               value: plan.commissionRateLabel,
             ),
-          SellerDataRow(label: 'Start date', value: plan.startDate),
+          SellerDataRow(label: 'Start date', value: plan.formattedStartDate),
           SellerDataRow(label: 'End date', value: plan.endDateLabel),
           const Gap.v(AppSpace.sm),
           Text('Included features', style: text.overline),
@@ -480,7 +480,7 @@ class _PaymentRow extends StatelessWidget {
                     ),
                     const Gap.v(2),
                     Text(
-                      '${payment.paymentMethod} · ${payment.submittedAt}',
+                      '${payment.paymentMethod} · ${payment.formattedSubmittedAt}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: text.bodySm,
@@ -493,7 +493,7 @@ class _PaymentRow extends StatelessWidget {
                 children: [
                   Text(payment.formattedAmount, style: text.titleSm),
                   const Gap.v(AppSpace.xs - 2),
-                  SellerStatusPill(label: payment.status, dense: true),
+                  SellerStatusPill(label: payment.statusLabel, dense: true),
                 ],
               ),
             ],

@@ -126,7 +126,7 @@ class _LeadFormState extends ConsumerState<LeadForm> {
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: ColorPalette.surface,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(12.r),
               topRight: Radius.circular(12.r),

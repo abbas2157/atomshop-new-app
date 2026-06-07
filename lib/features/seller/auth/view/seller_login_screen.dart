@@ -29,7 +29,9 @@ class _SellerLoginScreenState extends ConsumerState<SellerLoginScreen> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    await ref.read(sellerAuthViewModelProvider.notifier).login(
+    await ref
+        .read(sellerAuthViewModelProvider.notifier)
+        .login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
@@ -133,8 +135,9 @@ class _SellerLoginScreenState extends ConsumerState<SellerLoginScreen> {
                             size: 20,
                           ),
                         ),
-                        validator: (value) =>
-                            (value ?? '').isEmpty ? 'Password is required' : null,
+                        validator: (value) => (value ?? '').isEmpty
+                            ? 'Password is required'
+                            : null,
                       ),
                       const Gap.v(AppSpace.xl),
                       SellerButton(

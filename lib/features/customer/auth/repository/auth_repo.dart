@@ -1,4 +1,5 @@
 import 'package:atompro/core/network/api_endpoints.dart';
+import 'package:atompro/core/services/fcm_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:atompro/core/network/network_manager.dart';
 
@@ -15,6 +16,10 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     final body = {'email': email, 'password': password};
+    final fcmToken = await FcmService.getToken();
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      body['fcm_token'] = fcmToken;
+    }
     return await _network.postRequest(ApiEndpoints.login, body);
   }
 
@@ -29,6 +34,10 @@ class AuthRepository {
       'password': password,
       'c_password': password,
     };
+    final fcmToken = await FcmService.getToken();
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      body['fcm_token'] = fcmToken;
+    }
     return await _network.postRequest(ApiEndpoints.signup, body);
   }
 

@@ -1,4 +1,5 @@
 import 'package:atompro/core/services/snackbar_services.dart';
+import 'package:atompro/core/services/fcm_service.dart';
 import 'package:atompro/features/customer/auth/repository/auth_repo.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:atompro/core/auth/session_manager.dart';
@@ -39,6 +40,7 @@ class AuthViewModel extends _$AuthViewModel {
             areaId: user['area_id']?.toString(),
             address: user['address']?.toString(),
           );
+          await FcmService.attachUser(userId: user['id'].toString());
 
           state = const AsyncValue.data(null);
           bool isAgent = await SessionManager.isAgent();

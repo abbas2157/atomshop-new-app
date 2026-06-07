@@ -1,7 +1,7 @@
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
-import 'package:atompro/features/seller/customers/view/seller_customers_screen.dart';
+import 'package:atompro/features/seller/customers/view/seller_customer_form_screen.dart';
 import 'package:atompro/features/seller/dashboard/view/seller_dashboard_screen.dart';
 import 'package:atompro/features/seller/finance/view/seller_finance_hub_screen.dart';
 import 'package:atompro/features/seller/insights/view/seller_insights_screen.dart';
@@ -185,7 +185,12 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
                     subtitle: 'Add a buyer to your book',
                     onTap: () {
                       Navigator.pop(sheetContext);
-                      showSellerAddCustomerSheet(context, ref);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SellerCustomerFormScreen(),
+                        ),
+                      );
                     },
                   ),
                   _CreateAction(

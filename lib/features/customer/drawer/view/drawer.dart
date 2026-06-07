@@ -2,8 +2,11 @@ import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/common/images/app_images.dart';
 import 'package:atompro/core/common/utils/utils.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
+import 'package:atompro/core/style/color_palette.dart';
+import 'package:atompro/core/theme/theme_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,7 +201,7 @@ class _AppDrawerState extends State<AppDrawer>
 
     return Drawer(
       width: drawerW,
-      backgroundColor: Colors.white,
+      backgroundColor: ColorPalette.surface,
       elevation: 0,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       // Use a plain Column — every child has an exact height, zero overflow
@@ -240,7 +243,7 @@ class _AppDrawerState extends State<AppDrawer>
                               fontSize: (menuLabelH * 0.38).clamp(8.0, 11.0),
                               fontWeight: FontWeight.w700,
                               letterSpacing: 2.0,
-                              color: Colors.grey.shade400,
+                              color: ColorPalette.textSecondary,
                             ),
                           ),
                         ),
@@ -269,6 +272,29 @@ class _AppDrawerState extends State<AppDrawer>
                       ),
                     );
                   }),
+
+                  // Dark mode toggle
+                  SizedBox(
+                    height: itemH,
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        final isDark =
+                            ref.watch(customerThemeModeProvider) ==
+                                ThemeMode.dark;
+                        return _buildThemeToggle(
+                          isDark: isDark,
+                          iconBoxSize: iconBoxSize,
+                          iconSize: iconSize,
+                          labelSize: labelSize,
+                          subSize: subSize,
+                          showSubtitle: showSubtitle,
+                          onChanged: (v) => ref
+                              .read(customerThemeModeProvider.notifier)
+                              .set(v ? ThemeMode.dark : ThemeMode.light),
+                        );
+                      },
+                    ),
+                  ),
 
                   SizedBox(height: menuBottomGap),
 
@@ -415,6 +441,85 @@ class _AppDrawerState extends State<AppDrawer>
 
   // ── Nav item ──────────────────────────────────────────────────────────────
 
+  // ── Dark-mode toggle (styled like a nav item) ─────────────────────────────
+  Widget _buildThemeToggle({
+    required bool isDark,
+    required double iconBoxSize,
+    required double iconSize,
+    required double labelSize,
+    required double subSize,
+    required bool showSubtitle,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onChanged(!isDark),
+        borderRadius: BorderRadius.circular(10),
+        splashColor: _kGold2.withOpacity(0.08),
+        highlightColor: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              Container(
+                width: iconBoxSize,
+                height: iconBoxSize,
+                decoration: BoxDecoration(
+                  color: _kGold2.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(
+                  isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                  size: iconSize,
+                  color: _kGold2,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        fontSize: labelSize,
+                        fontWeight: FontWeight.w600,
+                        color: ColorPalette.textPrimary,
+                        height: 1.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (showSubtitle) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        isDark ? 'On' : 'Off',
+                        style: TextStyle(
+                          fontSize: subSize,
+                          color: ColorPalette.textSecondary,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Switch(
+                value: isDark,
+                onChanged: onChanged,
+                activeThumbColor: _kGold2,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildNavItem(
     _NavItem item,
     int index, {
@@ -458,13 +563,13 @@ class _AppDrawerState extends State<AppDrawer>
                     decoration: BoxDecoration(
                       color: isHovered
                           ? _kGold2.withOpacity(0.12)
-                          : Colors.grey.shade50,
+                          : ColorPalette.surfaceGray,
                       borderRadius: BorderRadius.circular(9),
                     ),
                     child: Icon(
                       item.icon,
                       size: iconSize,
-                      color: isHovered ? _kGold2 : Colors.grey.shade500,
+                      color: isHovered ? _kGold2 : ColorPalette.textSecondary,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -478,7 +583,7 @@ class _AppDrawerState extends State<AppDrawer>
                           style: TextStyle(
                             fontSize: labelSize,
                             fontWeight: FontWeight.w600,
-                            color: isHovered ? _kBlue2 : Colors.black87,
+                            color: isHovered ? _kBlue2 : ColorPalette.textPrimary,
                             height: 1.2,
                           ),
                           maxLines: 1,
@@ -490,7 +595,7 @@ class _AppDrawerState extends State<AppDrawer>
                             item.subtitle,
                             style: TextStyle(
                               fontSize: subSize,
-                              color: Colors.grey.shade400,
+                              color: ColorPalette.textSecondary,
                               height: 1.2,
                             ),
                             maxLines: 1,
@@ -507,7 +612,7 @@ class _AppDrawerState extends State<AppDrawer>
                     child: Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: (iconSize * 0.60).clamp(7.0, 11.0),
-                      color: isHovered ? _kGold2 : Colors.grey.shade300,
+                      color: isHovered ? _kGold2 : ColorPalette.textLight,
                     ),
                   ),
                 ],
@@ -545,7 +650,7 @@ class _AppDrawerState extends State<AppDrawer>
             gradient: LinearGradient(
               colors: [
                 Colors.transparent,
-                Colors.grey.shade200,
+                ColorPalette.border,
                 Colors.transparent,
               ],
             ),
@@ -558,7 +663,7 @@ class _AppDrawerState extends State<AppDrawer>
             fontSize: labelFontSize,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.6,
-            color: Colors.grey.shade400,
+            color: ColorPalette.textSecondary,
           ),
         ),
         SizedBox(height: labelGap),
@@ -650,8 +755,8 @@ class _AppDrawerState extends State<AppDrawer>
     return Container(
       height: footerH,
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(top: BorderSide(color: Colors.grey.shade100)),
+        color: ColorPalette.surfaceGray,
+        border: Border(top: BorderSide(color: ColorPalette.border)),
       ),
       padding: EdgeInsets.only(
         top: 10,
@@ -666,7 +771,7 @@ class _AppDrawerState extends State<AppDrawer>
           const Spacer(),
           Text(
             'v2.1.0',
-            style: TextStyle(fontSize: 9, color: Colors.grey.shade300),
+            style: TextStyle(fontSize: 9, color: ColorPalette.textLight),
           ),
         ],
       ),

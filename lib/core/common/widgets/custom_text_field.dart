@@ -144,14 +144,14 @@ class _CustomTextFieldState extends State<CustomTextField> {
               // Border styles
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
+                borderSide: BorderSide(
                   color: ColorPalette.border,
                   width: 1,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
+                borderSide: BorderSide(
                   color: ColorPalette.border,
                   width: 1,
                 ),

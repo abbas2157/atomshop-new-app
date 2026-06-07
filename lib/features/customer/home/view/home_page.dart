@@ -123,7 +123,7 @@ class _HomePageState extends State<HomePage> {
                   padding: EdgeInsets.all(16),
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Color(0xFFE4E8F3),
+                    color: ColorPalette.backgroundBlueLight,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: ColorPalette.border, width: 1),
                   ),
@@ -275,7 +275,7 @@ class _HomePageState extends State<HomePage> {
                       child: Container(
                         width: screenWidth * 0.75,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF9F9F9),
+                          color: ColorPalette.surface,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
@@ -301,7 +301,7 @@ class _HomePageState extends State<HomePage> {
                               TextSpan(
                                 text: "پر کچھ بھی حاصل کریں ",
                                 style: AppTextStyles.bodyBold.copyWith(
-                                  color: Colors.black,
+                                  color: ColorPalette.textPrimary,
                                 ),
                               ),
                               WidgetSpan(
@@ -355,7 +355,7 @@ class _HomePageState extends State<HomePage> {
                 child: Container(
                   width: screenWidth * 0.75,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF9F9F9),
+                    color: ColorPalette.surface,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -410,7 +410,7 @@ class _HomePageState extends State<HomePage> {
     // Assuming this is a synchronous call for simplicity
     return Container(
       width: double.infinity,
-      color: Color(0xFFF9F9F9),
+      color: ColorPalette.surface,
       padding: EdgeInsets.symmetric(horizontal: 10),
       child: Column(
         children: [
@@ -513,7 +513,7 @@ class _HomePageState extends State<HomePage> {
       width: double.infinity,
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
@@ -589,7 +589,7 @@ class _HomePageState extends State<HomePage> {
               width: itemWidth,
               height: 160, // Reduced height for better UX (less scrolling)
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: ColorPalette.surface,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
@@ -713,7 +713,7 @@ class _HomePageState extends State<HomePage> {
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFF9F9F9),
+            color: ColorPalette.surface,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
@@ -745,7 +745,7 @@ class _HomePageState extends State<HomePage> {
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFF9F9F9),
+            color: ColorPalette.surface,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
@@ -774,7 +774,7 @@ class _HomePageState extends State<HomePage> {
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFF9F9F9),
+            color: ColorPalette.surface,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(

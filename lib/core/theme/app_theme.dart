@@ -2,33 +2,41 @@ import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
 import 'package:flutter/material.dart';
 
-/// AtomShop Theme Configuration
+/// AtomShop theme. Built from [ColorPalette], which resolves its neutral
+/// colours from [ColorPalette.isDark]. The app root sets `isDark` before
+/// building, so the same builder produces the correct light or dark theme —
+/// the design/layout is unchanged, only colour values adapt.
 class AppTheme {
-  // Light Theme
-  static ThemeData get lightTheme {
+  static ThemeData get theme => _build();
+  static ThemeData get lightTheme => _build();
+  static ThemeData get darkTheme => _build();
+
+  static ThemeData _build() {
+    final isDark = ColorPalette.isDark;
+    final brightness = isDark ? Brightness.dark : Brightness.light;
+
     return ThemeData(
       useMaterial3: true,
       fontFamily: 'Roboto',
+      brightness: brightness,
 
-      // Color Scheme
-      colorScheme: const ColorScheme.light(
+      colorScheme: ColorScheme(
+        brightness: brightness,
         primary: ColorPalette.primary,
         onPrimary: ColorPalette.textWhite,
         secondary: ColorPalette.secondary,
         onSecondary: ColorPalette.textWhite,
+        tertiary: ColorPalette.accentBlue,
         onTertiary: ColorPalette.textWhite,
         error: ColorPalette.error,
         onError: ColorPalette.textWhite,
         surface: ColorPalette.surface,
         onSurface: ColorPalette.textPrimary,
-        background: ColorPalette.background,
-        onBackground: ColorPalette.textPrimary,
       ),
 
-      // Scaffold
       scaffoldBackgroundColor: ColorPalette.background,
+      canvasColor: ColorPalette.background,
 
-      // Text Theme
       textTheme: TextTheme(
         displayLarge: AppTextStyles.display1,
         displayMedium: AppTextStyles.display2,
@@ -46,28 +54,25 @@ class AppTheme {
         labelSmall: AppTextStyles.buttonSmall,
       ),
 
-      // AppBar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: ColorPalette.background,
         foregroundColor: ColorPalette.textPrimary,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: AppTextStyles.h5,
-        iconTheme: const IconThemeData(color: ColorPalette.textPrimary),
+        iconTheme: IconThemeData(color: ColorPalette.textPrimary),
       ),
 
-      // Card Theme
       cardTheme: CardThemeData(
         color: ColorPalette.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: ColorPalette.border, width: 1),
+          side: BorderSide(color: ColorPalette.border, width: 1),
         ),
         margin: const EdgeInsets.all(8),
       ),
 
-      // Button Themes
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: ColorPalette.primary,
@@ -101,17 +106,16 @@ class AppTheme {
         ),
       ),
 
-      // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: ColorPalette.surfaceGray,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: ColorPalette.border, width: 1),
+          borderSide: BorderSide(color: ColorPalette.border, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: ColorPalette.border, width: 1),
+          borderSide: BorderSide(color: ColorPalette.border, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -137,17 +141,14 @@ class AppTheme {
         ),
       ),
 
-      // Icon Theme
-      iconTheme: const IconThemeData(color: ColorPalette.textPrimary, size: 24),
+      iconTheme: IconThemeData(color: ColorPalette.textPrimary, size: 24),
 
-      // Divider Theme
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         color: ColorPalette.border,
         thickness: 1,
         space: 16,
       ),
 
-      // Bottom Navigation Bar Theme
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: ColorPalette.surface,
         selectedItemColor: ColorPalette.primary,
@@ -160,7 +161,6 @@ class AppTheme {
         unselectedLabelStyle: AppTextStyles.caption,
       ),
 
-      // Floating Action Button Theme
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: ColorPalette.primary,
         foregroundColor: ColorPalette.textWhite,
@@ -168,7 +168,6 @@ class AppTheme {
         shape: CircleBorder(),
       ),
 
-      // Chip Theme
       chipTheme: ChipThemeData(
         backgroundColor: ColorPalette.surfaceGray,
         selectedColor: ColorPalette.primary,
@@ -177,7 +176,6 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
 
-      // Dialog Theme
       dialogTheme: DialogThemeData(
         backgroundColor: ColorPalette.surface,
         elevation: 8,
@@ -186,7 +184,6 @@ class AppTheme {
         contentTextStyle: AppTextStyles.bodyMedium,
       ),
 
-      // Snackbar Theme
       snackBarTheme: SnackBarThemeData(
         backgroundColor: ColorPalette.backgroundDark,
         contentTextStyle: AppTextStyles.bodyMedium.copyWith(
@@ -195,29 +192,6 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-    );
-  }
-
-  // Dark Theme (Optional - based on light theme with dark colors)
-  static ThemeData get darkTheme {
-    return ThemeData(
-      useMaterial3: true,
-
-      colorScheme: const ColorScheme.dark(
-        primary: ColorPalette.primary,
-        onPrimary: ColorPalette.textWhite,
-        secondary: ColorPalette.secondary,
-        onSecondary: ColorPalette.textWhite,
-        onTertiary: ColorPalette.textWhite,
-        error: ColorPalette.error,
-        onError: ColorPalette.textWhite,
-        surface: ColorPalette.surfaceDark,
-        onSurface: ColorPalette.textWhite,
-      ),
-
-      scaffoldBackgroundColor: ColorPalette.backgroundDark,
-
-      // You can customize dark theme further if needed
     );
   }
 }

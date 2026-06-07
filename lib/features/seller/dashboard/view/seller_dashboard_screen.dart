@@ -17,6 +17,7 @@ import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_or
 import 'package:atompro/features/seller/customers/view/seller_customers_screen.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
 import 'package:atompro/features/seller/dashboard/viewmodel/seller_dashboard_viewmodel.dart';
+import 'package:atompro/features/seller/instalments/view/seller_instalments_screen.dart';
 import 'package:atompro/features/seller/profile/view/seller_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -147,17 +148,18 @@ class SellerDashboardScreen extends ConsumerWidget {
                                 showSellerCreateCustomOrderSheet(context, ref),
                           ),
                           _QuickAction(
-                            icon: Icons.person_add_alt_1_rounded,
-                            label: 'Customer',
+                            icon: Icons.groups_rounded,
+                            label: 'Customers',
                             tone: c.violetTone,
-                            onTap: () =>
-                                showSellerAddCustomerSheet(context, ref),
+                            onTap: () => context
+                                .pushSeller(const SellerCustomersScreen()),
                           ),
                           _QuickAction(
                             icon: Icons.payments_rounded,
                             label: 'Collect',
                             tone: c.warningTone,
-                            onTap: () => _go(SellerTab.finance),
+                            onTap: () => context
+                                .pushSeller(const SellerInstalmentsScreen()),
                           ),
                           _QuickAction(
                             icon: Icons.insights_rounded,

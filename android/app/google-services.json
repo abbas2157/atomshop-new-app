@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "57608184676",
-    "project_id": "atomshop-2ae74",
-    "storage_bucket": "atomshop-2ae74.firebasestorage.app"
+    "project_number": "1029416266088",
+    "project_id": "atomshop-a726c",
+    "storage_bucket": "atomshop-a726c.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:57608184676:android:a2eea14de41884ec7a5071",
+        "mobilesdk_app_id": "1:1029416266088:android:efef4e633501b7afc70edd",
         "android_client_info": {
           "package_name": "com.ecommerce.atomshop"
         }
@@ -15,26 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDgDIG1qpf45rGz9JIJxL2tVAIC2NXoqlU"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:57608184676:android:1b78c26bdf63115b7a5071",
-        "android_client_info": {
-          "package_name": "com.example.atompro"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDgDIG1qpf45rGz9JIJxL2tVAIC2NXoqlU"
+          "current_key": "AIzaSyDzBNdhyf_KOpV475tyiFnG_gKdIjvOHM0"
         }
       ],
       "services": {

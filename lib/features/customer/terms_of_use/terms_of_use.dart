@@ -11,7 +11,7 @@ class TermsOfUse extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F5FB),
+        backgroundColor: ColorPalette.background,
         body: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -28,7 +28,7 @@ class TermsOfUse extends StatelessWidget {
                         children: [
                           _backBtn(context),
                           const SizedBox(width: 14),
-                          const Text(
+                          Text(
                             'Terms of Use',
                             style: TextStyle(
                               fontSize: 24,
@@ -240,7 +240,7 @@ class TermsOfUse extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 14),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -358,7 +358,7 @@ class TermsOfUse extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: ColorPalette.textPrimary,
@@ -405,7 +405,7 @@ class TermsOfUse extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -421,7 +421,7 @@ class TermsOfUse extends StatelessWidget {
 
   Widget _body(String text) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 13.5,
       color: ColorPalette.textSecondary,
       height: 1.6,
@@ -434,7 +434,7 @@ class TermsOfUse extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -444,7 +444,7 @@ class TermsOfUse extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
+      child: Icon(
         Icons.arrow_back_ios_new_rounded,
         size: 17,
         color: ColorPalette.textPrimary,
@@ -479,7 +479,7 @@ class _ContactRow extends StatelessWidget {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13.5,
                 color: ColorPalette.textSecondary,
                 fontWeight: FontWeight.w500,

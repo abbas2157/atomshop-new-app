@@ -11,7 +11,7 @@ class AboutUs extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F5FB),
+        backgroundColor: ColorPalette.background,
         body: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -33,7 +33,7 @@ class AboutUs extends StatelessWidget {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: ColorPalette.surface,
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
@@ -43,7 +43,7 @@ class AboutUs extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.arrow_back_ios_new_rounded,
                                 size: 17,
                                 color: ColorPalette.textPrimary,
@@ -51,7 +51,7 @@ class AboutUs extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 14),
-                          const Text(
+                          Text(
                             'About Us',
                             style: TextStyle(
                               fontSize: 24,
@@ -289,7 +289,7 @@ class AboutUs extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -311,7 +311,7 @@ class AboutUs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -340,7 +340,7 @@ class AboutUs extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: ColorPalette.textPrimary,
@@ -350,7 +350,7 @@ class AboutUs extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   text,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13.5,
                     color: ColorPalette.textSecondary,
                     height: 1.55,
@@ -382,7 +382,7 @@ class AboutUs extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: ColorPalette.textPrimary,
@@ -403,7 +403,7 @@ class AboutUs extends StatelessWidget {
 
   Widget _body(String text) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 13.5,
       color: ColorPalette.textSecondary,
       height: 1.6,

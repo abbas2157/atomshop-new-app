@@ -7,6 +7,8 @@
 //  picker and every async call behave exactly as before. Pure presentation.
 // ═══════════════════════════════════════════════════════════════════════════
 
+import 'dart:io';
+
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
@@ -19,6 +21,7 @@ import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_or
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ROOT SCREEN
@@ -1162,14 +1165,31 @@ class _CreateCustomOrderSheet extends ConsumerStatefulWidget {
       _CreateCustomOrderSheetState();
 }
 
+/// Sentinel value used by the category/brand dropdowns to mean "Other…".
+const String _kOtherLookupValue = 'other';
+
+/// A single editable specification row (title + value) in the create form.
+class _SpecRow {
+  final TextEditingController title;
+  final TextEditingController value;
+  _SpecRow() : title = TextEditingController(), value = TextEditingController();
+
+  void dispose() {
+    title.dispose();
+    value.dispose();
+  }
+}
+
 class _CreateCustomOrderSheetState
     extends ConsumerState<_CreateCustomOrderSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _productId = TextEditingController();
-  final _totalDealPrice = TextEditingController();
+  final _productTitle = TextEditingController();
+  final _productPrice = TextEditingController();
   final _advancePrice = TextEditingController();
   final _perMonthPercentage = TextEditingController(text: '4');
   final _tenure = TextEditingController();
+  final _newCategory = TextEditingController();
+  final _newBrand = TextEditingController();
 
   SellerCustomer? _selectedCustomer;
   List<SellerCustomer> _customers = const [];
@@ -1177,20 +1197,74 @@ class _CreateCustomOrderSheetState
   bool _saving = false;
   String? _customerError;
 
+  // Category / brand dropdown selection. Holds a numeric id string, the literal
+  // [_kOtherLookupValue], or null (not chosen).
+  String? _categoryValue;
+  String? _brandValue;
+
+  final List<_SpecRow> _specs = [];
+  File? _picture;
+
   @override
   void initState() {
     super.initState();
     _loadCustomers();
+    // Recompute the total-deal preview as the user types.
+    _productPrice.addListener(_onPlanChanged);
+    _advancePrice.addListener(_onPlanChanged);
+    _perMonthPercentage.addListener(_onPlanChanged);
+    _tenure.addListener(_onPlanChanged);
   }
 
   @override
   void dispose() {
-    _productId.dispose();
-    _totalDealPrice.dispose();
+    _productTitle.dispose();
+    _productPrice.dispose();
     _advancePrice.dispose();
     _perMonthPercentage.dispose();
     _tenure.dispose();
+    _newCategory.dispose();
+    _newBrand.dispose();
+    for (final spec in _specs) {
+      spec.dispose();
+    }
     super.dispose();
+  }
+
+  void _onPlanChanged() => setState(() {});
+
+  // ── Total deal price preview ─────────────────────────────
+  double get _productPriceNum =>
+      double.tryParse(_productPrice.text.trim()) ?? 0;
+  double get _advancePriceNum =>
+      double.tryParse(_advancePrice.text.trim()) ?? 0;
+  double get _perMonthPctNum =>
+      double.tryParse(_perMonthPercentage.text.trim()) ?? 0;
+  int get _tenureNum => int.tryParse(_tenure.text.trim()) ?? 0;
+
+  /// `financed = price - advance; markup = (pct/100) * tenure * financed;`
+  /// `total = price + markup` (sourcing fee is 0 at creation).
+  double get _totalDealPreview {
+    final financed = _productPriceNum - _advancePriceNum;
+    final markup = (_perMonthPctNum / 100) * _tenureNum * financed;
+    return _productPriceNum + markup;
+  }
+
+  void _addSpec() => setState(() => _specs.add(_SpecRow()));
+
+  void _removeSpec(int index) => setState(() {
+    _specs.removeAt(index).dispose();
+  });
+
+  Future<void> _pickPicture() async {
+    if (_saving) return;
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 78,
+      maxWidth: 1400,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _picture = File(picked.path));
   }
 
   Future<void> _loadCustomers() async {
@@ -1247,44 +1321,77 @@ class _CreateCustomOrderSheetState
   }
 
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
     final customer = _selectedCustomer;
     if (customer == null) {
       SnackbarService().showErrorSnackBar('Please select a customer.');
       return;
     }
-    if (customer.profile.cityId <= 0 || customer.profile.areaId <= 0) {
-      SnackbarService().showErrorSnackBar(
-        'Selected customer is missing city or area data.',
-      );
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    // Resolve category / brand: send the id string, or "other" + a title.
+    final categoryId = _categoryValue;
+    final categoryTitle = categoryId == _kOtherLookupValue
+        ? _newCategory.text.trim()
+        : null;
+    if (categoryId == _kOtherLookupValue && (categoryTitle?.isEmpty ?? true)) {
+      SnackbarService().showErrorSnackBar('Please enter the new category name.');
+      return;
+    }
+    final brandId = _brandValue;
+    final brandTitle = brandId == _kOtherLookupValue
+        ? _newBrand.text.trim()
+        : null;
+    if (brandId == _kOtherLookupValue && (brandTitle?.isEmpty ?? true)) {
+      SnackbarService().showErrorSnackBar('Please enter the new brand name.');
       return;
     }
 
-    final total = int.tryParse(_totalDealPrice.text.trim()) ?? 0;
-    final advance = int.tryParse(_advancePrice.text.trim()) ?? 0;
-    if (advance >= total) {
-      SnackbarService().showErrorSnackBar(
-        'Advance price must be less than total deal price.',
-      );
-      return;
+    // Build aligned spec pairs, skipping rows where both fields are empty.
+    final detailTitles = <String>[];
+    final detailValues = <String>[];
+    for (final spec in _specs) {
+      final t = spec.title.text.trim();
+      final v = spec.value.text.trim();
+      if (t.isEmpty && v.isEmpty) continue;
+      detailTitles.add(t);
+      detailValues.add(v);
     }
+
+    final price = _productPrice.text.trim();
+    final advance = _advancePrice.text.trim();
+    final total = _totalDealPreview;
 
     setState(() => _saving = true);
     try {
       await ref
           .read(sellerCustomOrdersRepositoryProvider)
           .storeCustomOrder(
-            userId: customer.id.toString(),
-            productId: _productId.text.trim(),
-            totalDealPrice: _totalDealPrice.text.trim(),
-            advancePrice: _advancePrice.text.trim(),
-            perMonthPercentage: _perMonthPercentage.text.trim(),
-            tenure: _tenure.text.trim(),
-            areaId: customer.profile.areaId.toString(),
-            cityId: customer.profile.cityId.toString(),
+            customerId: customer.id.toString(),
+            categoryId: categoryId,
+            categoryTitle: categoryTitle,
+            brandId: brandId,
+            brandTitle: brandTitle,
+            productTitle: _productTitle.text.trim().isEmpty
+                ? null
+                : _productTitle.text.trim(),
+            productPrice: price.isEmpty ? null : price,
+            advancePrice: advance.isEmpty ? null : advance,
+            detailTitles: detailTitles,
+            detailValues: detailValues,
+            tenureMonths: _tenure.text.trim().isEmpty
+                ? null
+                : _tenure.text.trim(),
+            perMonthPercentage: _perMonthPercentage.text.trim().isEmpty
+                ? null
+                : _perMonthPercentage.text.trim(),
+            totalDealPrice: total > 0 ? total.round().toString() : null,
+            picture: _picture,
           );
       if (!mounted) return;
-      SnackbarService().showSuccessSnackBar('Custom order created.');
+      ref.invalidate(sellerCustomOrdersProvider);
+      ref.invalidate(sellerCustomOrdersPendingCountProvider);
+      ref.invalidate(sellerCustomOrdersStatusCountsProvider);
+      SnackbarService().showSuccessSnackBar('Custom order created successfully.');
       Navigator.pop(context, true);
     } catch (e) {
       SnackbarService().showErrorSnackBar(_cleanCreateError(e));
@@ -1295,6 +1402,11 @@ class _CreateCustomOrderSheetState
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final categories = ref.watch(sellerCustomOrderCategoriesProvider);
+    final brands = ref.watch(sellerCustomOrderBrandsProvider);
+
     return _SheetShell(
       title: 'Create Custom Order',
       child: Form(
@@ -1302,6 +1414,7 @@ class _CreateCustomOrderSheetState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── Customer (required) ────────────────────────
             _CustomerSelectCard(
               customer: _selectedCustomer,
               loading: _loadingCustomers,
@@ -1311,50 +1424,185 @@ class _CreateCustomOrderSheetState
               onTap: _pickCustomer,
               onRetry: _loadCustomers,
             ),
+            const Gap.v(AppSpace.md),
+
+            // ── Category ───────────────────────────────────
+            _CreateLookupDropdown(
+              label: 'Category',
+              icon: Icons.category_outlined,
+              value: _categoryValue,
+              enabled: !_saving,
+              lookups: categories,
+              onChanged: (v) => setState(() => _categoryValue = v),
+            ),
+            if (_categoryValue == _kOtherLookupValue) ...[
+              const Gap.v(AppSpace.sm),
+              _CreateTextField(
+                controller: _newCategory,
+                label: 'New category',
+                icon: Icons.add_circle_outline_rounded,
+                enabled: !_saving,
+              ),
+            ],
             const Gap.v(AppSpace.sm),
-            _CreateNumberField(
-              controller: _productId,
-              label: 'Product ID',
+
+            // ── Brand ──────────────────────────────────────
+            _CreateLookupDropdown(
+              label: 'Brand',
+              icon: Icons.sell_outlined,
+              value: _brandValue,
+              enabled: !_saving,
+              lookups: brands,
+              onChanged: (v) => setState(() => _brandValue = v),
+            ),
+            if (_brandValue == _kOtherLookupValue) ...[
+              const Gap.v(AppSpace.sm),
+              _CreateTextField(
+                controller: _newBrand,
+                label: 'New brand',
+                icon: Icons.add_circle_outline_rounded,
+                enabled: !_saving,
+              ),
+            ],
+            const Gap.v(AppSpace.sm),
+
+            // ── Product ────────────────────────────────────
+            _CreateTextField(
+              controller: _productTitle,
+              label: 'Product title',
               icon: Icons.inventory_2_outlined,
               enabled: !_saving,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Product title is required'
+                  : null,
             ),
             const Gap.v(AppSpace.sm),
             _CreateNumberField(
-              controller: _totalDealPrice,
-              label: 'Total Deal Price',
+              controller: _productPrice,
+              label: 'Product price',
               icon: Icons.payments_outlined,
               enabled: !_saving,
+              validator: (v) {
+                final value = v?.trim() ?? '';
+                if (value.isEmpty) return 'Product price is required';
+                if (double.tryParse(value) == null) return 'Enter a valid price';
+                return null;
+              },
             ),
             const Gap.v(AppSpace.sm),
             _CreateNumberField(
               controller: _advancePrice,
-              label: 'Advance Price',
+              label: 'Advance price',
               icon: Icons.savings_outlined,
               enabled: !_saving,
+              validator: (v) {
+                final value = v?.trim() ?? '';
+                if (value.isEmpty) return null;
+                if (double.tryParse(value) == null) {
+                  return 'Enter a valid amount';
+                }
+                return null;
+              },
             ),
+            const Gap.v(AppSpace.md),
+
+            // ── Specifications ─────────────────────────────
+            Row(
+              children: [
+                Text('Specifications', style: text.titleSm),
+                const Spacer(),
+                SellerButton.secondary(
+                  label: 'Add',
+                  icon: Icons.add_rounded,
+                  size: SellerButtonSize.small,
+                  expand: false,
+                  onPressed: _saving ? null : _addSpec,
+                ),
+              ],
+            ),
+            if (_specs.isEmpty) ...[
+              const Gap.v(AppSpace.xs),
+              Text('No specifications added.', style: text.caption),
+            ],
+            for (var i = 0; i < _specs.length; i++) ...[
+              const Gap.v(AppSpace.sm),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _CreateTextField(
+                      controller: _specs[i].title,
+                      label: 'Title',
+                      icon: Icons.label_outline_rounded,
+                      enabled: !_saving,
+                    ),
+                  ),
+                  const Gap.h(AppSpace.sm),
+                  Expanded(
+                    child: _CreateTextField(
+                      controller: _specs[i].value,
+                      label: 'Value',
+                      icon: Icons.short_text_rounded,
+                      enabled: !_saving,
+                    ),
+                  ),
+                  const Gap.h(AppSpace.xs),
+                  _SquareIconButton(
+                    icon: Icons.close_rounded,
+                    tone: c.dangerTone,
+                    onTap: _saving ? () {} : () => _removeSpec(i),
+                  ),
+                ],
+              ),
+            ],
+            const Gap.v(AppSpace.md),
+
+            // ── Product picture ────────────────────────────
+            _PicturePickerCard(
+              picture: _picture,
+              enabled: !_saving,
+              onTap: _pickPicture,
+              onClear: _saving ? null : () => setState(() => _picture = null),
+            ),
+            const Gap.v(AppSpace.md),
+
+            // ── Installment plan ───────────────────────────
+            Text('Installment plan', style: text.titleSm),
             const Gap.v(AppSpace.sm),
             Row(
               children: [
                 Expanded(
                   child: _CreateNumberField(
-                    controller: _perMonthPercentage,
-                    label: 'Monthly %',
-                    icon: Icons.percent_rounded,
+                    controller: _tenure,
+                    label: 'Tenure (months)',
+                    icon: Icons.calendar_month_outlined,
                     enabled: !_saving,
                   ),
                 ),
                 const Gap.h(AppSpace.sm),
                 Expanded(
                   child: _CreateNumberField(
-                    controller: _tenure,
-                    label: 'Tenure',
-                    icon: Icons.calendar_month_outlined,
+                    controller: _perMonthPercentage,
+                    label: 'Monthly %',
+                    icon: Icons.percent_rounded,
+                    decimal: true,
                     enabled: !_saving,
+                    validator: (v) {
+                      final value = v?.trim() ?? '';
+                      if (value.isEmpty) return null;
+                      final pct = double.tryParse(value);
+                      if (pct == null) return 'Invalid';
+                      if (pct < 0 || pct > 6) return '0 – 6';
+                      return null;
+                    },
                   ),
                 ),
               ],
             ),
+            const Gap.v(AppSpace.sm),
+            _TotalDealPreview(amount: _totalDealPreview),
             const Gap.v(AppSpace.md),
+
             SellerButton(
               label: 'Create Order',
               icon: Icons.save_outlined,
@@ -1368,17 +1616,213 @@ class _CreateCustomOrderSheetState
   }
 }
 
-class _CreateNumberField extends StatelessWidget {
+/// Read-only preview of the computed total deal price.
+class _TotalDealPreview extends StatelessWidget {
+  final double amount;
+  const _TotalDealPreview({required this.amount});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.sm + 2,
+      ),
+      decoration: BoxDecoration(
+        color: c.accentSurface,
+        borderRadius: AppRadius.brMd,
+        border: Border.all(color: c.accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.price_check_rounded, size: 18, color: c.accent),
+          const Gap.h(AppSpace.sm),
+          Expanded(
+            child: Text('Total Deal Price', style: text.bodySm),
+          ),
+          Text(
+            _formatRs(amount.round()),
+            style: text.bodyLg.copyWith(
+              color: c.accent,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Optional product-picture picker tile (gallery).
+class _PicturePickerCard extends StatelessWidget {
+  final File? picture;
+  final bool enabled;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  const _PicturePickerCard({
+    required this.picture,
+    required this.enabled,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final pic = picture;
+    return SellerCard(
+      color: c.surfaceAlt,
+      borderColor: c.border,
+      elevated: false,
+      padding: const EdgeInsets.all(AppSpace.sm + 2),
+      onTap: enabled ? onTap : null,
+      child: Row(
+        children: [
+          if (pic == null)
+            SellerIconBadge(
+              icon: Icons.image_outlined,
+              tone: c.accentTone,
+            )
+          else
+            ClipRRect(
+              borderRadius: AppRadius.brSm,
+              child: Image.file(
+                pic,
+                width: 44,
+                height: 44,
+                fit: BoxFit.cover,
+              ),
+            ),
+          const Gap.h(AppSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pic == null ? 'Add product picture' : 'Product picture',
+                  style: text.bodyLg.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const Gap.v(2),
+                Text(
+                  pic == null ? 'Optional · from gallery' : 'Tap to replace',
+                  style: text.caption,
+                ),
+              ],
+            ),
+          ),
+          if (pic != null && onClear != null)
+            IconButton(
+              tooltip: 'Remove',
+              onPressed: onClear,
+              icon: Icon(Icons.close_rounded, color: c.textSecondary),
+            )
+          else
+            Icon(Icons.upload_rounded, color: c.textSecondary),
+        ],
+      ),
+    );
+  }
+}
+
+/// Themed category/brand dropdown with an appended "Other…" option. Renders a
+/// slim placeholder while [lookups] is loading.
+class _CreateLookupDropdown extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final String? value;
+  final bool enabled;
+  final AsyncValue<List<SellerCustomOrderLookup>> lookups;
+  final ValueChanged<String?> onChanged;
+
+  const _CreateLookupDropdown({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.enabled,
+    required this.lookups,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
+    final items = <DropdownMenuItem<String>>[
+      ...lookups
+          .whenOrNull(
+            data: (list) => list.map(
+              (l) => DropdownMenuItem<String>(
+                value: l.id.toString(),
+                child: Text(l.title, overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          )
+          ?.toList() ??
+          const [],
+      const DropdownMenuItem<String>(
+        value: _kOtherLookupValue,
+        child: Text('Other…'),
+      ),
+    ];
+
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      isExpanded: true,
+      style: text.body,
+      dropdownColor: c.surface,
+      hint: Text(
+        lookups.isLoading ? 'Loading $label…' : 'Select $label (optional)',
+        style: text.bodySm,
+      ),
+      items: items,
+      onChanged: enabled ? onChanged : null,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: text.bodySm,
+        floatingLabelStyle: text.labelSm.copyWith(color: c.accent),
+        prefixIcon: Icon(icon, size: 18, color: c.textTertiary),
+        filled: true,
+        fillColor: c.surfaceAlt,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.sm,
+          vertical: AppSpace.sm,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: AppRadius.brMd,
+          borderSide: BorderSide(color: c.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppRadius.brMd,
+          borderSide: BorderSide(color: c.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppRadius.brMd,
+          borderSide: BorderSide(color: c.accent, width: 1.6),
+        ),
+      ),
+    );
+  }
+}
+
+/// Themed text field for the create form (optional validator).
+class _CreateTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData icon;
   final bool enabled;
+  final FormFieldValidator<String>? validator;
 
-  const _CreateNumberField({
+  const _CreateTextField({
     required this.controller,
     required this.label,
     required this.icon,
     required this.enabled,
+    this.validator,
   });
 
   @override
@@ -1388,9 +1832,63 @@ class _CreateNumberField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       enabled: enabled,
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      validator: _requiredCreateNumber,
+      textInputAction: TextInputAction.next,
+      validator: validator,
+      style: text.body,
+      cursorColor: c.accent,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: text.bodySm,
+        floatingLabelStyle: text.labelSm.copyWith(color: c.accent),
+        prefixIcon: Icon(icon, size: 18, color: c.textTertiary),
+        filled: true,
+        fillColor: c.surfaceAlt,
+        border: OutlineInputBorder(
+          borderRadius: AppRadius.brMd,
+          borderSide: BorderSide(color: c.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppRadius.brMd,
+          borderSide: BorderSide(color: c.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppRadius.brMd,
+          borderSide: BorderSide(color: c.accent, width: 1.6),
+        ),
+      ),
+    );
+  }
+}
+
+class _CreateNumberField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final bool enabled;
+  final bool decimal;
+  final FormFieldValidator<String>? validator;
+
+  const _CreateNumberField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    required this.enabled,
+    this.decimal = false,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+      inputFormatters: decimal
+          ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
+          : [FilteringTextInputFormatter.digitsOnly],
+      validator: validator,
       style: text.body,
       cursorColor: c.accent,
       decoration: InputDecoration(
@@ -1758,10 +2256,15 @@ String? _formatDate(DateTime? date) {
   return '${date.year}-$m-$d';
 }
 
-String? _requiredCreateNumber(String? value) {
-  final number = int.tryParse(value?.trim() ?? '');
-  if (number == null || number <= 0) return 'Required';
-  return null;
+/// Formats an integer amount as `Rs 1,234,567` with thousands separators.
+String _formatRs(int amount) {
+  final digits = amount.abs().toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(digits[i]);
+  }
+  return 'Rs ${amount < 0 ? '-' : ''}$buffer';
 }
 
 String _cleanCreateError(Object error) {

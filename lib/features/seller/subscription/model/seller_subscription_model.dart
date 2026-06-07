@@ -72,10 +72,11 @@ class SellerPlan {
   bool get hasCommissionRate => salesCommission > 0;
   String get commissionRateLabel => '${_trimNum(salesCommission)}%';
   String get formattedMonthlyPrice => _money(monthlyPrice);
+  String get formattedStartDate => _formatDate(startDate);
   String get endDateLabel =>
       (endDate == null || endDate!.trim().isEmpty || endDate == 'null')
       ? 'No expiry'
-      : endDate!;
+      : _formatDate(endDate!);
 
   factory SellerPlan.fromJson(Map<String, dynamic> json) {
     final features = json['features'] is Map
@@ -195,7 +196,18 @@ class SellerSubscriptionPayment {
   bool get isReceived => status.toLowerCase() == 'received';
   bool get isMonthly => paymentType.toLowerCase() == 'monthly';
   String get typeLabel => isMonthly ? 'Monthly' : 'Commission';
+
+  /// Human-facing status label — the API returns technical values
+  /// ('received' / 'pending') that read oddly to a seller awaiting
+  /// confirmation, so map them to the labels the spec calls for. Mapping to
+  /// 'Confirmed' also makes [SellerStatus.toneFor] resolve the success tone.
+  String get statusLabel => switch (status.toLowerCase()) {
+    'received' => 'Confirmed',
+    'pending' => 'Pending',
+    _ => status,
+  };
   String get formattedAmount => _money(amount);
+  String get formattedSubmittedAt => _formatDate(submittedAt);
   bool get hasReceipt => receipt != null && receipt!.trim().isNotEmpty;
   bool get hasNotes => notes != null && notes!.trim().isNotEmpty;
 
@@ -232,6 +244,16 @@ String _text(dynamic value, {String fallback = 'Not available'}) {
   final text = value?.toString().trim();
   if (text == null || text.isEmpty || text == 'null') return fallback;
   return text;
+}
+
+String _formatDate(String value) {
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) return value;
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${parsed.day} ${months[parsed.month - 1]} ${parsed.year}';
 }
 
 String _trimNum(double value) =>

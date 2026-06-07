@@ -203,7 +203,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F5FB),
+        backgroundColor: ColorPalette.background,
         body: FadeTransition(
           opacity: _fadeIn,
           child: CustomScrollView(
@@ -274,7 +274,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: ColorPalette.surface,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
@@ -284,7 +284,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_back_ios_new_rounded,
                       size: 17,
                       color: ColorPalette.textPrimary,
@@ -292,7 +292,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Text(
+                Text(
                   'Notifications',
                   style: TextStyle(
                     fontSize: 24,
@@ -334,7 +334,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               children: [
                 Text(
                   '${_filtered.length} notification${_filtered.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     color: ColorPalette.textSecondary,
                     fontWeight: FontWeight.w500,
@@ -396,7 +396,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                             decoration: BoxDecoration(
                               color: active
                                   ? ColorPalette.secondary
-                                  : Colors.white,
+                                  : ColorPalette.surface,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: active
@@ -457,7 +457,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'All caught up!',
             style: TextStyle(
               fontSize: 16,
@@ -466,7 +466,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'No notifications here yet.',
             style: TextStyle(fontSize: 13, color: ColorPalette.textSecondary),
           ),
@@ -491,7 +491,7 @@ class _GroupHeader extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
               color: ColorPalette.textSecondary,
@@ -579,7 +579,9 @@ class _NotifCardState extends State<_NotifCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           decoration: BoxDecoration(
-            color: isUnread ? Colors.white : Colors.white.withOpacity(0.6),
+            color: isUnread
+                ? ColorPalette.surface
+                : ColorPalette.surface.withOpacity(0.6),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isUnread

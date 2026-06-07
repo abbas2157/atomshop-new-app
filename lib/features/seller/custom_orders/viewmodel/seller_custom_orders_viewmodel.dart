@@ -33,3 +33,13 @@ final sellerCustomOrdersStatusCountsProvider =
     FutureProvider.autoDispose<Map<String, int>>((ref) {
       return ref.read(sellerCustomOrdersRepositoryProvider).getStatusCounts();
     });
+
+final sellerCustomOrderCategoriesProvider =
+    FutureProvider.autoDispose<List<SellerCustomOrderLookup>>((ref) {
+      return ref.read(sellerCustomOrdersRepositoryProvider).getCategories();
+    });
+
+final sellerCustomOrderBrandsProvider =
+    FutureProvider.autoDispose<List<SellerCustomOrderLookup>>((ref) {
+      return ref.read(sellerCustomOrdersRepositoryProvider).getBrands();
+    });
