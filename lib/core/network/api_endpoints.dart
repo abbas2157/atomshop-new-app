@@ -1,6 +1,21 @@
 class ApiEndpoints {
   static const String baseUrl = "https://atomshop.pk/api/";
 
+  /// Base for stored public assets (uploaded images, receipts, etc.).
+  static const String assetBaseUrl = "https://atomshop.pk/public/";
+
+  /// Resolves a stored relative path (e.g. `images/customers/x.jpg`) to a full
+  /// URL under `assetBaseUrl`. Returns '' for empty/placeholder values, and
+  /// passes through values that are already absolute URLs.
+  static String publicAsset(String? path) {
+    final p = path?.trim() ?? '';
+    if (p.isEmpty || p == 'Not available' || p == 'No image' || p == 'null') {
+      return '';
+    }
+    if (p.startsWith('http://') || p.startsWith('https://')) return p;
+    return '$assetBaseUrl${p.startsWith('/') ? p.substring(1) : p}';
+  }
+
   /// endpoints
   static const String login = "account/login";
   static const String sellerLogin = "seller-app/login";
@@ -9,6 +24,9 @@ class ApiEndpoints {
   static const String verifyOTP = "account/send/code/verify";
   static const String sendOTP = "account/send/code";
   static const String setPassword = "account/send/code/reset/password";
+  static const String fcmStore = "fcm/store";
+  static const String fcmAttachUser = "fcm/attach-user";
+  static const String fcmLogout = "fcm/logout";
   static const String categories = "categories";
   static const String brands = "brands";
   static const String sellerCustomerCities = "seller-app/customers/areas";
@@ -64,6 +82,8 @@ class ApiEndpoints {
   static const String sellerFeeCharge = "seller-app/fee-charge";
   static const String sellerPayFeeCharge = "seller-app/fee-charge/pay";
   static const String sellerInvestments = "seller-app/investments";
+  static const String sellerSubscription = "seller-app/subscription";
+  static const String sellerSubscriptionPay = "seller-app/subscription/pay";
 
   static String sellerInvestmentDetails(int investmentId) =>
       "seller-app/investments/$investmentId";
@@ -83,6 +103,9 @@ class ApiEndpoints {
   static String sellerCustomerProfile(String customerUuid) =>
       "seller-app/customers/$customerUuid/profile";
 
+  static String sellerCustomerUpdate(String customerUuid) =>
+      "seller-app/customers/$customerUuid/update";
+
   static String sellerCustomerInstalments(String customerUuid) =>
       "seller-app/customers/$customerUuid/instalment";
 
@@ -97,8 +120,14 @@ class ApiEndpoints {
     return "seller-app/instalment/export$suffix";
   }
 
-  static String sellerInstalmentInvoice(String orderUuid) =>
-      "seller-app/instalment/invoice/$orderUuid";
+  static String sellerInstalmentOrderDetail(int orderId) =>
+      "seller-app/instalment/order/$orderId";
+
+  static String sellerInstalmentInvoiceData(int instalmentId) =>
+      "seller-app/instalment/invoice/$instalmentId/data";
+
+  static String sellerInstalmentInvoice(int instalmentId) =>
+      "seller-app/instalment/invoice/$instalmentId";
 
   static String sellerLeadUpdate(int leadId) =>
       "seller-app/leads/update/$leadId";

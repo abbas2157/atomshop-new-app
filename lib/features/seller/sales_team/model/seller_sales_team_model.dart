@@ -205,16 +205,159 @@ class SellerSalesTeamLookup {
 }
 
 class SellerSalesTeamPerformance {
-  final Map<String, String> metrics;
+  final SellerPerformanceUser user;
+  final List<SellerPerformanceOrder> orders;
+  final int ordersTotal;
+  final int currentPage;
+  final int lastPage;
 
-  const SellerSalesTeamPerformance({required this.metrics});
+  const SellerSalesTeamPerformance({
+    required this.user,
+    required this.orders,
+    required this.ordersTotal,
+    required this.currentPage,
+    required this.lastPage,
+  });
+
+  bool get isRecovery => user.memberType.toLowerCase() == 'recovery';
+
+  /// Sum of `price` for the current page only (see API note on totals).
+  int get pageCollected => orders.fold(0, (sum, o) => sum + o.price);
 
   factory SellerSalesTeamPerformance.fromJson(Map<String, dynamic> json) {
     final data = json['data'] is Map
         ? Map<String, dynamic>.from(json['data'])
         : <String, dynamic>{};
+    final ordersObj = data['orders'] is Map
+        ? Map<String, dynamic>.from(data['orders'])
+        : <String, dynamic>{};
     return SellerSalesTeamPerformance(
-      metrics: data.map((key, value) => MapEntry(key.toString(), _text(value))),
+      user: SellerPerformanceUser.fromJson(
+        data['user'] is Map
+            ? Map<String, dynamic>.from(data['user'])
+            : const {},
+      ),
+      orders: (ordersObj['data'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (e) => SellerPerformanceOrder.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList(growable: false),
+      ordersTotal: _asInt(ordersObj['total']),
+      currentPage: _asInt(ordersObj['current_page'], fallback: 1),
+      lastPage: _asInt(ordersObj['last_page'], fallback: 1),
+    );
+  }
+}
+
+class SellerPerformanceUser {
+  final int id;
+  final String uuid;
+  final String name;
+  final String email;
+  final String phone;
+  final String role;
+  final String createdAt;
+  final String memberType;
+  final String memberRole;
+  final String cityTitle;
+  final String areaTitle;
+
+  const SellerPerformanceUser({
+    required this.id,
+    required this.uuid,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.role,
+    required this.createdAt,
+    required this.memberType,
+    required this.memberRole,
+    required this.cityTitle,
+    required this.areaTitle,
+  });
+
+  bool get isAmos => role.toLowerCase() == 'amos';
+  String get formattedJoined => _date(createdAt);
+
+  factory SellerPerformanceUser.fromJson(Map<String, dynamic> json) {
+    final amos = json['amos'] is Map
+        ? Map<String, dynamic>.from(json['amos'])
+        : <String, dynamic>{};
+    final cityObj = amos['city'];
+    final areaObj = amos['area'];
+    return SellerPerformanceUser(
+      id: _asInt(json['id']),
+      uuid: _text(json['uuid']),
+      name: _text(json['name'], fallback: 'Team member'),
+      email: _text(json['email']),
+      phone: _text(json['phone']),
+      role: _text(json['role']),
+      createdAt: _text(json['created_at'], fallback: ''),
+      memberType: _text(amos['member_type'], fallback: 'sale'),
+      memberRole: _text(amos['member_role']),
+      cityTitle: cityObj is Map ? _text(cityObj['title']) : _text(cityObj),
+      areaTitle: areaObj is Map ? _text(areaObj['title']) : _text(areaObj),
+    );
+  }
+}
+
+class SellerPerformanceOrder {
+  final int id;
+  final int orderId;
+  final String memberType;
+  final int price;
+  final String createdAt;
+  final String orderUuid;
+  final int totalDealPrice;
+  final String status;
+  final String customerName;
+  final String customerPhone;
+  final String productTitle;
+  final String prNumber;
+
+  const SellerPerformanceOrder({
+    required this.id,
+    required this.orderId,
+    required this.memberType,
+    required this.price,
+    required this.createdAt,
+    required this.orderUuid,
+    required this.totalDealPrice,
+    required this.status,
+    required this.customerName,
+    required this.customerPhone,
+    required this.productTitle,
+    required this.prNumber,
+  });
+
+  String get formattedPrice => _money(price);
+  String get formattedDeal => _money(totalDealPrice);
+  String get formattedDate => _date(createdAt);
+
+  factory SellerPerformanceOrder.fromJson(Map<String, dynamic> json) {
+    final order = json['custom_order'] is Map
+        ? Map<String, dynamic>.from(json['custom_order'])
+        : <String, dynamic>{};
+    final orderUser = order['user'] is Map
+        ? Map<String, dynamic>.from(order['user'])
+        : <String, dynamic>{};
+    final product = order['custom_order_product'] is Map
+        ? Map<String, dynamic>.from(order['custom_order_product'])
+        : <String, dynamic>{};
+    return SellerPerformanceOrder(
+      id: _asInt(json['id']),
+      orderId: _asInt(json['order_id']),
+      memberType: _text(json['member_type'], fallback: 'sale'),
+      price: _asInt(json['price']),
+      createdAt: _text(json['created_at'], fallback: ''),
+      orderUuid: _text(order['uuid']),
+      totalDealPrice: _asInt(order['total_deal_price']),
+      status: _text(order['status'], fallback: 'Unknown'),
+      customerName: _text(orderUser['name'], fallback: 'Customer'),
+      customerPhone: _text(orderUser['phone']),
+      productTitle: _text(product['title'], fallback: 'Product'),
+      prNumber: _text(product['pr_number']),
     );
   }
 }
@@ -240,6 +383,17 @@ String _text(dynamic value, {String fallback = 'Not available'}) {
   final text = value?.toString().trim();
   if (text == null || text.isEmpty || text == 'null') return fallback;
   return text;
+}
+
+String _money(int value) {
+  final t = value.toString();
+  final b = StringBuffer();
+  for (var i = 0; i < t.length; i++) {
+    final r = t.length - i;
+    b.write(t[i]);
+    if (r > 1 && r % 3 == 1) b.write(',');
+  }
+  return 'Rs $b';
 }
 
 String _date(String value) {

@@ -123,9 +123,9 @@ class _FloatingNavBar extends StatelessWidget {
       child: Container(
         height: 68,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: ColorPalette.surface,
           borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: const Color(0xFFEEEEEE), width: 1),
+          border: Border.all(color: ColorPalette.border, width: 1),
           boxShadow: [
             BoxShadow(
               color: ColorPalette.secondary.withOpacity(0.12),
@@ -256,8 +256,8 @@ class _InactiveIcon extends StatelessWidget {
           item.svg,
           width: 22,
           height: 22,
-          colorFilter: const ColorFilter.mode(
-            Color(0xFF9E9E9E),
+          colorFilter: ColorFilter.mode(
+            ColorPalette.textSecondary,
             BlendMode.srcIn,
           ),
         ),
@@ -265,8 +265,8 @@ class _InactiveIcon extends StatelessWidget {
         Text(
           item.label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF9E9E9E),
+          style: TextStyle(
+            color: ColorPalette.textSecondary,
             fontSize: 10,
             fontWeight: FontWeight.w500,
           ),

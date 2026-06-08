@@ -59,9 +59,9 @@ class _FAQTileState extends State<FAQTile> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         // Different colors for Expanded vs Collapsed
-        color: _isExpanded ? Color(0xFFF3F6FB) : Colors.white,
+        color: _isExpanded ? Color(0xFFF3F6FB) : ColorPalette.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200, width: 1),
+        border: Border.all(color: ColorPalette.border, width: 1),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),

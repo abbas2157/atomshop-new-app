@@ -144,7 +144,7 @@ class _OTPVerifyScreenState extends ConsumerState<OTPVerifyScreen> {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(

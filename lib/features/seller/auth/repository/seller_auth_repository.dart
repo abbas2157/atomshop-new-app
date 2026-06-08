@@ -2,6 +2,7 @@ import 'package:atompro/core/auth/seller_session_manager.dart';
 import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/network/network_manager.dart';
 import 'package:atompro/core/network/network_provider.dart';
+import 'package:atompro/core/services/fcm_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final sellerAuthRepositoryProvider = Provider<SellerAuthRepository>((ref) {
@@ -15,10 +16,13 @@ class SellerAuthRepository {
   SellerAuthRepository(this._network);
 
   Future<void> login({required String email, required String password}) async {
-    final response = await _network.postRequest(ApiEndpoints.sellerLogin, {
-      'email': email,
-      'password': password,
-    });
+    final body = {'email': email, 'password': password};
+    final fcmToken = await FcmService.getToken();
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      body['fcm_token'] = fcmToken;
+    }
+
+    final response = await _network.postRequest(ApiEndpoints.sellerLogin, body);
 
     if (response['success'] != true) {
       throw Exception(response['message'] ?? 'Seller login failed.');
@@ -39,9 +43,11 @@ class SellerAuthRepository {
       businessName: seller['business_name'].toString(),
       verified: seller['verified'].toString() == '1',
     );
+    await FcmService.attachUser(userId: user['id'].toString());
   }
 
   Future<void> logout() async {
+    await FcmService.unlinkUser();
     final token = await SellerSessionManager.getToken();
     if (token != null && token.isNotEmpty) {
       try {

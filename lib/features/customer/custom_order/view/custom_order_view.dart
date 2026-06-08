@@ -1379,7 +1379,7 @@ class _Card extends StatelessWidget {
     decoration: BoxDecoration(
       color: ColorPalette.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFE4E7EA)),
+      border: Border.all(color: ColorPalette.border),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withOpacity(0.04),
@@ -1648,7 +1648,7 @@ class _WhyChooseUsSection extends StatelessWidget {
           height: 36,
           width: 36,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: ColorPalette.surface,
             borderRadius: BorderRadius.circular(9),
             boxShadow: [
               BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4),
@@ -1701,7 +1701,7 @@ class _ConvenienceSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5FAFA),
+        color: ColorPalette.backgroundGreenLight,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -1730,7 +1730,7 @@ class _ConvenienceSection extends StatelessWidget {
                     height: 44,
                     width: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: ColorPalette.surface,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(

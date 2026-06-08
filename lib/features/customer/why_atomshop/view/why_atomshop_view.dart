@@ -18,7 +18,7 @@ class WhyAtomshopView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.white,
+      backgroundColor: ColorPalette.background,
       appBar: buildAppBar(context, () {
         _scaffoldKey.currentState?.openDrawer();
       }, true),
@@ -105,7 +105,9 @@ class WhyAtomshopView extends StatelessWidget {
 
             Text(
               "Shopping on installments is simple — here’s how you get started:",
-              style: AppTextStyles.bodyLarge.copyWith(color: Colors.grey),
+              style: AppTextStyles.bodyLarge.copyWith(
+                color: ColorPalette.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ).paddingHorizontal(16),
             SizedBox(height: 20.h),
@@ -161,7 +163,7 @@ class WhyAtomshopView extends StatelessWidget {
             width: double.infinity,
             padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 16.w),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: ColorPalette.surface,
               borderRadius: BorderRadius.circular(16.r),
               boxShadow: [
                 BoxShadow(
@@ -193,7 +195,7 @@ class WhyAtomshopView extends StatelessWidget {
                   description,
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.grey.shade600,
+                    color: ColorPalette.textSecondary,
                     height: 1.5,
                   ),
                 ),

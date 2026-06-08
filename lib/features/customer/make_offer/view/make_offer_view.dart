@@ -188,7 +188,7 @@ class _MakeOfferViewState extends State<MakeOfferView> {
         margin: EdgeInsets.only(left: 10.w, right: 10.w, top: 1.h),
         padding: EdgeInsets.symmetric(vertical: 30.h, horizontal: 16.w),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: ColorPalette.surface,
           borderRadius: BorderRadius.circular(3.r),
           // Mature Shadow: Low opacity, high blur, subtle offset
           boxShadow: [

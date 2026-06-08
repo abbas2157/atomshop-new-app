@@ -11,7 +11,7 @@ class ReturnRefundPolicy extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F5FB),
+        backgroundColor: ColorPalette.background,
         body: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -28,7 +28,7 @@ class ReturnRefundPolicy extends StatelessWidget {
                         children: [
                           _backBtn(context),
                           const SizedBox(width: 14),
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               'Return & Refund Policy',
                               style: TextStyle(
@@ -254,7 +254,7 @@ class ReturnRefundPolicy extends StatelessWidget {
   Widget _card({required Widget child}) => Container(
     width: double.infinity,
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: ColorPalette.surface,
       borderRadius: BorderRadius.circular(18),
       boxShadow: [
         BoxShadow(
@@ -292,7 +292,7 @@ class ReturnRefundPolicy extends StatelessWidget {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 text,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   color: ColorPalette.textSecondary,
                   height: 1.55,
@@ -314,7 +314,7 @@ class ReturnRefundPolicy extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -324,7 +324,7 @@ class ReturnRefundPolicy extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
+      child: Icon(
         Icons.arrow_back_ios_new_rounded,
         size: 17,
         color: ColorPalette.textPrimary,

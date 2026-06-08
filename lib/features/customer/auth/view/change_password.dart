@@ -230,7 +230,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen>
                       opacity: _cardFadeAnim,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: ColorPalette.surface,
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(

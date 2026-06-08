@@ -557,7 +557,7 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                 Text(subtitle, style: AppTextStyles.bodySmall),
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: 14.h),
-                  child: const Divider(height: 1, color: ColorPalette.border),
+                  child: Divider(height: 1, color: ColorPalette.border),
                 ),
                 ...fields,
               ],

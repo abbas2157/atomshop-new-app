@@ -1,4 +1,5 @@
 import 'package:atompro/core/common/utils/utils.dart';
+import 'package:atompro/core/style/color_palette.dart';
 import 'package:flutter/material.dart';
 
 AppBar buildAppBar(
@@ -12,10 +13,10 @@ AppBar buildAppBar(
       children: [
         if (showBackButton)
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_ios,
               size: 20,
-              color: Colors.black,
+              color: ColorPalette.textPrimary,
             ),
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -26,8 +27,8 @@ AppBar buildAppBar(
     centerTitle: false,
     elevation: 1.5, // Adjust for shadow depth
     shadowColor: Colors.grey.shade100,
-    backgroundColor: Colors.white,
-    surfaceTintColor: Colors.white,
+    backgroundColor: ColorPalette.surface,
+    surfaceTintColor: ColorPalette.surface,
     actions: [
       // Profile Button with Circular Splash
       // Material(
@@ -57,8 +58,8 @@ AppBar buildAppBar(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: CircleAvatar(
-                backgroundColor: Colors.grey.shade200,
-                child: const Icon(Icons.menu, color: Colors.black, size: 20),
+                backgroundColor: ColorPalette.surfaceGray,
+                child: Icon(Icons.menu, color: ColorPalette.textPrimary, size: 20),
               ),
             ),
           ),

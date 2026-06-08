@@ -59,7 +59,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F5FB),
+        backgroundColor: ColorPalette.background,
         body: asyncState.when(
           loading: () => _buildLoadingState(),
           error: (e, _) => _buildErrorState(e.toString()),
@@ -84,7 +84,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                       sliver: SliverToBoxAdapter(
                         child: Text(
                           '${orders.length} order${orders.length == 1 ? '' : 's'} found',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             color: ColorPalette.textSecondary,
                             fontWeight: FontWeight.w500,
@@ -133,7 +133,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                 children: [
                   _PulsingOrderIcon(),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Fetching your orders…',
                     style: TextStyle(
                       fontSize: 16,
@@ -142,7 +142,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'This will only take a moment.',
                     style: TextStyle(
                       fontSize: 13,
@@ -185,7 +185,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Failed to load orders',
                       style: TextStyle(
                         fontSize: 16,
@@ -196,7 +196,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                     const SizedBox(height: 6),
                     Text(
                       message,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         color: ColorPalette.textSecondary,
                       ),
@@ -255,7 +255,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: ColorPalette.surface,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
@@ -265,7 +265,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_back_ios_new_rounded,
                       size: 17,
                       color: ColorPalette.textPrimary,
@@ -273,7 +273,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Text(
+                Text(
                   'My Orders',
                   style: TextStyle(
                     fontSize: 24,
@@ -310,7 +310,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
             Container(
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: ColorPalette.surface,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
@@ -322,7 +322,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   color: ColorPalette.textPrimary,
                 ),
@@ -340,7 +340,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                   suffixIcon: _query.isNotEmpty
                       ? GestureDetector(
                           onTap: () => _searchCtrl.clear(),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close_rounded,
                             size: 18,
                             color: ColorPalette.textSecondary,
@@ -376,7 +376,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: active ? ColorPalette.secondary : Colors.white,
+                          color: active ? ColorPalette.secondary : ColorPalette.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: active
@@ -437,7 +437,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No orders found',
             style: TextStyle(
               fontSize: 16,
@@ -446,7 +446,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Try a different search or filter.',
             style: TextStyle(fontSize: 13, color: ColorPalette.textSecondary),
           ),
@@ -506,7 +506,7 @@ class _OrderCardState extends State<_OrderCard> {
         duration: const Duration(milliseconds: 110),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: ColorPalette.surface,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -544,7 +544,7 @@ class _OrderCardState extends State<_OrderCard> {
                         children: [
                           Text(
                             o.product.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: ColorPalette.textPrimary,
@@ -556,7 +556,7 @@ class _OrderCardState extends State<_OrderCard> {
                           const SizedBox(height: 4),
                           Text(
                             o.orderNumber,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11.5,
                               color: ColorPalette.textSecondary,
                               fontWeight: FontWeight.w500,
@@ -621,7 +621,7 @@ class _OrderCardState extends State<_OrderCard> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Installments',
                           style: TextStyle(
                             fontSize: 11.5,
@@ -663,7 +663,7 @@ class _OrderCardState extends State<_OrderCard> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFF),
+                  color: ColorPalette.surfaceGray,
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(20),
                     bottomRight: Radius.circular(20),
@@ -674,7 +674,7 @@ class _OrderCardState extends State<_OrderCard> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.storefront_outlined,
                       size: 14,
                       color: ColorPalette.textSecondary,
@@ -685,7 +685,7 @@ class _OrderCardState extends State<_OrderCard> {
                         o.seller?.businessName == null
                             ? "Seller: N/A (${o.status})"
                             : "Seller: ${o.seller?.businessName}",
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           color: ColorPalette.textSecondary,
                           fontWeight: FontWeight.w500,
@@ -694,7 +694,7 @@ class _OrderCardState extends State<_OrderCard> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(
+                    Icon(
                       Icons.calendar_today_outlined,
                       size: 13,
                       color: ColorPalette.textSecondary,
@@ -702,17 +702,17 @@ class _OrderCardState extends State<_OrderCard> {
                     const SizedBox(width: 5),
                     Text(
                       o.orderDate,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         color: ColorPalette.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       size: 16,
-                      color: Color(0xFFBCC5D6),
+                      color: ColorPalette.textLight,
                     ),
                   ],
                 ),
@@ -729,7 +729,7 @@ class _OrderCardState extends State<_OrderCard> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF2F5FB),
+          color: ColorPalette.surfaceGray,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -741,7 +741,7 @@ class _OrderCardState extends State<_OrderCard> {
                 const SizedBox(width: 4),
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: ColorPalette.textSecondary,
@@ -752,7 +752,7 @@ class _OrderCardState extends State<_OrderCard> {
             const SizedBox(height: 3),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: ColorPalette.textPrimary,
@@ -792,9 +792,9 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
     final o = widget.order;
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF2F5FB),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: ColorPalette.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -803,7 +803,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFFDDE3F0),
+              color: ColorPalette.border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -818,7 +818,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                     children: [
                       Text(
                         o.orderNumber,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: ColorPalette.textPrimary,
@@ -828,7 +828,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                       const SizedBox(height: 3),
                       Text(
                         o.orderDate,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           color: ColorPalette.textSecondary,
                         ),
@@ -877,7 +877,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
             child: Container(
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: ColorPalette.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: ColorPalette.border),
               ),
@@ -961,7 +961,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                 const SizedBox(height: 8),
                 Text(
                   o.product.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: ColorPalette.textPrimary,
@@ -1239,7 +1239,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
               const SizedBox(height: 16),
               Text(
                 isCancelled ? 'Order Cancelled' : 'Pending Approval',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: ColorPalette.textPrimary,
@@ -1252,7 +1252,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                   isCancelled
                       ? 'This order has been cancelled. No Seller was assigned.'
                       : 'Seller details will be visible once your order is reviewed and approved by our team.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     color: ColorPalette.textSecondary,
                     height: 1.6,
@@ -1419,7 +1419,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
             : ColorPalette.error;
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: ColorPalette.surface,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -1457,7 +1457,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                     Expanded(
                       child: Text(
                         item.month,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
                           color: ColorPalette.textPrimary,
@@ -1539,7 +1539,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
     width: double.infinity,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: ColorPalette.surface,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
@@ -1561,7 +1561,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
           flex: 2,
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12.5,
               color: ColorPalette.textSecondary,
               fontWeight: FontWeight.w500,
@@ -1572,7 +1572,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
           flex: 3,
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: ColorPalette.textPrimary,
@@ -1594,7 +1594,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             color: ColorPalette.textSecondary,
           ),

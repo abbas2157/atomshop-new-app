@@ -635,6 +635,9 @@ class SellerCustomOrderCustomer {
 
 class SellerRecoveryMember {
   final int id;
+
+  /// The member's `user_id` — this is what `recovery_member_id` expects.
+  final int userId;
   final String uuid;
   final String address;
   final String memberType;
@@ -644,6 +647,7 @@ class SellerRecoveryMember {
 
   const SellerRecoveryMember({
     required this.id,
+    required this.userId,
     required this.uuid,
     required this.address,
     required this.memberType,
@@ -653,8 +657,11 @@ class SellerRecoveryMember {
   });
 
   factory SellerRecoveryMember.fromJson(Map<String, dynamic> json) {
+    final userObj = json['user'];
+    final nestedUserId = userObj is Map ? _asInt(userObj['id']) : 0;
     return SellerRecoveryMember(
       id: _asInt(json['id']),
+      userId: json['user_id'] != null ? _asInt(json['user_id']) : nestedUserId,
       uuid: _text(json['uuid']),
       address: _text(json['address']),
       memberType: _text(json['member_type']),
@@ -686,6 +693,24 @@ class SellerRecoveryUser {
       email: _text(json['email']),
       phone: _text(json['phone']),
       status: _text(json['status']),
+    );
+  }
+}
+
+/// Lightweight {id, title} option for category / brand dropdowns.
+class SellerCustomOrderLookup {
+  final int id;
+  final String title;
+
+  const SellerCustomOrderLookup({required this.id, required this.title});
+
+  factory SellerCustomOrderLookup.fromJson(Map<String, dynamic> json) {
+    return SellerCustomOrderLookup(
+      id: _asInt(json['id']),
+      title: _text(
+        json['title'] ?? json['name'] ?? json['category'] ?? json['brand'],
+        fallback: 'Untitled',
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
+import 'package:atompro/core/services/fcm_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,6 +76,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
     try {
       HapticFeedback.mediumImpact();
       await _entryCtrl.reverse().orCancel.catchError((_) {});
+      await FcmService.unlinkUser();
       await SessionManager.logout();
       if (mounted) {
         setState(() {
@@ -111,9 +113,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF2F5FB),
-        body: Center(
+      return Scaffold(
+        backgroundColor: ColorPalette.background,
+        body: const Center(
           child: CircularProgressIndicator(color: ColorPalette.secondary),
         ),
       );
@@ -122,7 +124,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F5FB),
+        backgroundColor: ColorPalette.background,
         body: ScaleTransition(
           scale: _scaleIn,
           child: FadeTransition(
@@ -259,7 +261,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
               children: [
                 // _iconBtn(Icons.arrow_back_ios, () => AppNavigator.getBack()),
                 // const SizedBox(width: 30),
-                const Text(
+                Text(
                   'AtomShop',
                   style: TextStyle(
                     fontSize: 26,
@@ -435,7 +437,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                 children: [
                   // _iconBtn(Icons.arrow_back_ios, () => AppNavigator.getBack()),
                   //  const SizedBox(width: 30),
-                  const Text(
+                  Text(
                     'Profile',
                     style: TextStyle(
                       fontSize: 26,
@@ -472,7 +474,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'You\'re not logged in',
                 style: TextStyle(
                   fontSize: 22,
@@ -482,7 +484,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'Sign in to access your orders,\ninstallments, and account settings.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -560,7 +562,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
   Widget _group(List<Widget> tiles) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -611,7 +613,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: ColorPalette.textPrimary,
@@ -657,7 +659,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -827,7 +829,7 @@ class _ActionButtonState extends State<_ActionButton> {
             color: isGradient
                 ? null
                 : (widget.tonal
-                      ? Colors.white
+                      ? ColorPalette.surface
                       : widget.color.withOpacity(0.08)),
             borderRadius: BorderRadius.circular(15),
             border: isGradient
@@ -908,7 +910,7 @@ class _ConfirmSheet extends StatelessWidget {
       margin: const EdgeInsets.all(14),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ColorPalette.surface,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -935,7 +937,7 @@ class _ConfirmSheet extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w800,
               color: ColorPalette.textPrimary,
@@ -946,7 +948,7 @@ class _ConfirmSheet extends StatelessWidget {
           Text(
             body,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               color: ColorPalette.textSecondary,
               height: 1.6,
@@ -964,7 +966,7 @@ class _ConfirmSheet extends StatelessWidget {
                       color: const Color(0xFFF2F5FB),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         'Cancel',
                         style: TextStyle(

@@ -105,7 +105,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F5FB),
+        backgroundColor: ColorPalette.background,
         body: profileState.isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: ColorPalette.secondary),
@@ -187,7 +187,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: ColorPalette.surface,
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
@@ -252,7 +252,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: ColorPalette.surface,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -262,7 +262,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                       ),
                     ],
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.arrow_back_ios_rounded,
                     size: 18,
                     color: ColorPalette.textPrimary,
@@ -275,7 +275,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
               widget.isCompletionFlow
                   ? 'Complete Your Profile'
                   : 'Edit Profile',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: ColorPalette.textPrimary,

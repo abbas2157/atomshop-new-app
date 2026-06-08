@@ -16,23 +16,43 @@ class SellerSalesTeamRepository {
 
   SellerSalesTeamRepository(this._network);
 
-  Future<SellerSalesTeamResponse> getMembers({int page = 1}) async {
-    final response = await _get('${ApiEndpoints.sellerSalesTeam}?page=$page');
+  /// [status] 1/0, [memberType] sale/recovery, [query] → ?q=.
+  Future<SellerSalesTeamResponse> getMembers({
+    int page = 1,
+    int? status,
+    String? memberType,
+    String? query,
+  }) async {
+    final params = <String, String>{'page': '$page'};
+    if (status != null) params['status'] = '$status';
+    if (memberType != null && memberType.isNotEmpty) {
+      params['member_type'] = memberType;
+    }
+    if (query != null && query.trim().isNotEmpty) params['q'] = query.trim();
+    final qs = Uri(queryParameters: params).query;
+    final response = await _get('${ApiEndpoints.sellerSalesTeam}?$qs');
     return SellerSalesTeamResponse.fromJson(
       Map<String, dynamic>.from(response),
     );
   }
 
-  Future<SellerSalesTeamEditData> getMemberEdit(String memberUuid) async {
-    final response = await _get(ApiEndpoints.sellerSalesTeamEdit(memberUuid));
+  /// [salesTeamUuid] = `salesTeam.uuid` (NOT the user uuid).
+  Future<SellerSalesTeamEditData> getMemberEdit(String salesTeamUuid) async {
+    final response = await _get(
+      ApiEndpoints.sellerSalesTeamEdit(salesTeamUuid),
+    );
     return SellerSalesTeamEditData.fromJson(
       Map<String, dynamic>.from(response),
     );
   }
 
-  Future<SellerSalesTeamPerformance> getPerformance(String memberUuid) async {
+  /// [userUuid] = `salesTeam.user.uuid`.
+  Future<SellerSalesTeamPerformance> getPerformance(
+    String userUuid, {
+    int page = 1,
+  }) async {
     final response = await _get(
-      ApiEndpoints.sellerSalesTeamPerformance(memberUuid),
+      '${ApiEndpoints.sellerSalesTeamPerformance(userUuid)}?page=$page',
     );
     return SellerSalesTeamPerformance.fromJson(
       Map<String, dynamic>.from(response),
@@ -43,19 +63,25 @@ class SellerSalesTeamRepository {
     required String name,
     required String email,
     required String phone,
+    required bool active,
     required String memberType,
+    required String memberRole,
     required String cityId,
     required String areaId,
-    required bool active,
+    String? address,
+    bool amosAssistantManager = false,
   }) async {
     final response = await _post(ApiEndpoints.sellerStoreSalesTeamMember, {
       'name': name,
       'email': email,
       'phone': phone,
+      'status': active ? '1' : '0',
       'member_type': memberType,
+      'member_role': memberRole,
       'city_id': cityId,
       'area_id': areaId,
-      'status': active ? '1' : '0',
+      if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
+      if (amosAssistantManager) 'amos_assistant_manager': '1',
     });
 
     if (response['success'] != true) {
@@ -63,23 +89,29 @@ class SellerSalesTeamRepository {
     }
   }
 
+  /// [userUuid] = `salesTeam.user.uuid`. `email`/`phone` are locked (not sent).
   Future<void> updateMember({
-    required String memberUuid,
+    required String userUuid,
     required String name,
-    required String phone,
+    required bool active,
     required String memberType,
+    required String memberRole,
     required String cityId,
     required String areaId,
-    required bool active,
+    String? address,
+    bool amosAssistantManager = false,
   }) async {
     final response =
-        await _post(ApiEndpoints.sellerSalesTeamUpdate(memberUuid), {
+        await _post(ApiEndpoints.sellerSalesTeamUpdate(userUuid), {
           'name': name,
-          'phone': phone,
+          'status': active ? '1' : '0',
           'member_type': memberType,
+          'member_role': memberRole,
           'city_id': cityId,
           'area_id': areaId,
-          'status': active ? '1' : '0',
+          if (address != null && address.trim().isNotEmpty)
+            'address': address.trim(),
+          if (amosAssistantManager) 'amos_assistant_manager': '1',
         });
 
     if (response['success'] != true) {

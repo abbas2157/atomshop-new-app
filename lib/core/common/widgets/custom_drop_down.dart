@@ -42,7 +42,7 @@ class _CustomSearchDropdownState<T> extends State<CustomSearchDropdown<T>> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: ColorPalette.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -179,7 +179,7 @@ class _SearchSheetState<T> extends State<_SearchSheet<T>> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: ColorPalette.border,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),

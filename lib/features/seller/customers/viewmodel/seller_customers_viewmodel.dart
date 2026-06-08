@@ -37,3 +37,8 @@ final sellerCustomerAreasProvider = FutureProvider.autoDispose
     .family<List<SellerCustomerArea>, int>((ref, cityId) {
       return ref.read(sellerCustomersRepositoryProvider).getAreasByCity(cityId);
     });
+
+final sellerCustomerCitiesProvider =
+    FutureProvider.autoDispose<List<SellerCustomerArea>>((ref) {
+      return ref.read(sellerCustomersRepositoryProvider).getCities();
+    });

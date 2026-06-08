@@ -40,17 +40,22 @@ class SellerCard extends StatelessWidget {
     Widget content = Padding(padding: padding, child: child);
 
     if (accentEdge != null) {
-      // IntrinsicHeight gives the stretched accent strip a bounded height to
-      // match the content, so the card is safe inside vertically-unbounded
-      // parents (ListView items, Columns).
-      content = IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(width: 4, color: accentEdge),
-            Expanded(child: content),
-          ],
-        ),
+      // A Stack sizes itself from the (non-positioned) content, then lays the
+      // strip out to match — unlike IntrinsicHeight, this never needs to probe
+      // intrinsic dimensions, so it stays compatible with content that uses
+      // LayoutBuilder (e.g. SellerProgressBar) and stays safe inside
+      // vertically-unbounded parents (ListView items, Columns).
+      content = Stack(
+        children: [
+          Padding(padding: const EdgeInsets.only(left: 4), child: content),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            child: Container(color: accentEdge),
+          ),
+        ],
       );
     }
 

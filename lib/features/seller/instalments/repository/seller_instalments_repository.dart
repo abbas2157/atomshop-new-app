@@ -18,7 +18,7 @@ class SellerInstalmentsRepository {
 
   SellerInstalmentsRepository(this._network);
 
-  Future<SellerInstalmentsResponse> getInstalments(
+  Future<SellerInstalmentsListResponse> getInstalmentsList(
     SellerInstalmentsQuery query,
   ) async {
     final queryString = Uri(queryParameters: query.toQueryParameters()).query;
@@ -26,7 +26,25 @@ class SellerInstalmentsRepository {
         ? ApiEndpoints.sellerInstalments
         : '${ApiEndpoints.sellerInstalments}?$queryString';
     final response = await _get(endpoint);
-    return SellerInstalmentsResponse.fromJson(
+    return SellerInstalmentsListResponse.fromJson(
+      Map<String, dynamic>.from(response),
+    );
+  }
+
+  Future<SellerInstalmentOrderDetail> getOrderDetail(int orderId) async {
+    final response = await _get(
+      ApiEndpoints.sellerInstalmentOrderDetail(orderId),
+    );
+    return SellerInstalmentOrderDetail.fromJson(
+      Map<String, dynamic>.from(response),
+    );
+  }
+
+  Future<SellerInstalmentInvoiceData> getInvoiceData(int instalmentId) async {
+    final response = await _get(
+      ApiEndpoints.sellerInstalmentInvoiceData(instalmentId),
+    );
+    return SellerInstalmentInvoiceData.fromJson(
       Map<String, dynamic>.from(response),
     );
   }
@@ -35,6 +53,7 @@ class SellerInstalmentsRepository {
     required int orderId,
     required String instalmentPrice,
     required String paymentMethod,
+    String? recoveryMemberId,
     File? receipt,
   }) async {
     final token = await SellerSessionManager.getToken();
@@ -47,6 +66,8 @@ class SellerInstalmentsRepository {
         'order_id': orderId.toString(),
         'instalment_price': instalmentPrice,
         'payment_method': paymentMethod,
+        if (recoveryMemberId != null && recoveryMemberId.isNotEmpty)
+          'recovery_member_id': recoveryMemberId,
       },
       files,
       token: token,
@@ -62,9 +83,9 @@ class SellerInstalmentsRepository {
     return _urlFromResponse(response, 'Top-up PDF is unavailable.');
   }
 
-  Future<String> getInvoiceUrl(String orderUuid) async {
+  Future<String> getInvoiceUrl(int instalmentId) async {
     final response = await _get(
-      ApiEndpoints.sellerInstalmentInvoice(orderUuid),
+      ApiEndpoints.sellerInstalmentInvoice(instalmentId),
     );
     return _urlFromResponse(response, 'Invoice is unavailable.');
   }
