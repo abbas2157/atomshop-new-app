@@ -57,14 +57,6 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
     );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.listenManual(customOrderViewModelProvider, (prev, next) {
-        if (next.isSuccess && !(prev?.isSuccess ?? false)) {
-          _showSuccessDialog();
-        }
-      });
-    });
   }
 
   @override
@@ -213,6 +205,11 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(customOrderViewModelProvider, (prev, next) {
+      if (next.isSuccess && !(prev?.isSuccess ?? false)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _showSuccessDialog());
+      }
+    });
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: ColorPalette.backgroundGray,

@@ -14,7 +14,7 @@ class NetworkManager {
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
         connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 90),
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
           'Accept': 'application/json',
@@ -79,12 +79,7 @@ class NetworkManager {
         );
       }
 
-      // Update content type for multipart
-      final response = await _dio.post(
-        endpoint,
-        data: formData,
-        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
-      );
+      final response = await _dio.post(endpoint, data: formData);
 
       return _processResponse(response);
     } catch (e) {
@@ -124,12 +119,7 @@ class NetworkManager {
         );
       }
 
-      // Update content type for multipart
-      final response = await _dio.put(
-        endpoint,
-        data: formData,
-        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
-      );
+      final response = await _dio.put(endpoint, data: formData);
 
       return _processResponse(response);
     } catch (e) {

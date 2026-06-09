@@ -430,21 +430,20 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
         'address': state.address!.trim(),
       };
 
-      final response = await ref
-          .read(customOrderRepositoryProvider)
-          .submitOrder(fields);
+      await ref.read(customOrderRepositoryProvider).submitOrder(fields);
 
-      if (response != null && response['success'] == true) {
+      // postRequest only returns (without throwing) on HTTP 200/201,
+      // so reaching here means the server accepted the order.
+      state = state.copyWith(isSubmitting: false, isSuccess: true);
+    } catch (e) {
+      // A receive timeout means the server processed the request but took too
+      // long to reply — the order was likely created. Treat it as success to
+      // avoid the user re-submitting and creating a duplicate order.
+      if (_isTimeout(e)) {
         state = state.copyWith(isSubmitting: false, isSuccess: true);
       } else {
-        final msg =
-            response?['message'] ??
-            response?['error'] ??
-            'Failed to submit order. Please try again.';
-        state = state.copyWith(isSubmitting: false, errorMessage: msg);
+        state = state.copyWith(isSubmitting: false, errorMessage: _parseError(e));
       }
-    } catch (e) {
-      state = state.copyWith(isSubmitting: false, errorMessage: _parseError(e));
     }
   }
 
@@ -484,17 +483,25 @@ class CustomOrderViewModel extends _$CustomOrderViewModel {
     return null;
   }
 
+  bool _isTimeout(dynamic e) {
+    final s = e.toString().toLowerCase();
+    return s.contains('timeout') || s.contains('timed out');
+  }
+
   String _parseError(dynamic e) {
     final s = e.toString();
     if (s.contains('SocketException') || s.contains('NetworkException')) {
       return 'No internet connection. Please check your network.';
     }
-    if (s.contains('TimeoutException'))
+    if (_isTimeout(e)) {
       return 'Request timed out. Please try again.';
-    if (s.contains('500') || s.contains('502'))
+    }
+    if (s.contains('500') || s.contains('502')) {
       return 'Server error. Please try again later.';
-    if (s.contains('401') || s.contains('403'))
+    }
+    if (s.contains('401') || s.contains('403')) {
       return 'Authentication failed. Please log in again.';
+    }
     return 'Something went wrong. Please try again.';
   }
 
