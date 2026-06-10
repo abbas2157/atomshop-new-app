@@ -13,6 +13,7 @@ import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
 import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_orders_viewmodel.dart';
+import 'package:atompro/features/seller/profile/viewmodel/seller_profile_viewmodel.dart';
 import 'package:atompro/features/seller/customers/view/seller_customers_screen.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
 import 'package:atompro/features/seller/dashboard/viewmodel/seller_dashboard_viewmodel.dart';
@@ -44,6 +45,7 @@ class SellerDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.sellerColors;
     final bundle = ref.watch(sellerDashboardProvider(_query));
+    final pictureUrl = ref.watch(sellerProfileBundleProvider).asData?.value.profile.profilePictureUrl;
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -66,7 +68,7 @@ class SellerDashboardScreen extends ConsumerWidget {
                 leading: GestureDetector(
                   onTap: () =>
                       context.pushSeller(const SellerProfileScreen()),
-                  child: SellerMonogram(name: d.businessName),
+                  child: SellerMonogram(name: d.businessName, imageUrl: pictureUrl),
                 ),
                 title: d.businessName,
                 subtitle: 'Hi, ${d.userName}',

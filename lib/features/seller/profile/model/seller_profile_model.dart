@@ -47,7 +47,7 @@ class SellerProfileUser {
         ? Map<String, dynamic>.from(outer['user'])
         : outer;
 
-    final pictureUrl = outer['profile_picture_url']?.toString().trim();
+    final pictureUrl = data['profile_picture_url']?.toString().trim();
 
     return SellerProfileUser(
       id: _asInt(data['id']),
