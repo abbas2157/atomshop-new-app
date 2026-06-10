@@ -782,11 +782,26 @@ class _OrdersContent extends StatelessWidget {
         : data.statuses;
     final pagination = data.pagination;
 
-    // Build chip data: "All" + each status, tracking the selected index.
-    final statusKeys = statuses.keys.toList();
+    // Build chip data: "All" + each status in the canonical workflow order.
+    const statusOrder = [
+      'Pending',
+      'Varification',
+      'Processing',
+      'Delivered',
+      'Instalments',
+      'Completed',
+      'Cancelled',
+    ];
+    final sortedEntries = statuses.entries.toList()
+      ..sort((a, b) {
+        final ai = statusOrder.indexOf(a.key);
+        final bi = statusOrder.indexOf(b.key);
+        return (ai == -1 ? 999 : ai).compareTo(bi == -1 ? 999 : bi);
+      });
+    final statusKeys = sortedEntries.map((e) => e.key).toList();
     final chips = <SellerChipData>[
       SellerChipData('All', count: pagination.total),
-      for (final entry in statuses.entries)
+      for (final entry in sortedEntries)
         SellerChipData(entry.key, count: entry.value),
     ];
     final selectedIndex = selectedStatus == null

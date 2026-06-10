@@ -29,7 +29,7 @@ class SellerOrdersHubScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Expanded(child: Text('Orders', style: text.titleLg)),
+                  Expanded(child: Text('Customer Orders & Offers', style: text.titleLg)),
                 ],
               ),
             ),
@@ -55,8 +55,8 @@ class SellerOrdersHubScreen extends StatelessWidget {
                   labelStyle: text.labelSm.copyWith(fontWeight: FontWeight.w700),
                   unselectedLabelStyle: text.labelSm,
                   tabs: const [
-                    Tab(text: 'Custom'),
-                    Tab(text: 'Standard'),
+                    Tab(text: 'My Area'),
+                    Tab(text: 'Website Orders'),
                   ],
                 ),
               ),

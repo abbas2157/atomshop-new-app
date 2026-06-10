@@ -1279,8 +1279,10 @@ class _StatusUpdateSheetState extends ConsumerState<_StatusUpdateSheet> {
   static const _statusOptions = [
     'Pending',
     'Varification',
-    'Instalments',
+    'Processing',
     'Delivered',
+    'Instalments',
+    'Completed',
     'Cancelled',
   ];
 

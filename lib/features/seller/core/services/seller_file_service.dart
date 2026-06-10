@@ -51,6 +51,31 @@ class SellerFileService {
     }
   }
 
+  static Future<String> downloadFromAbsoluteUrl({
+    required String url,
+    required String fileName,
+  }) async {
+    final token = await SellerSessionManager.getToken();
+    final directory = await getTemporaryDirectory();
+    final target = File('${directory.path}${Platform.pathSeparator}$fileName');
+    final tempDio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 60),
+      headers: {'Accept': '*/*'},
+    ));
+    final response = await tempDio.get<List<int>>(
+      url,
+      options: Options(
+        responseType: ResponseType.bytes,
+        headers: {'Authorization': 'Bearer ${token ?? ''}'},
+      ),
+    );
+    final bytes = response.data;
+    if (bytes == null || bytes.isEmpty) throw Exception('Downloaded file is empty.');
+    await target.writeAsBytes(bytes, flush: true);
+    return target.path;
+  }
+
   static Future<void> openExternalUrl(String url) async {
     final uri = Uri.parse(url);
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);

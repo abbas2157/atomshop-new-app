@@ -1,6 +1,6 @@
 enum SellerLeadScope {
-  mine('My Leads', 'Mine'),
-  other('Other Leads', 'Other');
+  mine('My Area', 'My Area'),
+  other('All Leads', 'All Leads');
 
   final String label;
   final String shortLabel;

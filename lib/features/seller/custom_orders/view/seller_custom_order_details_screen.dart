@@ -138,7 +138,11 @@ Future<void> _openPdf(WidgetRef ref, String orderUuid) async {
     final url = await ref
         .read(sellerCustomOrdersRepositoryProvider)
         .getCustomOrderPdfUrl(orderUuid);
-    await SellerFileService.openExternalUrl(url);
+    final path = await SellerFileService.downloadFromAbsoluteUrl(
+      url: url,
+      fileName: 'atomshop_order_ledger_${orderUuid.substring(0, 8)}.pdf',
+    );
+    await SellerFileService.openLocalFile(path);
   } catch (e) {
     SnackbarService().showErrorSnackBar(_cleanError(e));
   }

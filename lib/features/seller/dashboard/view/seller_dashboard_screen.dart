@@ -9,7 +9,6 @@
 //  avatar. Business logic & data model unchanged.
 // ============================================================
 
-import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
@@ -79,11 +78,6 @@ class SellerDashboardScreen extends ConsumerWidget {
                     tooltip: c.isDark ? 'Light mode' : 'Dark mode',
                     onTap: () =>
                         ref.read(sellerThemeModeProvider.notifier).toggle(),
-                  ),
-                  SellerHeaderPill(
-                    icon: Icons.shopping_bag_outlined,
-                    label: 'Customer',
-                    onTap: AppNavigator.goToCustomerMode,
                   ),
                 ],
               ),

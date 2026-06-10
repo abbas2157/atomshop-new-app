@@ -115,7 +115,11 @@ class _SellerInstalmentsScreenState
       final url = await ref
           .read(sellerInstalmentsRepositoryProvider)
           .getTopupPdfUrl();
-      await SellerFileService.openExternalUrl(url);
+      final path = await SellerFileService.downloadFromAbsoluteUrl(
+        url: url,
+        fileName: 'atomshop_recovery_sheet.pdf',
+      );
+      await SellerFileService.openLocalFile(path);
     } catch (e) {
       SnackbarService().showErrorSnackBar(_cleanError(e));
     }

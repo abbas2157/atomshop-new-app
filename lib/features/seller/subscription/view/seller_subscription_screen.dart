@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/auth/viewmodel/seller_auth_viewmodel.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
@@ -45,11 +44,6 @@ class SellerSubscriptionScreen extends ConsumerWidget {
             automaticallyImplyLeading: !locked,
             actions: locked
                 ? [
-                    SellerHeaderPill(
-                      icon: Icons.shopping_bag_outlined,
-                      label: 'Customer',
-                      onTap: AppNavigator.goToCustomerMode,
-                    ),
                     SellerHeaderIconButton(
                       icon: Icons.logout_rounded,
                       tooltip: 'Log out',
