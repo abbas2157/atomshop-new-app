@@ -90,11 +90,15 @@ abstract final class AppInsets {
   static const EdgeInsets pageH = EdgeInsets.symmetric(horizontal: AppSpace.md);
 
   /// Page content padding that leaves room for the floating bottom nav bar.
+  ///
+  /// 130px bottom: nav bar content (~69px) + system inset (up to ~61px on
+  /// gesture-nav phones). Fixed const beats per-site MediaQuery reads for the
+  /// 28 call-sites; covers all practical devices.
   static const EdgeInsets pageWithNav = EdgeInsets.fromLTRB(
     AppSpace.md,
     AppSpace.md,
     AppSpace.md,
-    96,
+    130,
   );
 }
 

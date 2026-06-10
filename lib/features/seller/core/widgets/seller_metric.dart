@@ -44,11 +44,10 @@ class SellerKpiCard extends StatelessWidget {
             ],
           ),
           const Gap.v(AppSpace.sm),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: text.metric,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: text.metric),
           ),
           const Gap.v(AppSpace.xxs),
           Text(
@@ -98,7 +97,11 @@ class SellerStatTile extends StatelessWidget {
             SellerIconBadge(icon: icon!, tone: t, size: 32, iconSize: 17, radius: AppRadius.sm),
             const Gap.v(AppSpace.xs),
           ],
-          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.metricSm),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: text.metricSm),
+          ),
           const Gap.v(2),
           Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: text.caption),
         ],
