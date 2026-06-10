@@ -21,6 +21,7 @@ class SellerProfileUser {
   final String joinedThrough;
   final String lastLoginAt;
   final SellerProfileSeller seller;
+  final String? profilePictureUrl;
 
   const SellerProfileUser({
     required this.id,
@@ -33,6 +34,7 @@ class SellerProfileUser {
     required this.joinedThrough,
     required this.lastLoginAt,
     required this.seller,
+    this.profilePictureUrl,
   });
 
   factory SellerProfileUser.fromResponse(Map<String, dynamic> response) {
@@ -44,6 +46,8 @@ class SellerProfileUser {
     final data = outer['user'] is Map
         ? Map<String, dynamic>.from(outer['user'])
         : outer;
+
+    final pictureUrl = outer['profile_picture_url']?.toString().trim();
 
     return SellerProfileUser(
       id: _asInt(data['id']),
@@ -62,6 +66,9 @@ class SellerProfileUser {
                 ? Map<String, dynamic>.from(outer['seller'])
                 : <String, dynamic>{}),
       ),
+      profilePictureUrl: (pictureUrl == null || pictureUrl.isEmpty || pictureUrl == 'null')
+          ? null
+          : pictureUrl,
     );
   }
 }

@@ -34,6 +34,8 @@ class ApiEndpoints {
   static String areasByCity(int cityId) => "areas/$cityId";
   static const String placeCustomOrder = "custom-order/create";
   static const String updateProfile = "account/profile/update";
+  static const String customerProfileUpload = "account/profile/upload";
+  static String customerProfile(String uuid) => "account/profile/$uuid";
 
   /// seller app endpoints
   static const String sellerLogout = "seller-app/logout";
@@ -158,4 +160,6 @@ class ApiEndpoints {
 
   static String sellerCustomOrderGuarantor(String orderUuid) =>
       "seller-app/custom-orders/guarantor/$orderUuid";
+
+  static const String sellerWebsiteOrders = "seller-app/website-orders";
 }

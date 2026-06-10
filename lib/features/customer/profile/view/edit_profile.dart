@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:atompro/core/common/widgets/custom_button.dart';
 import 'package:atompro/core/common/widgets/custom_text_field.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
@@ -8,6 +10,7 @@ import 'package:atompro/features/customer/profile/viewmodel/profile_viewmodel.da
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// [isCompletionFlow] = true  → user redirected here after login because
 ///                               required fields were missing. Back button
@@ -52,6 +55,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     _addressCtrl.dispose();
     _entryCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUploadPicture() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+      maxWidth: 1200,
+    );
+    if (picked == null) return;
+    await ref
+        .read(profileViewModelProvider.notifier)
+        .uploadPicture(File(picked.path));
   }
 
   void _prefillControllers(ProfileEditState s) {
@@ -125,6 +140,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                             const _CompletionBanner(),
                             const SizedBox(height: 24),
                           ],
+
+                          // ── Profile picture ──────────────────────────────
+                          _buildAvatarSection(profileState),
+                          const SizedBox(height: 28),
 
                           // ── Personal Info ────────────────────────────────
                           _sectionLabel('Personal Info'),
@@ -284,6 +303,81 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Profile picture avatar ───────────────────────────────────────────────────
+  Widget _buildAvatarSection(ProfileEditState state) {
+    final pictureUrl = state.profilePictureUrl;
+    final hasImage = pictureUrl != null && pictureUrl.isNotEmpty;
+    final initial = _nameCtrl.text.trim().isEmpty
+        ? '?'
+        : _nameCtrl.text.trim()[0].toUpperCase();
+
+    return Center(
+      child: Stack(
+        children: [
+          Container(
+            width: 84,
+            height: 84,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: ColorPalette.secondary.withValues(alpha: 0.3),
+                width: 2,
+              ),
+              color: ColorPalette.secondary.withValues(alpha: 0.08),
+              image: hasImage
+                  ? DecorationImage(
+                      image: NetworkImage(pictureUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: hasImage
+                ? null
+                : Center(
+                    child: Text(
+                      initial,
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: ColorPalette.secondary,
+                      ),
+                    ),
+                  ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: GestureDetector(
+              onTap: state.isUploadingPicture ? null : _pickAndUploadPicture,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: ColorPalette.secondary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: state.isUploadingPicture
+                    ? const Padding(
+                        padding: EdgeInsets.all(5),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.camera_alt_rounded,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

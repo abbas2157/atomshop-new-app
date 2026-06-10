@@ -118,7 +118,7 @@ class SellerProfileRepository {
     final response = await _network.postMultipartRequest(
       ApiEndpoints.sellerProfilePictureUpdate,
       const {},
-      {'picture': image},
+      {'profile_picture': image},
       token: token,
     );
 

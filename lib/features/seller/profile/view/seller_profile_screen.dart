@@ -399,7 +399,11 @@ class _ProfileHeader extends StatelessWidget {
     final seller = bundle.sellerInfo;
 
     return SellerGradientHeader(
-      leading: SellerMonogram(name: bundle.profile.name, size: 46),
+      leading: SellerMonogram(
+        name: bundle.profile.name,
+        imageUrl: bundle.profile.profilePictureUrl,
+        size: 46,
+      ),
       title: seller.businessName,
       subtitle: bundle.profile.email,
       actions: [

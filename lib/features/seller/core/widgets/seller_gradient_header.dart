@@ -208,15 +208,33 @@ class SellerHeaderPill extends StatelessWidget {
 }
 
 /// A circular monogram avatar (first letter of a name) on the header gradient.
+/// Pass [imageUrl] to show the actual profile picture; falls back to the letter
+/// on network error or when [imageUrl] is null/empty.
 class SellerMonogram extends StatelessWidget {
   final String name;
   final double size;
+  final String? imageUrl;
 
-  const SellerMonogram({super.key, required this.name, this.size = 42});
+  const SellerMonogram({
+    super.key,
+    required this.name,
+    this.size = 42,
+    this.imageUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
     final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+    final letterWidget = Text(
+      letter,
+      style: TextStyle(
+        fontFamily: 'Roboto',
+        color: Colors.white,
+        fontSize: size * 0.42,
+        fontWeight: FontWeight.w800,
+      ),
+    );
     return Container(
       width: size,
       height: size,
@@ -226,15 +244,17 @@ class SellerMonogram extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
       ),
-      child: Text(
-        letter,
-        style: TextStyle(
-          fontFamily: 'Roboto',
-          color: Colors.white,
-          fontSize: size * 0.42,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      child: hasImage
+          ? ClipOval(
+              child: Image.network(
+                imageUrl!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => letterWidget,
+              ),
+            )
+          : letterWidget,
     );
   }
 }

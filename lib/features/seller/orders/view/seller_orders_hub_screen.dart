@@ -1,6 +1,6 @@
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
-import 'package:atompro/features/seller/standard_orders/view/seller_standard_orders_screen.dart';
+import 'package:atompro/features/seller/website_orders/view/seller_website_orders_screen.dart';
 import 'package:flutter/material.dart';
 
 /// Orders hub — switches between Custom and Standard orders.
@@ -66,7 +66,7 @@ class SellerOrdersHubScreen extends StatelessWidget {
               child: TabBarView(
                 children: [
                   SellerCustomOrdersScreen(),
-                  SellerStandardOrdersScreen(),
+                  SellerWebsiteOrdersScreen(),
                 ],
               ),
             ),

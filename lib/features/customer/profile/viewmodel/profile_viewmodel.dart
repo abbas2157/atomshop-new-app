@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
@@ -18,8 +20,10 @@ class ProfileEditState {
   final String? address;
   final String? cityId;
   final String? areaId;
+  final String? profilePictureUrl;
   final bool isLoading;
   final bool isSaving;
+  final bool isUploadingPicture;
 
   const ProfileEditState({
     this.uuid,
@@ -29,8 +33,10 @@ class ProfileEditState {
     this.address,
     this.cityId,
     this.areaId,
+    this.profilePictureUrl,
     this.isLoading = false,
     this.isSaving = false,
+    this.isUploadingPicture = false,
   });
 
   ProfileEditState copyWith({
@@ -41,8 +47,11 @@ class ProfileEditState {
     String? address,
     String? cityId,
     String? areaId,
+    String? profilePictureUrl,
     bool? isLoading,
     bool? isSaving,
+    bool? isUploadingPicture,
+    bool clearPictureUrl = false,
   }) => ProfileEditState(
     uuid: uuid ?? this.uuid,
     name: name ?? this.name,
@@ -51,11 +60,12 @@ class ProfileEditState {
     address: address ?? this.address,
     cityId: cityId ?? this.cityId,
     areaId: areaId ?? this.areaId,
+    profilePictureUrl: clearPictureUrl ? null : (profilePictureUrl ?? this.profilePictureUrl),
     isLoading: isLoading ?? this.isLoading,
     isSaving: isSaving ?? this.isSaving,
+    isUploadingPicture: isUploadingPicture ?? this.isUploadingPicture,
   );
 
-  /// Returns true when all required fields have a non-empty value.
   bool get isProfileComplete =>
       phone != null &&
       phone!.trim().isNotEmpty &&
@@ -99,6 +109,28 @@ class ProfileViewModel extends _$ProfileViewModel {
       areaId: areaId,
       isLoading: false,
     );
+
+    // Load picture in the background — non-blocking
+    if (uuid != null) {
+      final url = await ref.read(profileRepositoryProvider).getProfilePicture(uuid);
+      if (url != null) state = state.copyWith(profilePictureUrl: url);
+    }
+  }
+
+  Future<void> uploadPicture(File imageFile) async {
+    final uuid = state.uuid;
+    if (uuid == null) return;
+    state = state.copyWith(isUploadingPicture: true);
+    try {
+      final url = await ref
+          .read(profileRepositoryProvider)
+          .uploadProfilePicture(userUuid: uuid, imageFile: imageFile);
+      state = state.copyWith(profilePictureUrl: url, isUploadingPicture: false);
+      SnackbarService().showSuccessSnackBar('Profile picture updated.');
+    } catch (e) {
+      state = state.copyWith(isUploadingPicture: false);
+      SnackbarService().showErrorSnackBar('Failed to upload picture.');
+    }
   }
 
   Future<void> saveProfile({
@@ -200,8 +232,8 @@ bool isProfileIncomplete(Map<String, dynamic> userData) {
   final cityId = userData['city_id'];
   final areaId = userData['area_id'];
 
-  bool _blank(dynamic v) =>
+  bool blank(dynamic v) =>
       v == null || v.toString().trim().isEmpty || v.toString() == 'null';
 
-  return _blank(phone) || _blank(address) || _blank(cityId) || _blank(areaId);
+  return blank(phone) || blank(address) || blank(cityId) || blank(areaId);
 }

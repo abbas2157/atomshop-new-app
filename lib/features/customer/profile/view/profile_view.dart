@@ -1,5 +1,6 @@
 import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
+import 'package:atompro/features/customer/profile/view/repo/profile_repo.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
 import 'package:atompro/core/services/fcm_service.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
   bool _loading = true;
   String? _userName;
   String? _initials;
-  bool _profileIncomplete = false; // ← NEW
+  String? _pictureUrl;
+  bool _profileIncomplete = false;
 
   late final AnimationController _entryCtrl;
   late final Animation<double> _fadeIn;
@@ -43,28 +45,33 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
 
   Future<void> _loadSession() async {
     final loggedIn = await SessionManager.isLoggedIn();
-    String? name, initials;
+    String? name, initials, pictureUrl;
     bool incomplete = false;
     if (loggedIn) {
       name = await SessionManager.getUserName();
       initials = await SessionManager.getUserNameTwoCharchters();
 
-      // Check if any required field is missing
       final phone = await SessionManager.getPhone();
       final address = await SessionManager.getAddress();
       final cityId = await SessionManager.getCityId();
       final areaId = await SessionManager.getAreaId();
 
-      bool _blank(String? v) => v == null || v.trim().isEmpty || v == 'null';
-
+      bool blank(String? v) => v == null || v.trim().isEmpty || v == 'null';
       incomplete =
-          _blank(phone) || _blank(address) || _blank(cityId) || _blank(areaId);
+          blank(phone) || blank(address) || blank(cityId) || blank(areaId);
+
+      final uuid = await SessionManager.getUserUuid();
+      if (uuid != null) {
+        pictureUrl =
+            await ref.read(profileRepositoryProvider).getProfilePicture(uuid);
+      }
     }
     if (mounted) {
       setState(() {
         _isLoggedIn = loggedIn;
         _userName = name;
         _initials = initials;
+        _pictureUrl = pictureUrl;
         _profileIncomplete = incomplete;
         _loading = false;
       });
@@ -304,24 +311,32 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                     width: 54,
                     height: 54,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.16),
+                      color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
+                      image: _pictureUrl != null && _pictureUrl!.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(_pictureUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                    child: Center(
-                      child: Text(
-                        _initials ?? '?',
-                        style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
+                    child: _pictureUrl == null || _pictureUrl!.isEmpty
+                        ? Center(
+                            child: Text(
+                              _initials ?? '?',
+                              style: const TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -652,26 +667,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
       ),
     );
   }
-
-  Widget _iconBtn(IconData icon, Function() ontap) => GestureDetector(
-    onTap: ontap,
-    child: Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: ColorPalette.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Icon(icon, size: 20, color: ColorPalette.textPrimary),
-    ),
-  );
 
   void _confirm({
     required IconData icon,
