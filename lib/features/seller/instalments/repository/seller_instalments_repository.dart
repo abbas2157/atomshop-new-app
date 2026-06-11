@@ -78,9 +78,11 @@ class SellerInstalmentsRepository {
     }
   }
 
-  Future<String> getTopupPdfUrl() async {
-    final response = await _get(ApiEndpoints.sellerInstalmentsTopupPdf);
-    return _urlFromResponse(response, 'Top-up PDF is unavailable.');
+  Future<String> downloadTopupPdf() async {
+    return SellerFileService.downloadAuthenticatedFile(
+      endpoint: ApiEndpoints.sellerInstalmentsTopupPdf,
+      fileName: 'atomshop_recovery_sheet.pdf',
+    );
   }
 
   Future<String> getInvoiceUrl(int instalmentId) async {

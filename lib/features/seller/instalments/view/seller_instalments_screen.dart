@@ -112,29 +112,9 @@ class _SellerInstalmentsScreenState
 
   Future<void> _openTopupPdf() async {
     try {
-      final url = await ref
-          .read(sellerInstalmentsRepositoryProvider)
-          .getTopupPdfUrl();
-      final path = await SellerFileService.downloadFromAbsoluteUrl(
-        url: url,
-        fileName: 'atomshop_recovery_sheet.pdf',
-      );
-      await SellerFileService.openLocalFile(path);
-    } catch (e) {
-      SnackbarService().showErrorSnackBar(_cleanError(e));
-    }
-  }
-
-  Future<void> _openExport() async {
-    try {
-      final status = switch (_status) {
-        _FilterStatus.completed => 'Paid',
-        _FilterStatus.all => null,
-        _ => 'Unpaid',
-      };
       final path = await ref
           .read(sellerInstalmentsRepositoryProvider)
-          .getExportUrl(status: status);
+          .downloadTopupPdf();
       await SellerFileService.openLocalFile(path);
     } catch (e) {
       SnackbarService().showErrorSnackBar(_cleanError(e));
@@ -172,11 +152,6 @@ class _SellerInstalmentsScreenState
               title: 'Instalments & Dues',
               subtitle: 'Track recovery and collect payments',
               actions: [
-                SellerHeaderIconButton(
-                  icon: Icons.download_outlined,
-                  onTap: _openExport,
-                  tooltip: 'Export instalments',
-                ),
                 SellerHeaderIconButton(
                   icon: Icons.picture_as_pdf_outlined,
                   onTap: _openTopupPdf,

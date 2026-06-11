@@ -10,6 +10,7 @@
 
 import 'dart:io';
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
@@ -217,16 +218,18 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
               },
               child: state.when(
                 loading: () => SellerListSkeleton(count: 4, itemHeight: 200),
-                error: (error, _) => ListView(
-                  padding: AppInsets.pageWithNav,
-                  children: [
-                    SellerErrorState(
-                      message: _cleanError(error),
-                      onRetry: () =>
-                          ref.invalidate(sellerLeadsBundleProvider(_query)),
-                    ),
-                  ],
-                ),
+                error: (error, _) => error is SellerPlanUpgradeException
+                    ? SellerPlanGateState(exception: error)
+                    : ListView(
+                        padding: AppInsets.pageWithNav,
+                        children: [
+                          SellerErrorState(
+                            message: _cleanError(error),
+                            onRetry: () => ref.invalidate(
+                                sellerLeadsBundleProvider(_query)),
+                          ),
+                        ],
+                      ),
                 data: (bundle) {
                   final leads = _filter(bundle.leads.leads, _search);
                   return ListView(

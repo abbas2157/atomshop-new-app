@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:atompro/core/network/api_endpoints.dart';
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+import 'package:atompro/core/seller_subscription_gate.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -179,13 +181,36 @@ class NetworkManager {
 
   dynamic _processResponse(Response response) {
     if (response.statusCode == 200 || response.statusCode == 201) {
-      return response.data;
+      final data = response.data;
+      if (data is Map) {
+        if (data['requires_subscription'] == true) {
+          SellerSubscriptionGate.trigger(false);
+          throw Exception(data['message'] ?? 'No active subscription.');
+        }
+        final msg = data['message'];
+        if (data['success'] == false &&
+            msg is String &&
+            msg.contains('pending monthly payment')) {
+          SellerSubscriptionGate.trigger(true);
+          throw Exception(msg);
+        }
+        if (data['requires_upgrade'] == true) {
+          throw SellerPlanUpgradeException(
+            message: msg is String && msg.isNotEmpty
+                ? msg
+                : 'Your current plan does not include access to this feature.',
+            phone: data['phone']?.toString() ?? '+923302277522',
+          );
+        }
+      }
+      return data;
     } else {
       throw Exception(response.data['message'] ?? 'Something went wrong');
     }
   }
 
   dynamic _handleError(dynamic error) {
+    if (error is SellerPlanUpgradeException) throw error;
     if (error is DioException) {
       if (error.response != null) {
         throw Exception(error.response!.data['message'] ?? 'Error occurred');

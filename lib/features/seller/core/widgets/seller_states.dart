@@ -1,5 +1,7 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../design/design.dart';
 import 'seller_button.dart';
@@ -102,6 +104,65 @@ class SellerErrorState extends StatelessWidget {
                 icon: Icons.refresh_rounded,
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the seller's plan does not include the requested feature.
+/// Displays the server message and a WhatsApp shortcut to contact Atomshop.
+class SellerPlanGateState extends StatelessWidget {
+  final SellerPlanUpgradeException exception;
+
+  const SellerPlanGateState({super.key, required this.exception});
+
+  Future<void> _contactWhatsApp() async {
+    final phone = exception.phone.replaceAll(RegExp(r'[^\d+]'), '');
+    final uri = Uri.parse('https://wa.me/$phone');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SellerIconBadge(
+              icon: Icons.workspace_premium_rounded,
+              tone: c.warningTone,
+              size: 64,
+              iconSize: 30,
+              radius: AppRadius.xl,
+            ),
+            const Gap.v(AppSpace.md),
+            Text('Plan Upgrade Required', style: text.titleSm),
+            const Gap.v(AppSpace.xs),
+            Text(
+              exception.message,
+              textAlign: TextAlign.center,
+              style: text.bodySm,
+            ),
+            const Gap.v(AppSpace.sm),
+            Text(
+              'WhatsApp: ${exception.phone}',
+              textAlign: TextAlign.center,
+              style: text.bodySm.copyWith(color: c.accent),
+            ),
+            const Gap.v(AppSpace.lg),
+            SellerButton(
+              label: 'Contact Atomshop',
+              icon: Icons.chat_rounded,
+              expand: false,
+              size: SellerButtonSize.small,
+              onPressed: _contactWhatsApp,
+            ),
           ],
         ),
       ),

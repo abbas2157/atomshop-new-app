@@ -1,3 +1,4 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_order_details_screen.dart';
@@ -115,11 +116,13 @@ class _SellerWebsiteOrdersScreenState
             loading: () => Center(
               child: CircularProgressIndicator(color: c.accent),
             ),
-            error: (e, _) => SellerErrorState(
-              message: e.toString().replaceFirst('Exception: ', ''),
-              onRetry: () =>
-                  ref.invalidate(sellerWebsiteOrdersProvider(_query)),
-            ),
+            error: (e, _) => e is SellerPlanUpgradeException
+                ? SellerPlanGateState(exception: e)
+                : SellerErrorState(
+                    message: e.toString().replaceFirst('Exception: ', ''),
+                    onRetry: () =>
+                        ref.invalidate(sellerWebsiteOrdersProvider(_query)),
+                  ),
             data: (data) {
               if (data.orders.isEmpty) {
                 return SellerEmptyState(

@@ -37,7 +37,11 @@ class SellerSessionManager {
     await _storage.write(key: _keyVerified, value: verified ? '1' : '0');
   }
 
-  static Future<String?> getToken() => _storage.read(key: _keyToken);
+  static Future<String?> getToken() =>
+      _storage.read(key: _keyToken).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => null,
+      );
   static Future<String?> getUserId() => _storage.read(key: _keyUserId);
   static Future<String?> getUserUuid() => _storage.read(key: _keyUserUuid);
   static Future<String?> getUserName() => _storage.read(key: _keyUserName);

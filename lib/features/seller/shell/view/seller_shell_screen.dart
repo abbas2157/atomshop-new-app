@@ -1,3 +1,4 @@
+import 'package:atompro/core/seller_subscription_gate.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
@@ -30,6 +31,8 @@ class SellerShellScreen extends ConsumerStatefulWidget {
 
 class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
   int _index = 0;
+  bool _gated = false;
+  bool _gatedUnderReview = false;
 
   static const _navItems = <_NavItem>[
     _NavItem(label: 'Home', icon: Icons.space_dashboard_rounded),
@@ -50,16 +53,56 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
   void _select(int i) => setState(() => _index = i);
 
   @override
+  void initState() {
+    super.initState();
+    SellerSubscriptionGate.setListener((underReview) {
+      if (!mounted) return;
+      ref.invalidate(sellerSubscriptionProvider);
+      setState(() {
+        _gated = true;
+        _gatedUnderReview = underReview;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    SellerSubscriptionGate.clearListener();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Auto-unlock: when subscription provider reloads with an active plan,
+    // clear the programmatic gate so the shell becomes accessible again.
+    ref.listen<AsyncValue<SellerSubscriptionData>>(
+      sellerSubscriptionProvider,
+      (_, next) {
+        if (_gated && next is AsyncData<SellerSubscriptionData>) {
+          final sub = next.value;
+          final active =
+              sub.hasActivePlan && sub.payments.any((p) => p.isReceived);
+          if (active && mounted) setState(() => _gated = false);
+        }
+      },
+    );
+
+    final gate = ref.watch(sellerSubscriptionProvider);
+
     return SellerThemeScope(
       child: Builder(
         builder: (context) {
           final c = context.sellerColors;
-          // ── Subscription access gate ──────────────────────────────────
-          // No plan → full access. Plan assigned but no payment confirmed →
-          // locked on the subscription page (fail-open on network error; the
-          // backend enforces the same rule on every API call).
-          final gate = ref.watch(sellerSubscriptionProvider);
+
+          // ── Runtime subscription gate (triggered by API responses) ────
+          if (_gated) {
+            return SellerSubscriptionScreen(
+              locked: true,
+              underReview: _gatedUnderReview,
+            );
+          }
+
+          // ── Initial load gate (subscription check on login) ───────────
           return gate.when(
             loading: () => Scaffold(
               backgroundColor: c.canvas,

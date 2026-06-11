@@ -69,7 +69,7 @@ class ApiEndpoints {
   static const String sellerInstalments = "seller-app/instalment";
   static const String sellerPayInstalment = "seller-app/instalment/pay";
   static const String sellerInstalmentsTopupPdf =
-      "seller-app/instalment/topup-pdf";
+      "seller-app/instalment/topup-pdf/download";
   static const String sellerLeads = "seller-app/leads";
   static const String sellerOtherLeads = "seller-app/leads/others";
   static const String sellerLeadStatusCounts = "seller-app/leads/status-counts";

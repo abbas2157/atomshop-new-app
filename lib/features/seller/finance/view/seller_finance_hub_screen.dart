@@ -2,7 +2,6 @@ import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
 import 'package:atompro/features/seller/dashboard/viewmodel/seller_dashboard_viewmodel.dart';
-import 'package:atompro/features/seller/fee_charge/view/seller_fee_charge_screen.dart';
 import 'package:atompro/features/seller/instalments/view/seller_instalments_screen.dart';
 import 'package:atompro/features/seller/investments/view/seller_investments_screen.dart';
 import 'package:flutter/material.dart';
@@ -99,14 +98,6 @@ class _Body extends StatelessWidget {
           subtitle:
               '${d.pendingRecoveryCount} pending · ${d.pendingRecoverySum} to collect',
           onTap: () => context.pushSeller(const SellerInstalmentsScreen()),
-        ),
-        const Gap.v(AppSpace.sm),
-        _NavCard(
-          icon: Icons.request_quote_rounded,
-          tone: c.infoTone,
-          title: 'Fee charges',
-          subtitle: 'Platform fees & payments',
-          onTap: () => context.pushSeller(const SellerFeeChargeScreen()),
         ),
         const Gap.v(AppSpace.sm),
         _NavCard(

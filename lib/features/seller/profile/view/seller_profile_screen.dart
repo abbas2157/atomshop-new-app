@@ -13,7 +13,6 @@ import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/auth/viewmodel/seller_auth_viewmodel.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
-import 'package:atompro/features/seller/fee_charge/view/seller_fee_charge_screen.dart';
 import 'package:atompro/features/seller/investments/view/seller_investments_screen.dart';
 import 'package:atompro/features/seller/profile/model/seller_profile_model.dart';
 import 'package:atompro/features/seller/profile/repository/seller_profile_repository.dart';
@@ -292,24 +291,6 @@ class SellerProfileScreen extends ConsumerWidget {
                             child: Builder(
                               builder: (context) =>
                                   const SellerSalesTeamScreen(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Gap.v(AppSpace.sm),
-                    _QuickActionCard(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'Fee Charge',
-                      subtitle: 'Review seller fees and payments',
-                      tone: c.warningTone,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SellerThemeScope(
-                            child: Builder(
-                              builder: (context) =>
-                                  const SellerFeeChargeScreen(),
                             ),
                           ),
                         ),
