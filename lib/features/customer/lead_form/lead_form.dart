@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:atompro/core/common/widgets/custom_button.dart';
 import 'package:atompro/core/common/widgets/custom_text_field.dart';
+import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
 import 'package:atompro/core/style/extensions.dart';
@@ -277,22 +278,23 @@ class _LeadFormState extends ConsumerState<LeadForm> {
                             productTitle: _productCtrl.text,
                           );
 
-                          if (success && mounted) {
-                            // 1. Clear Text Controllers
+                          if (!mounted) return;
+
+                          if (success) {
                             _nameCtrl.clear();
                             _phoneCtrl.clear();
                             _productCtrl.clear();
-
-                            // 2. Clear Image (LeadState)
                             ref.read(leadViewModelProvider.notifier).reset();
-
-                            // 3. Clear City/Area (CityAreaState)
                             ref
                                 .read(cityAreaViewModelProvider.notifier)
                                 .reset();
-
-                            // 4. Show Success UI
                             _showSuccessDialog();
+                          } else {
+                            final error =
+                                ref.read(leadViewModelProvider).errorMessage;
+                            if (error != null) {
+                              SnackbarService().showErrorSnackBar(error);
+                            }
                           }
                         },
                   backgroundColor: ColorPalette.accentRed,

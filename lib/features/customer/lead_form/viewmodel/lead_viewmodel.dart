@@ -102,10 +102,10 @@ class LeadViewModel extends _$LeadViewModel {
       final data = {
         "full_name": fullName,
         "contact_number": contactNumber,
-        "city_id": cityAreaState.selectedCity!.id,
-        "area_id": cityAreaState.selectedArea!.id,
-        "product_title": productTitle,
-        "available_on_whatsapp": state.isWhatsapp ? 1 : 0,
+        "city_id": cityAreaState.selectedCity!.id.toString(),
+        "area_id": cityAreaState.selectedArea!.id.toString(),
+        "product": productTitle,
+        "available_on_whatsapp": state.isWhatsapp ? "1" : "0",
       };
 
       final Map<String, File> files = {};
@@ -121,7 +121,7 @@ class LeadViewModel extends _$LeadViewModel {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        errorMessage: "Something went wrong. Please try again.",
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
       );
       return false;
     }
