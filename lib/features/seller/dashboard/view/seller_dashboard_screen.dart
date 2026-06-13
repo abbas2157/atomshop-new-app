@@ -19,6 +19,7 @@ import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.d
 import 'package:atompro/features/seller/dashboard/viewmodel/seller_dashboard_viewmodel.dart';
 import 'package:atompro/features/seller/instalments/view/seller_instalments_screen.dart';
 import 'package:atompro/features/seller/profile/view/seller_profile_screen.dart';
+import 'package:atompro/features/seller/subscription/viewmodel/seller_subscription_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -46,6 +47,7 @@ class SellerDashboardScreen extends ConsumerWidget {
     final c = context.sellerColors;
     final bundle = ref.watch(sellerDashboardProvider(_query));
     final pictureUrl = ref.watch(sellerProfileBundleProvider).asData?.value.profile.profilePictureUrl;
+    final hasMarketing = ref.watch(sellerSubscriptionProvider).asData?.value.plan?.featureMarketing ?? false;
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -138,22 +140,24 @@ class SellerDashboardScreen extends ConsumerWidget {
                       const SellerSectionHeader(title: 'Quick actions'),
                       const Gap.v(AppSpace.sm),
                       SellerGrid(
-                        columns: 4,
+                        columns: hasMarketing ? 2 : 4,
                         children: [
-                          _QuickAction(
-                            icon: Icons.add_box_rounded,
-                            label: 'New order',
-                            tone: c.accentTone,
-                            onTap: () =>
-                                showSellerCreateCustomOrderSheet(context, ref),
-                          ),
-                          _QuickAction(
-                            icon: Icons.groups_rounded,
-                            label: 'Customers',
-                            tone: c.violetTone,
-                            onTap: () => context
-                                .pushSeller(const SellerCustomersScreen()),
-                          ),
+                          if (!hasMarketing) ...[
+                            _QuickAction(
+                              icon: Icons.add_box_rounded,
+                              label: 'New order',
+                              tone: c.accentTone,
+                              onTap: () =>
+                                  showSellerCreateCustomOrderSheet(context, ref),
+                            ),
+                            _QuickAction(
+                              icon: Icons.groups_rounded,
+                              label: 'Customers',
+                              tone: c.violetTone,
+                              onTap: () => context
+                                  .pushSeller(const SellerCustomersScreen()),
+                            ),
+                          ],
                           _QuickAction(
                             icon: Icons.payments_rounded,
                             label: 'Collect',
@@ -193,7 +197,8 @@ class SellerDashboardScreen extends ConsumerWidget {
                         value: '${d.monthlyLeads}',
                         meta:
                             '${d.monthlyWonLeads} won · ${d.monthlyLostLeads} lost',
-                        onTap: () => _go(SellerTab.leads),
+                        onTap: hasMarketing ? () => _go(SellerTab.leads) : null,
+                        locked: !hasMarketing,
                       ),
                       const Gap.v(AppSpace.sm),
                       _AttentionCard(
@@ -264,7 +269,8 @@ class _AttentionCard extends StatelessWidget {
   final String title;
   final String value;
   final String meta;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool locked;
 
   const _AttentionCard({
     required this.icon,
@@ -273,6 +279,7 @@ class _AttentionCard extends StatelessWidget {
     required this.value,
     required this.meta,
     required this.onTap,
+    this.locked = false,
   });
 
   @override
@@ -310,7 +317,9 @@ class _AttentionCard extends StatelessWidget {
             ),
           ),
           const Gap.h(AppSpace.xs),
-          Icon(Icons.chevron_right_rounded, size: 20, color: c.textTertiary),
+          locked
+              ? Icon(Icons.lock_outline_rounded, size: 16, color: c.textTertiary)
+              : Icon(Icons.chevron_right_rounded, size: 20, color: c.textTertiary),
         ],
       ),
     );

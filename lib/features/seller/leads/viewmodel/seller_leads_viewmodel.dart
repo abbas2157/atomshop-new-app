@@ -12,3 +12,11 @@ final sellerLeadsBundleProvider = FutureProvider.autoDispose
     rethrow;
   }
 });
+
+final sellerNewLeadsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  try {
+    return await ref.read(sellerLeadsRepositoryProvider).getNewLeadsCount();
+  } catch (_) {
+    return 0;
+  }
+});
