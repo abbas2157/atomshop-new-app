@@ -1,4 +1,5 @@
 import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+import 'package:atompro/features/seller/subscription/view/seller_subscription_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -112,13 +113,12 @@ class SellerErrorState extends StatelessWidget {
 }
 
 /// Shown when the seller's plan does not include the requested feature.
-/// Displays the server message and a WhatsApp shortcut to contact Atomshop.
 class SellerPlanGateState extends StatelessWidget {
   final SellerPlanUpgradeException exception;
 
   const SellerPlanGateState({super.key, required this.exception});
 
-  Future<void> _contactWhatsApp() async {
+  Future<void> _openWhatsApp() async {
     final phone = exception.phone.replaceAll(RegExp(r'[^\d+]'), '');
     final uri = Uri.parse('https://wa.me/$phone');
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -128,8 +128,9 @@ class SellerPlanGateState extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.sellerColors;
     final text = context.sellerText;
-    return Center(
-      child: Padding(
+    return SizedBox.expand(
+      child: Center(
+        child: Padding(
         padding: const EdgeInsets.all(AppSpace.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -142,31 +143,60 @@ class SellerPlanGateState extends StatelessWidget {
               radius: AppRadius.xl,
             ),
             const Gap.v(AppSpace.md),
-            Text('Plan Upgrade Required', style: text.titleSm),
-            const Gap.v(AppSpace.xs),
+            Text('Plan Upgrade', style: text.titleSm),
+            const Gap.v(AppSpace.sm),
             Text(
               exception.message,
               textAlign: TextAlign.center,
               style: text.bodySm,
             ),
+            if (exception.messageUr.isNotEmpty) ...[
+              const Gap.v(AppSpace.xs),
+              Text(
+                exception.messageUr,
+                textAlign: TextAlign.center,
+                style: text.bodySm.copyWith(color: c.textSecondary),
+              ),
+            ],
             const Gap.v(AppSpace.sm),
-            Text(
-              'WhatsApp: ${exception.phone}',
-              textAlign: TextAlign.center,
-              style: text.bodySm.copyWith(color: c.accent),
+            GestureDetector(
+              onTap: _openWhatsApp,
+              child: Text(
+                exception.phone,
+                textAlign: TextAlign.center,
+                style: text.bodySm.copyWith(
+                  color: c.accent,
+                  decoration: TextDecoration.underline,
+                  decorationColor: c.accent,
+                ),
+              ),
             ),
             const Gap.v(AppSpace.lg),
-            SellerButton(
-              label: 'Contact Atomshop',
-              icon: Icons.chat_rounded,
-              expand: false,
-              size: SellerButtonSize.small,
-              onPressed: _contactWhatsApp,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SellerButton(
+                  label: 'View Plans',
+                  icon: Icons.star_rounded,
+                  expand: false,
+                  size: SellerButtonSize.small,
+                  onPressed: () => context.pushSeller(const SellerSubscriptionScreen()),
+                ),
+                const Gap.h(AppSpace.sm),
+                SellerButton.secondary(
+                  label: 'WhatsApp',
+                  icon: Icons.chat_rounded,
+                  expand: false,
+                  size: SellerButtonSize.small,
+                  onPressed: _openWhatsApp,
+                ),
+              ],
             ),
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

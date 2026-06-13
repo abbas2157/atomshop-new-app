@@ -20,14 +20,18 @@ class SellerLeadsRepository {
   // ── Leads list + bundle ──────────────────────────────────────────────────────
 
   Future<SellerLeadsBundle> getLeadsBundle(SellerLeadsQuery query) async {
-    final leads = await getLeads(query);
-    final counts = await getStatusCounts(query.scope);
-    final newCount =
-        query.scope == SellerLeadScope.mine ? await getNewLeadsCount() : 0;
+    final results = await Future.wait([
+      getLeads(query),
+      getStatusCounts(query.scope),
+      if (query.scope == SellerLeadScope.mine)
+        getNewLeadsCount()
+      else
+        Future.value(0),
+    ]);
     return SellerLeadsBundle(
-      leads: leads,
-      statusCounts: counts,
-      newLeadsCount: newCount,
+      leads: results[0] as SellerLeadsResponse,
+      statusCounts: results[1] as Map<String, int>,
+      newLeadsCount: results[2] as int,
     );
   }
 

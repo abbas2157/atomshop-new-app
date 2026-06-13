@@ -1,11 +1,17 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/website_orders/model/seller_website_orders_model.dart';
 import 'package:atompro/features/seller/website_orders/repository/seller_website_orders_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final sellerWebsiteOrdersProvider = FutureProvider.autoDispose
     .family<SellerWebsiteOrdersResponse, SellerWebsiteOrdersQuery>(
-        (ref, query) {
-  return ref
-      .read(sellerWebsiteOrdersRepositoryProvider)
-      .getWebsiteOrders(search: query.search, page: query.page);
+        (ref, query) async {
+  try {
+    return await ref
+        .read(sellerWebsiteOrdersRepositoryProvider)
+        .getWebsiteOrders(search: query.search, page: query.page);
+  } on SellerPlanUpgradeException {
+    ref.keepAlive();
+    rethrow;
+  }
 });
