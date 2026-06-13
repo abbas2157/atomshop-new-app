@@ -8,6 +8,7 @@
 //  payments are recorded and invoices are generated.
 // ============================================================
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
@@ -241,11 +242,13 @@ class _SellerInstalmentsScreenState
                 child: state.when(
                   loading: () =>
                       const SellerListSkeleton(count: 5, itemHeight: 220),
-                  error: (error, _) => SellerErrorState(
-                    message: _cleanError(error),
-                    onRetry: () =>
-                        ref.invalidate(sellerInstalmentsListProvider(_query)),
-                  ),
+                  error: (error, _) => error is SellerPlanUpgradeException
+                      ? SellerPlanGateState(exception: error)
+                      : SellerErrorState(
+                          message: _cleanError(error),
+                          onRetry: () =>
+                              ref.invalidate(sellerInstalmentsListProvider(_query)),
+                        ),
                   data: (data) {
                     return ListView(
                       physics: const BouncingScrollPhysics(

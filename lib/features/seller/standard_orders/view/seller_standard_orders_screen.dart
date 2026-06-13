@@ -7,6 +7,7 @@
 //  are preserved 100%.
 // ============================================================
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
@@ -65,10 +66,12 @@ class _SellerStandardOrdersScreenState
         },
         child: state.when(
           loading: () => SellerListSkeleton(count: 5, itemHeight: 116),
-          error: (error, _) => SellerErrorState(
-            message: _cleanError(error),
-            onRetry: _refresh,
-          ),
+          error: (error, _) => error is SellerPlanUpgradeException
+              ? SellerPlanGateState(exception: error)
+              : SellerErrorState(
+                  message: _cleanError(error),
+                  onRetry: _refresh,
+                ),
           data: (data) => ListView(
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
@@ -162,11 +165,13 @@ class SellerStandardOrderDetailsScreen extends ConsumerWidget {
                 initialOrder: initialOrder,
                 c: c,
               ),
-              error: (error, _) => SellerErrorState(
-                message: _cleanError(error),
-                onRetry: () =>
-                    ref.invalidate(sellerStandardOrderDetailsProvider(orderUuid)),
-              ),
+              error: (error, _) => error is SellerPlanUpgradeException
+                  ? SellerPlanGateState(exception: error)
+                  : SellerErrorState(
+                      message: _cleanError(error),
+                      onRetry: () =>
+                          ref.invalidate(sellerStandardOrderDetailsProvider(orderUuid)),
+                    ),
               data: (details) => RefreshIndicator(
                 color: c.accent,
                 backgroundColor: c.surface,

@@ -9,6 +9,7 @@
 //  avatar. Business logic & data model unchanged.
 // ============================================================
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
@@ -51,10 +52,12 @@ class SellerDashboardScreen extends ConsumerWidget {
       body: bundle.when(
         loading: () => const _HomeSkeleton(),
         error: (e, _) => SafeArea(
-          child: SellerErrorState(
-            message: e.toString().replaceFirst('Exception: ', ''),
-            onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
-          ),
+          child: e is SellerPlanUpgradeException
+              ? SellerPlanGateState(exception: e)
+              : SellerErrorState(
+                  message: e.toString().replaceFirst('Exception: ', ''),
+                  onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
+                ),
         ),
         data: (data) {
           final d = data.dashboard;

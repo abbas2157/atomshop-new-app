@@ -10,6 +10,7 @@
 
 import 'dart:async';
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/sales_team/model/seller_sales_team_model.dart';
@@ -210,11 +211,13 @@ class _SellerSalesTeamScreenState extends ConsumerState<SellerSalesTeamScreen> {
                     state.when(
                       loading: () =>
                           const SellerListSkeleton(count: 4, itemHeight: 180),
-                      error: (error, _) => SellerErrorState(
-                        message: _cleanError(error),
-                        onRetry: () =>
-                            ref.invalidate(sellerSalesTeamProvider(_query)),
-                      ),
+                      error: (error, _) => error is SellerPlanUpgradeException
+                          ? SellerPlanGateState(exception: error)
+                          : SellerErrorState(
+                              message: _cleanError(error),
+                              onRetry: () =>
+                                  ref.invalidate(sellerSalesTeamProvider(_query)),
+                            ),
                       data: (data) {
                         final members = data.members;
                         return Column(
@@ -581,18 +584,20 @@ class SellerSalesTeamPerformanceScreen extends ConsumerWidget {
                         count: 6,
                         itemHeight: 64,
                       ),
-                      error: (error, _) => ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: AppInsets.pageWithNav,
-                        children: [
-                          SellerErrorState(
-                            message: _cleanError(error),
-                            onRetry: () => ref.invalidate(
-                              sellerSalesTeamPerformanceProvider(userUuid),
+                      error: (error, _) => error is SellerPlanUpgradeException
+                          ? SellerPlanGateState(exception: error)
+                          : ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: AppInsets.pageWithNav,
+                              children: [
+                                SellerErrorState(
+                                  message: _cleanError(error),
+                                  onRetry: () => ref.invalidate(
+                                    sellerSalesTeamPerformanceProvider(userUuid),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                       data: (performance) => _PerformanceBody(
                         performance: performance,
                       ),
