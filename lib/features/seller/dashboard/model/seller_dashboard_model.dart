@@ -23,6 +23,7 @@ class SellerDashboardModel {
   final String totalCustomRecoveryAll;
   final String totalCustomRecoveryPercentage;
   final String totalCustomRecoveryPercentageAll;
+  final int totalCustomOrders;
   final int totalCustomers;
   final String outstandingBalance;
   final int salesVelocityWeek;
@@ -50,6 +51,7 @@ class SellerDashboardModel {
     required this.totalCustomRecoveryAll,
     required this.totalCustomRecoveryPercentage,
     required this.totalCustomRecoveryPercentageAll,
+    required this.totalCustomOrders,
     required this.totalCustomers,
     required this.outstandingBalance,
     required this.salesVelocityWeek,
@@ -89,6 +91,7 @@ class SellerDashboardModel {
       totalCustomRecoveryPercentageAll: _percent(
         data['total_custom_recovery_percentage_all'],
       ),
+      totalCustomOrders: _asInt(data['total_custom_orders']),
       totalCustomers: _asInt(data['total_customers']),
       outstandingBalance: _money(data['outstanding_balance']),
       salesVelocityWeek: _asInt(data['sales_velocity_week']),

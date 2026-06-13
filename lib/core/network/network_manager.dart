@@ -194,11 +194,12 @@ class NetworkManager {
           SellerSubscriptionGate.trigger(true);
           throw Exception(msg);
         }
-        if (data['requires_upgrade'] == true) {
+        if (data['requires_upgrade'] == true || data['requires_plan'] is String) {
           throw SellerPlanUpgradeException(
             message: msg is String && msg.isNotEmpty
                 ? msg
                 : 'Your current plan does not include access to this feature.',
+            messageUr: data['message_ur']?.toString() ?? '',
             phone: data['phone']?.toString() ?? '+923302277522',
           );
         }
@@ -213,7 +214,20 @@ class NetworkManager {
     if (error is SellerPlanUpgradeException) throw error;
     if (error is DioException) {
       if (error.response != null) {
-        throw Exception(error.response!.data['message'] ?? 'Error occurred');
+        final data = error.response!.data;
+        if (data is Map &&
+            (data['requires_upgrade'] == true ||
+                data['requires_plan'] is String)) {
+          final msg = data['message'];
+          throw SellerPlanUpgradeException(
+            message: msg is String && msg.isNotEmpty
+                ? msg
+                : 'Your current plan does not include access to this feature.',
+            messageUr: data['message_ur']?.toString() ?? '',
+            phone: data['phone']?.toString() ?? '+923302277522',
+          );
+        }
+        throw Exception(data['message'] ?? 'Error occurred');
       } else {
         throw Exception("Network Error: ${error.message}");
       }

@@ -1,3 +1,4 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
@@ -141,11 +142,13 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                 },
                 child: state.when(
                   loading: () => const SellerListSkeleton(),
-                  error: (error, _) => SellerErrorState(
-                    message: _cleanError(error),
-                    onRetry: () =>
-                        ref.invalidate(sellerCustomersProvider(_query)),
-                  ),
+                  error: (error, _) => error is SellerPlanUpgradeException
+                      ? SellerPlanGateState(exception: error)
+                      : SellerErrorState(
+                          message: _cleanError(error),
+                          onRetry: () =>
+                              ref.invalidate(sellerCustomersProvider(_query)),
+                        ),
                   data: (data) {
                     final customers = _filter(data.customers, _search);
                     return ListView(

@@ -9,10 +9,10 @@
 //  avatar. Business logic & data model unchanged.
 // ============================================================
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
-import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_orders_viewmodel.dart';
 import 'package:atompro/features/seller/profile/viewmodel/seller_profile_viewmodel.dart';
 import 'package:atompro/features/seller/customers/view/seller_customers_screen.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
@@ -52,15 +52,15 @@ class SellerDashboardScreen extends ConsumerWidget {
       body: bundle.when(
         loading: () => const _HomeSkeleton(),
         error: (e, _) => SafeArea(
-          child: SellerErrorState(
-            message: e.toString().replaceFirst('Exception: ', ''),
-            onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
-          ),
+          child: e is SellerPlanUpgradeException
+              ? SellerPlanGateState(exception: e)
+              : SellerErrorState(
+                  message: e.toString().replaceFirst('Exception: ', ''),
+                  onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
+                ),
         ),
         data: (data) {
           final d = data.dashboard;
-          final pendingOrders =
-              ref.watch(sellerCustomOrdersPendingCountProvider).value;
 
           return Column(
             children: [
@@ -89,44 +89,48 @@ class SellerDashboardScreen extends ConsumerWidget {
                   backgroundColor: c.surface,
                   onRefresh: () async {
                     ref.invalidate(sellerDashboardProvider(_query));
-                    ref.invalidate(sellerCustomOrdersPendingCountProvider);
                     await ref.read(sellerDashboardProvider(_query).future);
                   },
                   child: ListView(
                     padding: AppInsets.pageWithNav,
                     children: [
-                      // ── Needs attention (balanced) ──────────────
+                      // ── Welcome ─────────────────────────────────
+                      _WelcomeBanner(userName: d.userName),
+                      const Gap.v(AppSpace.lg),
+
+                      // ── Snapshot ────────────────────────────────
                       const SellerSectionHeader(
-                        overline: 'Today',
-                        title: 'Needs attention',
+                        title: 'Snapshot',
                       ),
                       const Gap.v(AppSpace.sm),
-                      _AttentionCard(
-                        icon: Icons.account_balance_wallet_rounded,
-                        tone: c.warningTone,
-                        title: 'Collect dues',
-                        value: d.pendingRecoverySum,
-                        meta: '${d.pendingRecoveryCount} accounts pending',
-                        onTap: () => _go(SellerTab.finance),
-                      ),
-                      const Gap.v(AppSpace.sm),
-                      _AttentionCard(
-                        icon: Icons.trending_up_rounded,
-                        tone: c.infoTone,
-                        title: 'Leads this month',
-                        value: '${d.monthlyLeads}',
-                        meta:
-                            '${d.monthlyWonLeads} won · ${d.monthlyLostLeads} lost',
-                        onTap: () => _go(SellerTab.leads),
-                      ),
-                      const Gap.v(AppSpace.sm),
-                      _AttentionCard(
-                        icon: Icons.receipt_long_rounded,
-                        tone: c.successTone,
-                        title: 'Orders to process',
-                        value: pendingOrders == null ? '—' : '$pendingOrders',
-                        meta: 'Custom orders pending action',
-                        onTap: () => _go(SellerTab.orders),
+                      SellerGrid(
+                        children: [
+                          SellerKpiCard(
+                            label: 'Sales',
+                            value: d.totalCustomSales,
+                            icon: Icons.payments_rounded,
+                            tone: c.infoTone,
+                          ),
+                          SellerKpiCard(
+                            label: 'Recovered',
+                            value: d.totalCustomRecovery,
+                            icon: Icons.savings_rounded,
+                            tone: c.successTone,
+                            caption: '${d.totalCustomRecoveryPercentage} recovered',
+                          ),
+                          SellerKpiCard(
+                            label: 'Outstanding',
+                            value: d.outstandingBalance,
+                            icon: Icons.account_balance_wallet_rounded,
+                            tone: c.warningTone,
+                          ),
+                          SellerKpiCard(
+                            label: 'Customers',
+                            value: '${d.totalCustomers}',
+                            icon: Icons.groups_rounded,
+                            tone: c.violetTone,
+                          ),
+                        ],
                       ),
 
                       // ── Quick actions ───────────────────────────
@@ -166,41 +170,39 @@ class SellerDashboardScreen extends ConsumerWidget {
                         ],
                       ),
 
-                      // ── Snapshot ────────────────────────────────
+                      // ── Needs attention ──────────────────────────
                       const Gap.v(AppSpace.lg),
-                      SellerSectionHeader(
-                        title: 'Snapshot',
-                        overline: 'Last ${d.days} days',
+                      const SellerSectionHeader(
+                        overline: 'Today',
+                        title: 'Needs attention',
                       ),
                       const Gap.v(AppSpace.sm),
-                      SellerGrid(
-                        children: [
-                          SellerKpiCard(
-                            label: 'Sales',
-                            value: d.totalCustomSales,
-                            icon: Icons.payments_rounded,
-                            tone: c.infoTone,
-                          ),
-                          SellerKpiCard(
-                            label: 'Recovered',
-                            value: d.totalCustomRecovery,
-                            icon: Icons.savings_rounded,
-                            tone: c.successTone,
-                            caption: '${d.totalCustomRecoveryPercentage} recovered',
-                          ),
-                          SellerKpiCard(
-                            label: 'Outstanding',
-                            value: d.outstandingBalance,
-                            icon: Icons.account_balance_wallet_rounded,
-                            tone: c.warningTone,
-                          ),
-                          SellerKpiCard(
-                            label: 'Customers',
-                            value: '${d.totalCustomers}',
-                            icon: Icons.groups_rounded,
-                            tone: c.violetTone,
-                          ),
-                        ],
+                      _AttentionCard(
+                        icon: Icons.account_balance_wallet_rounded,
+                        tone: c.warningTone,
+                        title: 'Collect dues',
+                        value: d.pendingRecoverySum,
+                        meta: '${d.pendingRecoveryCount} accounts pending',
+                        onTap: () => _go(SellerTab.finance),
+                      ),
+                      const Gap.v(AppSpace.sm),
+                      _AttentionCard(
+                        icon: Icons.trending_up_rounded,
+                        tone: c.infoTone,
+                        title: 'Leads this month',
+                        value: '${d.monthlyLeads}',
+                        meta:
+                            '${d.monthlyWonLeads} won · ${d.monthlyLostLeads} lost',
+                        onTap: () => _go(SellerTab.leads),
+                      ),
+                      const Gap.v(AppSpace.sm),
+                      _AttentionCard(
+                        icon: Icons.receipt_long_rounded,
+                        tone: c.successTone,
+                        title: 'Orders to process',
+                        value: '${d.totalCustomOrders}',
+                        meta: 'Custom orders pending action',
+                        onTap: () => _go(SellerTab.orders),
                       ),
 
                       // ── Recent orders ───────────────────────────
@@ -225,6 +227,32 @@ class SellerDashboardScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+// ── Welcome banner ────────────────────────────────────────────
+class _WelcomeBanner extends StatelessWidget {
+  final String userName;
+  const _WelcomeBanner({required this.userName});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.sellerText;
+    final c = context.sellerColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Welcome back,',
+          style: text.bodySm.copyWith(color: c.textSecondary),
+        ),
+        const Gap.v(2),
+        Text(
+          userName,
+          style: text.titleLg.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
@@ -39,10 +40,12 @@ class SellerFinanceHubScreen extends ConsumerWidget {
           Expanded(
             child: bundle.when(
               loading: () => const SellerListSkeleton(),
-              error: (e, _) => SellerErrorState(
-                message: e.toString().replaceFirst('Exception: ', ''),
-                onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
-              ),
+              error: (e, _) => e is SellerPlanUpgradeException
+                  ? SellerPlanGateState(exception: e)
+                  : SellerErrorState(
+                      message: e.toString().replaceFirst('Exception: ', ''),
+                      onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
+                    ),
               data: (data) => RefreshIndicator(
                 color: c.accent,
                 backgroundColor: c.surface,

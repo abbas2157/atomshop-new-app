@@ -12,6 +12,7 @@
 
 import 'dart:io';
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
@@ -68,11 +69,13 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
             ),
             body: state.when(
               loading: () => _LoadingView(initialOrder: initialOrder),
-              error: (error, _) => SellerErrorState(
-                message: error.toString().replaceFirst('Exception: ', ''),
-                onRetry: () =>
-                    ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid)),
-              ),
+              error: (error, _) => error is SellerPlanUpgradeException
+                  ? SellerPlanGateState(exception: error)
+                  : SellerErrorState(
+                      message: error.toString().replaceFirst('Exception: ', ''),
+                      onRetry: () =>
+                          ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid)),
+                    ),
               data: (details) => _DetailsContent(
                 details: details,
                 orderUuid: orderUuid,
