@@ -10,4 +10,6 @@ export 'seller_search_field.dart';
 export 'seller_section_header.dart';
 export 'seller_segmented_tabs.dart';
 export 'seller_states.dart';
+export 'seller_header_profile_button.dart';
+export 'seller_notification_bell.dart';
 export 'seller_status_pill.dart';

@@ -162,4 +162,16 @@ class ApiEndpoints {
       "seller-app/custom-orders/guarantor/$orderUuid";
 
   static const String sellerWebsiteOrders = "seller-app/website-orders";
+
+  // ── Customer notifications ──────────────────────────────────────────────
+  static const String customerNotifications = 'notifications';
+  static const String customerNotificationsCount = 'notifications/count';
+  static String customerNotificationRead(int id) => 'notifications/$id/read';
+  static const String customerNotificationsReadAll = 'notifications/read-all';
+
+  // ── Seller notifications ────────────────────────────────────────────────
+  static const String sellerNotifications = 'seller-app/notifications';
+  static const String sellerNotificationsCount = 'seller-app/notifications/count';
+  static String sellerNotificationRead(int id) => 'seller-app/notifications/$id/read';
+  static const String sellerNotificationsReadAll = 'seller-app/notifications/read-all';
 }

@@ -74,15 +74,8 @@ class SellerDashboardScreen extends ConsumerWidget {
                 ),
                 title: d.businessName,
                 subtitle: 'Hi, ${d.userName}',
-                actions: [
-                  SellerHeaderIconButton(
-                    icon: c.isDark
-                        ? Icons.light_mode_rounded
-                        : Icons.dark_mode_rounded,
-                    tooltip: c.isDark ? 'Light mode' : 'Dark mode',
-                    onTap: () =>
-                        ref.read(sellerThemeModeProvider.notifier).toggle(),
-                  ),
+                actions: const [
+                  SellerNotificationBell(),
                 ],
               ),
               Expanded(
@@ -472,3 +465,4 @@ class _HomeSkeleton extends StatelessWidget {
         ),
       );
 }
+

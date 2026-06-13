@@ -269,6 +269,10 @@ class _SellerCustomerFormScreenState
                     subtitle: _isEdit
                         ? widget.existing!.name
                         : 'Create a new customer record',
+                    actions: const [
+                      SellerNotificationBell(),
+                      SellerHeaderProfileButton(),
+                    ],
                   ),
                   Expanded(child: _buildForm(context)),
                 ],

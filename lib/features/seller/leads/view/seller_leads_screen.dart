@@ -162,16 +162,8 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
                 ? 'Manage sales pipeline'
                 : '$newLeadsCount new leads',
             actions: [
-              SellerHeaderIconButton(
-                icon: Icons.download_outlined,
-                onTap: _openImportSample,
-                tooltip: 'Sample file',
-              ),
-              SellerHeaderIconButton(
-                icon: Icons.upload_file_outlined,
-                onTap: _importLeads,
-                tooltip: 'Import leads',
-              ),
+              const SellerNotificationBell(),
+              const SellerHeaderProfileButton(),
             ],
           ),
 
@@ -203,6 +195,29 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
               hint: 'Search by name, phone, or product',
               onChanged: (v) => setState(() => _search = v),
               onClear: () => setState(() => _search = ''),
+            ),
+          ),
+          const Gap.v(AppSpace.sm),
+          Padding(
+            padding: AppInsets.pageH,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _ImportAction(
+                    icon: Icons.download_outlined,
+                    label: 'Sample file',
+                    onTap: _openImportSample,
+                  ),
+                ),
+                const Gap.h(AppSpace.sm),
+                Expanded(
+                  child: _ImportAction(
+                    icon: Icons.upload_file_outlined,
+                    label: 'Import leads',
+                    onTap: _importLeads,
+                  ),
+                ),
+              ],
             ),
           ),
           const Gap.v(AppSpace.sm),
@@ -1323,6 +1338,54 @@ class _LeadSummary extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Import action button ──────────────────────────────────────
+class _ImportAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ImportAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return Material(
+      color: c.surface,
+      borderRadius: AppRadius.brMd,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.brMd,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpace.sm,
+            horizontal: AppSpace.sm,
+          ),
+          decoration: BoxDecoration(
+            border: Border.all(color: c.border),
+            borderRadius: AppRadius.brMd,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: c.textSecondary),
+              const Gap.h(AppSpace.xs),
+              Text(
+                label,
+                style: text.labelSm.copyWith(color: c.textSecondary),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

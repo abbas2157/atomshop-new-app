@@ -88,11 +88,13 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
               title: 'Customers',
               subtitle: subtitle,
               actions: [
+                const SellerNotificationBell(),
                 SellerHeaderIconButton(
                   icon: Icons.person_add_alt_1_outlined,
                   onTap: _showAddCustomerSheet,
                   tooltip: 'Add customer',
                 ),
+                const SellerHeaderProfileButton(),
               ],
             ),
             // ── Search + scope ───────────────────────────────────────────

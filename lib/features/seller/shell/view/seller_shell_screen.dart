@@ -94,7 +94,7 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
           }
 
           final sub = gate.asData?.value;
-          final hasMarketing = sub?.plan?.featureMarketing ?? false;
+          final hasFinancial = sub?.plan?.featureFinancial ?? false;
 
           // ── Initial load gate (subscription check on login) ───────────
           return gate.when(
@@ -111,12 +111,12 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
                 ),
               ),
             ),
-            error: (_, _) => _buildShell(context, c, hasMarketing: hasMarketing),
+            error: (_, _) => _buildShell(context, c, hasFinancial: hasFinancial),
             data: (sub) {
               final locked =
                   sub.hasActivePlan && !sub.payments.any((p) => p.isReceived);
               if (!locked) {
-                return _buildShell(context, c, hasMarketing: hasMarketing);
+                return _buildShell(context, c, hasFinancial: hasFinancial);
               }
               final underReview = _hasPendingPayment(sub);
               return SellerSubscriptionScreen(
@@ -140,7 +140,7 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
   }
 
   Widget _buildShell(BuildContext context, SellerColors c,
-      {bool hasMarketing = false}) {
+      {bool hasFinancial = false}) {
     const navItems = [
       _NavItem(label: 'Home', icon: Icons.space_dashboard_rounded),
       _NavItem(label: 'Leads', icon: Icons.trending_up_rounded),
@@ -153,12 +153,12 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
       backgroundColor: c.canvas,
       extendBody: true,
       body: IndexedStack(index: _index, children: _pages),
-      // Orders surfaces its own create FAB; hide the global one there to
-      // avoid two stacked FABs.
+      // Hide FAB on the Orders tab (it has its own create flow) and for
+      // marketing-only plans (they have no order/customer creation actions).
       floatingActionButton:
-          (_index == 2 || (_index == 0 && hasMarketing))
+          (_index == 2 || !hasFinancial)
               ? null
-              : _CreateButton(onTap: () => _showCreate(context, hasMarketing: hasMarketing)),
+              : _CreateButton(onTap: () => _showCreate(context)),
       bottomNavigationBar: _FloatingNavBar(
         items: navItems,
         selectedIndex: _index,
@@ -168,7 +168,7 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
   }
 
   // ── Global quick-create ────────────────────────────────────────────────
-  void _showCreate(BuildContext context, {bool hasMarketing = false}) {
+  void _showCreate(BuildContext context) {
     final dark = context.sellerIsDark;
     showModalBottomSheet(
       context: context,
@@ -208,33 +208,31 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
                   const Gap.v(AppSpace.md),
                   Text('Create', style: text.titleMd),
                   const Gap.v(AppSpace.md),
-                  if (!hasMarketing) ...[
-                    _CreateAction(
-                      icon: Icons.receipt_long_rounded,
-                      tone: c.accentTone,
-                      title: 'New custom order',
-                      subtitle: 'Installment deal with a buyer',
-                      onTap: () {
-                        Navigator.pop(sheetContext);
-                        showSellerCreateCustomOrderSheet(context, ref);
-                      },
-                    ),
-                    _CreateAction(
-                      icon: Icons.person_add_alt_1_rounded,
-                      tone: c.violetTone,
-                      title: 'New customer',
-                      subtitle: 'Add a buyer to your book',
-                      onTap: () {
-                        Navigator.pop(sheetContext);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SellerCustomerFormScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                  _CreateAction(
+                    icon: Icons.receipt_long_rounded,
+                    tone: c.accentTone,
+                    title: 'New custom order',
+                    subtitle: 'Installment deal with a buyer',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      showSellerCreateCustomOrderSheet(context, ref);
+                    },
+                  ),
+                  _CreateAction(
+                    icon: Icons.person_add_alt_1_rounded,
+                    tone: c.violetTone,
+                    title: 'New customer',
+                    subtitle: 'Add a buyer to your book',
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SellerCustomerFormScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             );

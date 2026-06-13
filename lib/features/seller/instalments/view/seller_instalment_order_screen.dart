@@ -98,9 +98,14 @@ class SellerInstalmentOrderScreen extends ConsumerWidget {
                     label: detail.orderStatus,
                     tone: orderStatusTone(detail.orderStatus, c),
                   ),
+                  const SellerNotificationBell(),
+                  const SellerHeaderProfileButton(),
                 ],
               ),
-              orElse: () => const SellerGradientHeader(title: 'Order Ledger'),
+              orElse: () => const SellerGradientHeader(
+                title: 'Order Ledger',
+                actions: [SellerNotificationBell(), SellerHeaderProfileButton()],
+              ),
             ),
             Expanded(
               child: state.when(

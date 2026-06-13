@@ -210,6 +210,10 @@ class _SellerSalesTeamFormScreenState
                     subtitle: _isEdit
                         ? widget.existing!.user.name
                         : 'Create a new sales or recovery member',
+                    actions: const [
+                      SellerNotificationBell(),
+                      SellerHeaderProfileButton(),
+                    ],
                   ),
                   Expanded(child: _buildForm(context)),
                 ],
