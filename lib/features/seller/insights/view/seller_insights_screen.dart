@@ -9,7 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Insights — performance & analytics, split out of the dashboard so Home can
 /// stay action-first. Owns the reporting-period selection.
 class SellerInsightsScreen extends ConsumerStatefulWidget {
-  const SellerInsightsScreen({super.key});
+  final void Function(int index)? onNavigateToTab;
+  const SellerInsightsScreen({super.key, this.onNavigateToTab});
 
   @override
   ConsumerState<SellerInsightsScreen> createState() =>
@@ -76,7 +77,9 @@ class _SellerInsightsScreenState extends ConsumerState<SellerInsightsScreen> {
                       message: e.toString().replaceFirst('Exception: ', ''),
                       onRetry: () => ref.invalidate(sellerDashboardProvider(query)),
                     ),
-              data: (data) => RefreshIndicator(
+              data: (data) => data.revenueGate != null
+                  ? SellerPlanGateState(exception: data.revenueGate!)
+                  : RefreshIndicator(
                 color: c.accent,
                 backgroundColor: c.surface,
                 onRefresh: () async {
@@ -88,6 +91,9 @@ class _SellerInsightsScreenState extends ConsumerState<SellerInsightsScreen> {
                   range: _range,
                   onPickRange: _pickRange,
                   onClearRange: () => setState(() => _range = null),
+                  onNavigateToLeads: widget.onNavigateToTab != null
+                      ? () => widget.onNavigateToTab!(1)
+                      : null,
                 ),
               ),
             ),
@@ -103,12 +109,14 @@ class _Body extends StatelessWidget {
   final DateTimeRange? range;
   final VoidCallback onPickRange;
   final VoidCallback onClearRange;
+  final VoidCallback? onNavigateToLeads;
 
   const _Body({
     required this.data,
     required this.range,
     required this.onPickRange,
     required this.onClearRange,
+    this.onNavigateToLeads,
   });
 
   @override
@@ -155,7 +163,10 @@ class _Body extends StatelessWidget {
           title: 'Lead status',
         ),
         const Gap.v(AppSpace.sm),
-        _DistributionCard(data: d.leadStatusPercentages),
+        _DistributionCard(
+          data: d.leadStatusPercentages,
+          onSliceTap: onNavigateToLeads != null ? (_) => onNavigateToLeads!() : null,
+        ),
         const Gap.v(AppSpace.lg),
         const SellerSectionHeader(
           overline: 'Distribution',
@@ -421,7 +432,8 @@ class _LegendDot extends StatelessWidget {
 
 class _DistributionCard extends StatelessWidget {
   final Map<String, int> data;
-  const _DistributionCard({required this.data});
+  final void Function(String label)? onSliceTap;
+  const _DistributionCard({required this.data, this.onSliceTap});
 
   @override
   Widget build(BuildContext context) {
@@ -444,35 +456,47 @@ class _DistributionCard extends StatelessWidget {
               builder: (context) {
                 final e = entries[i];
                 final tone = SellerStatus.toneFor(e.key, c);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            e.key,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: text.bodySm.copyWith(
-                              color: c.textPrimary,
-                              fontWeight: FontWeight.w600,
+                return GestureDetector(
+                  onTap: onSliceTap != null ? () => onSliceTap!(e.key) : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              e.key,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.bodySm.copyWith(
+                                color: c.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        Text(
-                          '${e.value}%',
-                          style: text.labelSm.copyWith(
-                            color: tone.fg,
-                            fontWeight: FontWeight.w800,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${e.value}%',
+                                style: text.labelSm.copyWith(
+                                  color: tone.fg,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (onSliceTap != null) ...[
+                                const SizedBox(width: 4),
+                                Icon(Icons.chevron_right_rounded, size: 14, color: c.textTertiary),
+                              ],
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const Gap.v(AppSpace.xs),
-                    SellerProgressBar(value: e.value / 100, color: tone.fg),
-                  ],
+                        ],
+                      ),
+                      const Gap.v(AppSpace.xs),
+                      SellerProgressBar(value: e.value / 100, color: tone.fg),
+                    ],
+                  ),
                 );
               },
             ),

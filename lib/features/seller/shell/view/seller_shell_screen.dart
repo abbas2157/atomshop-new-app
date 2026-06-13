@@ -8,7 +8,6 @@ import 'package:atompro/features/seller/finance/view/seller_finance_hub_screen.d
 import 'package:atompro/features/seller/insights/view/seller_insights_screen.dart';
 import 'package:atompro/features/seller/leads/view/seller_leads_screen.dart';
 import 'package:atompro/features/seller/orders/view/seller_orders_hub_screen.dart';
-import 'package:atompro/features/seller/standard_orders/view/seller_standard_orders_screen.dart';
 import 'package:atompro/features/seller/subscription/model/seller_subscription_model.dart';
 import 'package:atompro/features/seller/subscription/view/seller_subscription_screen.dart';
 import 'package:atompro/features/seller/subscription/viewmodel/seller_subscription_viewmodel.dart';
@@ -34,20 +33,12 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
   bool _gated = false;
   bool _gatedUnderReview = false;
 
-  static const _navItems = <_NavItem>[
-    _NavItem(label: 'Home', icon: Icons.space_dashboard_rounded),
-    _NavItem(label: 'Leads', icon: Icons.trending_up_rounded),
-    _NavItem(label: 'Orders', icon: Icons.receipt_long_rounded),
-    _NavItem(label: 'Finance', icon: Icons.account_balance_wallet_rounded),
-    _NavItem(label: 'Insights', icon: Icons.insights_rounded),
-  ];
-
   late final List<Widget> _pages = [
     SellerDashboardScreen(onNavigateToTab: _select),
     const SellerLeadsScreen(),
     const SellerOrdersHubScreen(),
     const SellerFinanceHubScreen(),
-    const SellerInsightsScreen(),
+    SellerInsightsScreen(onNavigateToTab: _select),
   ];
 
   void _select(int i) => setState(() => _index = i);
@@ -102,6 +93,9 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
             );
           }
 
+          final sub = gate.asData?.value;
+          final hasMarketing = sub?.plan?.featureMarketing ?? false;
+
           // ── Initial load gate (subscription check on login) ───────────
           return gate.when(
             loading: () => Scaffold(
@@ -117,11 +111,13 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
                 ),
               ),
             ),
-            error: (_, _) => _buildShell(context, c),
+            error: (_, _) => _buildShell(context, c, hasMarketing: hasMarketing),
             data: (sub) {
               final locked =
                   sub.hasActivePlan && !sub.payments.any((p) => p.isReceived);
-              if (!locked) return _buildShell(context, c);
+              if (!locked) {
+                return _buildShell(context, c, hasMarketing: hasMarketing);
+              }
               final underReview = _hasPendingPayment(sub);
               return SellerSubscriptionScreen(
                 locked: true,
@@ -143,7 +139,16 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
         (plan.monthly.isPending || plan.commissionAction.isPending);
   }
 
-  Widget _buildShell(BuildContext context, SellerColors c) {
+  Widget _buildShell(BuildContext context, SellerColors c,
+      {bool hasMarketing = false}) {
+    const navItems = [
+      _NavItem(label: 'Home', icon: Icons.space_dashboard_rounded),
+      _NavItem(label: 'Leads', icon: Icons.trending_up_rounded),
+      _NavItem(label: 'Orders', icon: Icons.receipt_long_rounded),
+      _NavItem(label: 'Finance', icon: Icons.account_balance_wallet_rounded),
+      _NavItem(label: 'Insights', icon: Icons.insights_rounded),
+    ];
+
     return Scaffold(
       backgroundColor: c.canvas,
       extendBody: true,
@@ -151,9 +156,11 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
       // Orders surfaces its own create FAB; hide the global one there to
       // avoid two stacked FABs.
       floatingActionButton:
-          _index == 2 ? null : _CreateButton(onTap: () => _showCreate(context)),
+          (_index == 2 || (_index == 0 && hasMarketing))
+              ? null
+              : _CreateButton(onTap: () => _showCreate(context, hasMarketing: hasMarketing)),
       bottomNavigationBar: _FloatingNavBar(
-        items: _navItems,
+        items: navItems,
         selectedIndex: _index,
         onTap: _select,
       ),
@@ -161,7 +168,7 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
   }
 
   // ── Global quick-create ────────────────────────────────────────────────
-  void _showCreate(BuildContext context) {
+  void _showCreate(BuildContext context, {bool hasMarketing = false}) {
     final dark = context.sellerIsDark;
     showModalBottomSheet(
       context: context,
@@ -201,51 +208,33 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
                   const Gap.v(AppSpace.md),
                   Text('Create', style: text.titleMd),
                   const Gap.v(AppSpace.md),
-                  _CreateAction(
-                    icon: Icons.receipt_long_rounded,
-                    tone: c.accentTone,
-                    title: 'New custom order',
-                    subtitle: 'Installment deal with a buyer',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      showSellerCreateCustomOrderSheet(context, ref);
-                    },
-                  ),
-                  _CreateAction(
-                    icon: Icons.shopping_bag_rounded,
-                    tone: c.infoTone,
-                    title: 'New standard order',
-                    subtitle: 'Regular platform order',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      showSellerCreateStandardOrderSheet(context, ref);
-                    },
-                  ),
-                  _CreateAction(
-                    icon: Icons.person_add_alt_1_rounded,
-                    tone: c.violetTone,
-                    title: 'New customer',
-                    subtitle: 'Add a buyer to your book',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SellerCustomerFormScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _CreateAction(
-                    icon: Icons.payments_rounded,
-                    tone: c.warningTone,
-                    title: 'Collect a payment',
-                    subtitle: 'Go to dues to record an instalment',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _select(3);
-                    },
-                  ),
+                  if (!hasMarketing) ...[
+                    _CreateAction(
+                      icon: Icons.receipt_long_rounded,
+                      tone: c.accentTone,
+                      title: 'New custom order',
+                      subtitle: 'Installment deal with a buyer',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        showSellerCreateCustomOrderSheet(context, ref);
+                      },
+                    ),
+                    _CreateAction(
+                      icon: Icons.person_add_alt_1_rounded,
+                      tone: c.violetTone,
+                      title: 'New customer',
+                      subtitle: 'Add a buyer to your book',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SellerCustomerFormScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             );
