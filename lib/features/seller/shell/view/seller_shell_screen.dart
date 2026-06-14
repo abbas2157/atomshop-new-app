@@ -3,9 +3,9 @@ import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
 import 'package:atompro/features/seller/customers/view/seller_customer_form_screen.dart';
+import 'package:atompro/features/seller/customers/view/seller_customers_screen.dart';
 import 'package:atompro/features/seller/dashboard/view/seller_dashboard_screen.dart';
-import 'package:atompro/features/seller/finance/view/seller_finance_hub_screen.dart';
-import 'package:atompro/features/seller/insights/view/seller_insights_screen.dart';
+import 'package:atompro/features/seller/reports/view/seller_reports_hub_screen.dart';
 import 'package:atompro/features/seller/leads/view/seller_leads_screen.dart';
 import 'package:atompro/features/seller/orders/view/seller_orders_hub_screen.dart';
 import 'package:atompro/features/seller/subscription/model/seller_subscription_model.dart';
@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// ─────────────────────────────────────────────────────────────────────────
 ///  Seller Shell — workflow-oriented navigation.
 ///
-///  5 sections (Home · Leads · Orders · Finance · Insights), a global Create
+///  5 sections (Home · Leads · Orders · Customers · Reports), a global Create
 ///  action, and account/settings behind the Home header avatar. Wraps the
 ///  whole experience in [SellerThemeScope] for unified, dark-mode-capable theming.
 /// ─────────────────────────────────────────────────────────────────────────
@@ -37,8 +37,8 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
     SellerDashboardScreen(onNavigateToTab: _select),
     const SellerLeadsScreen(),
     const SellerOrdersHubScreen(),
-    const SellerFinanceHubScreen(),
-    SellerInsightsScreen(onNavigateToTab: _select),
+    const SellerCustomersScreen(),
+    const SellerReportsHubScreen(),
   ];
 
   void _select(int i) => setState(() => _index = i);
@@ -145,8 +145,8 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
       _NavItem(label: 'Home', icon: Icons.space_dashboard_rounded),
       _NavItem(label: 'Leads', icon: Icons.trending_up_rounded),
       _NavItem(label: 'Orders', icon: Icons.receipt_long_rounded),
-      _NavItem(label: 'Finance', icon: Icons.account_balance_wallet_rounded),
-      _NavItem(label: 'Insights', icon: Icons.insights_rounded),
+      _NavItem(label: 'Customers', icon: Icons.groups_rounded),
+      _NavItem(label: 'Reports', icon: Icons.bar_chart_rounded),
     ];
 
     return Scaffold(

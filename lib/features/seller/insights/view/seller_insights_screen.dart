@@ -3,6 +3,7 @@ import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
 import 'package:atompro/features/seller/dashboard/viewmodel/seller_dashboard_viewmodel.dart';
+import 'package:atompro/features/seller/instalments/view/seller_instalments_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -57,9 +58,9 @@ class _SellerInsightsScreenState extends ConsumerState<SellerInsightsScreen> {
       body: Column(
         children: [
           SellerGradientHeader(
-            leading: const _HeaderGlyph(icon: Icons.insights_rounded),
-            title: 'Insights',
-            subtitle: 'Performance & analytics',
+            leading: const _HeaderGlyph(icon: Icons.bar_chart_rounded),
+            title: 'Reports',
+            subtitle: 'Finance & analytics',
             actions: [
               const SellerNotificationBell(),
               const SellerHeaderProfileButton(),
@@ -121,11 +122,41 @@ class _Body extends StatelessWidget {
     final c = context.sellerColors;
     final r = data.revenue;
     final d = data.dashboard;
-    final p = r.performanceMetrics;
-
     return ListView(
       padding: AppInsets.pageWithNav,
       children: [
+        // ── Finance ──────────────────────────────────────────────
+        SellerGrid(
+          children: [
+            SellerKpiCard(
+              label: 'Outstanding',
+              value: d.outstandingBalance,
+              icon: Icons.account_balance_wallet_rounded,
+              tone: c.warningTone,
+            ),
+            SellerKpiCard(
+              label: 'Recovered',
+              value: d.totalCustomRecoveryAll,
+              icon: Icons.savings_rounded,
+              tone: c.successTone,
+              caption: '${d.totalCustomRecoveryPercentageAll} all-time',
+            ),
+          ],
+        ),
+        const Gap.v(AppSpace.md),
+        const SellerSectionHeader(overline: 'Manage', title: 'Dues & fees'),
+        const Gap.v(AppSpace.sm),
+        _FinanceNavCard(
+          icon: Icons.receipt_long_rounded,
+          tone: c.warningTone,
+          title: 'Dues & instalments',
+          subtitle:
+              '${d.pendingRecoveryCount} pending · ${d.pendingRecoverySum} to collect',
+          onTap: () => context.pushSeller(const SellerInstalmentsScreen()),
+        ),
+        const Gap.v(AppSpace.lg),
+        const SellerSectionHeader(overline: 'Analytics', title: 'Performance'),
+        const Gap.v(AppSpace.sm),
         _RangeCard(
           range: range,
           fallback: '${r.from} → ${r.to}',
@@ -171,47 +202,6 @@ class _Body extends StatelessWidget {
         ),
         const Gap.v(AppSpace.sm),
         _DistributionCard(data: d.orderStatusPercentages),
-        const Gap.v(AppSpace.lg),
-        const SellerSectionHeader(
-          overline: 'Performance',
-          title: 'Key metrics',
-        ),
-        const Gap.v(AppSpace.sm),
-        SellerGrid(
-          columns: 3,
-          children: [
-            SellerStatTile(
-              label: 'Avg order',
-              value: p.averageOrderValue,
-              icon: Icons.shopping_cart_rounded,
-            ),
-            SellerStatTile(
-              label: 'Conversion',
-              value: p.conversionRate,
-              icon: Icons.swap_horiz_rounded,
-            ),
-            SellerStatTile(
-              label: 'On-time',
-              value: p.onTimeRecoveryRate,
-              icon: Icons.schedule_rounded,
-            ),
-            SellerStatTile(
-              label: 'Days to recover',
-              value: '${p.averageDaysToRecover}',
-              icon: Icons.event_repeat_rounded,
-            ),
-            SellerStatTile(
-              label: 'Unique buyers',
-              value: '${p.uniqueCustomers}',
-              icon: Icons.person_rounded,
-            ),
-            SellerStatTile(
-              label: 'Repeat rate',
-              value: p.repeatCustomerRate,
-              icon: Icons.autorenew_rounded,
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -498,6 +488,54 @@ class _DistributionCard extends StatelessWidget {
               },
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FinanceNavCard extends StatelessWidget {
+  final IconData icon;
+  final SellerTone tone;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _FinanceNavCard({
+    required this.icon,
+    required this.tone,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return SellerCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          SellerIconBadge(icon: icon, tone: tone),
+          const Gap.h(AppSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: text.titleSm),
+                const Gap.v(2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodySm,
+                ),
+              ],
+            ),
+          ),
+          const Gap.h(AppSpace.xs),
+          Icon(Icons.chevron_right_rounded, size: 20, color: c.textTertiary),
         ],
       ),
     );

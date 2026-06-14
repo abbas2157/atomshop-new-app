@@ -163,6 +163,34 @@ class ApiEndpoints {
 
   static const String sellerWebsiteOrders = "seller-app/website-orders";
 
+  // ── Seller reports ─────────────────────────────────────────────────────
+  static const String sellerReportsCustomers =
+      'seller-app/reports/customers';
+  static const String sellerReportsRecoverySheet =
+      'seller-app/reports/recovery-sheet';
+  static const String sellerReportsCustomerLedger =
+      'seller-app/reports/customer-ledger';
+  static const String sellerReportsAging =
+      'seller-app/reports/aging';
+  static const String sellerReportsUpcomingDues =
+      'seller-app/reports/upcoming-dues';
+  static const String sellerReportsDefaulters =
+      'seller-app/reports/defaulters';
+  static const String sellerReportsCollection =
+      'seller-app/reports/collection';
+  static const String sellerReportsSalesRevenue =
+      'seller-app/reports/sales-revenue';
+  static const String sellerReportsOrderSummary =
+      'seller-app/reports/order-summary';
+  static const String sellerReportsLeadFunnel =
+      'seller-app/reports/lead-funnel';
+  static const String sellerReportsOffersReport =
+      'seller-app/reports/offers-report';
+  static const String sellerReportsOutstanding =
+      'seller-app/reports/outstanding';
+  static const String sellerReportsPaymentHistory =
+      'seller-app/reports/payment-history';
+
   // ── Customer notifications ──────────────────────────────────────────────
   static const String customerNotifications = 'notifications';
   static const String customerNotificationsCount = 'notifications/count';

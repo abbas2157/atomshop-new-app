@@ -126,11 +126,13 @@ class _SellerFeeChargeScreenState extends ConsumerState<SellerFeeChargeScreen> {
                 title: 'Fee Charge',
                 subtitle: 'Seller fee summary and payment',
                 actions: [
+                  const SellerNotificationBell(),
                   SellerHeaderIconButton(
                     icon: Icons.refresh_rounded,
                     onTap: () => ref.invalidate(sellerFeeChargeProvider(_page)),
                     tooltip: 'Refresh',
                   ),
+                  const SellerHeaderProfileButton(),
                 ],
               ),
               Expanded(
@@ -238,11 +240,13 @@ class _FeeChargeHeader extends StatelessWidget {
       title: 'Fee Charge',
       subtitle: 'Seller fee summary and payment',
       actions: [
+        const SellerNotificationBell(),
         SellerHeaderIconButton(
           icon: Icons.refresh_rounded,
           onTap: onRefresh,
           tooltip: 'Refresh',
         ),
+        const SellerHeaderProfileButton(),
       ],
       bottom: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -14,7 +14,6 @@ import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
 import 'package:atompro/features/seller/profile/viewmodel/seller_profile_viewmodel.dart';
-import 'package:atompro/features/seller/customers/view/seller_customers_screen.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
 import 'package:atompro/features/seller/dashboard/viewmodel/seller_dashboard_viewmodel.dart';
 import 'package:atompro/features/seller/instalments/view/seller_instalments_screen.dart';
@@ -28,8 +27,8 @@ class SellerTab {
   static const home = 0;
   static const leads = 1;
   static const orders = 2;
-  static const finance = 3;
-  static const insights = 4;
+  static const customers = 3;
+  static const reports = 4;
 }
 
 class SellerDashboardScreen extends ConsumerWidget {
@@ -147,22 +146,21 @@ class SellerDashboardScreen extends ConsumerWidget {
                               icon: Icons.groups_rounded,
                               label: 'Customers',
                               tone: c.violetTone,
-                              onTap: () => context
-                                  .pushSeller(const SellerCustomersScreen()),
+                              onTap: () => _go(SellerTab.customers),
                             ),
                           ],
                           _QuickAction(
                             icon: Icons.payments_rounded,
-                            label: 'Collect',
+                            label: 'Instalments & Dues',
                             tone: c.warningTone,
                             onTap: () => context
                                 .pushSeller(const SellerInstalmentsScreen()),
                           ),
                           _QuickAction(
-                            icon: Icons.insights_rounded,
-                            label: 'Insights',
+                            icon: Icons.bar_chart_rounded,
+                            label: 'Reports',
                             tone: c.infoTone,
-                            onTap: () => _go(SellerTab.insights),
+                            onTap: () => _go(SellerTab.reports),
                           ),
                         ],
                       ),
@@ -180,7 +178,7 @@ class SellerDashboardScreen extends ConsumerWidget {
                         title: 'Collect dues',
                         value: d.pendingRecoverySum,
                         meta: '${d.pendingRecoveryCount} accounts pending',
-                        onTap: () => _go(SellerTab.finance),
+                        onTap: () => _go(SellerTab.reports),
                       ),
                       const Gap.v(AppSpace.sm),
                       _AttentionCard(
