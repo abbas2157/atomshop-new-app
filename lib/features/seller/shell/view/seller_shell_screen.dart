@@ -176,6 +176,8 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
       ),
       // Hide FAB on the Orders tab (it has its own create flow) and for
       // marketing-only plans (they have no order/customer creation actions).
+      // Orders surfaces its own create FAB; hide the global one there to
+      // avoid two stacked FABs.
       floatingActionButton:
           (_index == 2 || !hasFinancial)
               ? null
