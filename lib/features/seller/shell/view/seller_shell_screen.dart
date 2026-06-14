@@ -41,18 +41,31 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
     SellerInsightsScreen(onNavigateToTab: _select),
   ];
 
-  void _select(int i) => setState(() => _index = i);
+  // Tabs are built lazily: a tab only mounts (and fires its network calls) the
+  // first time it is visited. This avoids a startup stampede where all five
+  // screens hit the API at once — which serialised the secure-storage token
+  // reads and stalled the first-visited screen for up to ~1 minute. Once a tab
+  // is activated it stays mounted, so its state is preserved like a plain
+  // IndexedStack.
+  final Set<int> _activated = {0};
+
+  void _select(int i) => setState(() {
+        _index = i;
+        _activated.add(i);
+      });
 
   @override
   void initState() {
     super.initState();
     SellerSubscriptionGate.setListener((underReview) {
       if (!mounted) return;
-      ref.invalidate(sellerSubscriptionProvider);
-      setState(() {
-        _gated = true;
-        _gatedUnderReview = underReview;
-      });
+      if (!_gated) {
+        ref.invalidate(sellerSubscriptionProvider);
+        setState(() {
+          _gated = true;
+          _gatedUnderReview = underReview;
+        });
+      }
     });
   }
 
@@ -152,7 +165,15 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       extendBody: true,
-      body: IndexedStack(index: _index, children: _pages),
+      body: IndexedStack(
+        index: _index,
+        children: List.generate(
+          _pages.length,
+          (i) => _activated.contains(i)
+              ? _pages[i]
+              : const SizedBox.shrink(),
+        ),
+      ),
       // Orders surfaces its own create FAB; hide the global one there to
       // avoid two stacked FABs.
       floatingActionButton:

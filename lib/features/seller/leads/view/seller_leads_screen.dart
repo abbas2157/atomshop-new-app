@@ -8,7 +8,6 @@
 //  is 100% preserved.
 // ============================================================
 
-import 'dart:io';
 
 import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
@@ -37,8 +36,16 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
   String _search = '';
   final _searchCtrl = TextEditingController();
 
-  SellerLeadsQuery get _query =>
-      SellerLeadsQuery(scope: _scope, page: _page, status: _status);
+  // Stable query instance. A getter that allocated a fresh SellerLeadsQuery on
+  // every build handed the provider family a new key each rebuild, creating a
+  // brand-new provider (and a fresh network fetch) every frame — an infinite
+  // loop, since the screen rebuilds whenever the wrapping AnimatedTheme ticks.
+  // Recompute it only when scope/page/status actually change.
+  SellerLeadsQuery _query = const SellerLeadsQuery();
+
+  void _syncQuery() {
+    _query = SellerLeadsQuery(scope: _scope, page: _page, status: _status);
+  }
 
   @override
   void dispose() {
@@ -53,6 +60,7 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
       _scope = scope;
       _status = null;
       _page = 1;
+      _syncQuery();
     });
   }
 
@@ -63,6 +71,7 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
     setState(() {
       _status = chosen;
       _page = 1;
+      _syncQuery();
     });
   }
 
@@ -210,6 +219,11 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
                         ],
                       ),
                 data: (bundle) {
+                  // Plan gate is carried as data (see viewmodel) to avoid an
+                  // AsyncError refetch loop.
+                  if (bundle.gate != null) {
+                    return SellerPlanGateState(exception: bundle.gate!);
+                  }
                   final leads = _filter(bundle.leads.leads, _search);
                   return ListView(
                     padding: AppInsets.pageWithNav,
@@ -248,10 +262,16 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
                       _PaginationBar(
                         pagination: bundle.leads.pagination,
                         onPrevious: bundle.leads.pagination.hasPrevious
-                            ? () => setState(() => _page--)
+                            ? () => setState(() {
+                                _page--;
+                                _syncQuery();
+                              })
                             : null,
                         onNext: bundle.leads.pagination.hasNext
-                            ? () => setState(() => _page++)
+                            ? () => setState(() {
+                                _page++;
+                                _syncQuery();
+                              })
                             : null,
                       ),
                     ],

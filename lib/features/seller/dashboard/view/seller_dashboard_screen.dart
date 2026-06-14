@@ -46,8 +46,20 @@ class SellerDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.sellerColors;
     final bundle = ref.watch(sellerDashboardProvider(_query));
-    final pictureUrl = ref.watch(sellerProfileBundleProvider).asData?.value.profile.profilePictureUrl;
-    final hasMarketing = ref.watch(sellerSubscriptionProvider).asData?.value.plan?.featureMarketing ?? false;
+    final pictureUrl = ref
+        .watch(sellerProfileBundleProvider)
+        .asData
+        ?.value
+        .profile
+        .profilePictureUrl;
+    final hasMarketing =
+        ref
+            .watch(sellerSubscriptionProvider)
+            .asData
+            ?.value
+            .plan
+            ?.featureMarketing ??
+        false;
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -58,7 +70,8 @@ class SellerDashboardScreen extends ConsumerWidget {
               ? SellerPlanGateState(exception: e)
               : SellerErrorState(
                   message: e.toString().replaceFirst('Exception: ', ''),
-                  onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
+                  onRetry: () =>
+                      ref.invalidate(sellerDashboardProvider(_query)),
                 ),
         ),
         data: (data) {
@@ -68,9 +81,11 @@ class SellerDashboardScreen extends ConsumerWidget {
             children: [
               SellerGradientHeader(
                 leading: GestureDetector(
-                  onTap: () =>
-                      context.pushSeller(const SellerProfileScreen()),
-                  child: SellerMonogram(name: d.businessName, imageUrl: pictureUrl),
+                  onTap: () => context.pushSeller(const SellerProfileScreen()),
+                  child: SellerMonogram(
+                    name: d.businessName,
+                    imageUrl: pictureUrl,
+                  ),
                 ),
                 title: d.businessName,
                 subtitle: 'Hi, ${d.userName}',
@@ -101,9 +116,7 @@ class SellerDashboardScreen extends ConsumerWidget {
                       const Gap.v(AppSpace.lg),
 
                       // ── Snapshot ────────────────────────────────
-                      const SellerSectionHeader(
-                        title: 'Snapshot',
-                      ),
+                      const SellerSectionHeader(title: 'Snapshot'),
                       const Gap.v(AppSpace.sm),
                       SellerGrid(
                         children: [
@@ -118,7 +131,8 @@ class SellerDashboardScreen extends ConsumerWidget {
                             value: d.totalCustomRecovery,
                             icon: Icons.savings_rounded,
                             tone: c.successTone,
-                            caption: '${d.totalCustomRecoveryPercentage} recovered',
+                            caption:
+                                '${d.totalCustomRecoveryPercentage} recovered',
                           ),
                           SellerKpiCard(
                             label: 'Outstanding',
@@ -147,23 +161,27 @@ class SellerDashboardScreen extends ConsumerWidget {
                               icon: Icons.add_box_rounded,
                               label: 'New order',
                               tone: c.accentTone,
-                              onTap: () =>
-                                  showSellerCreateCustomOrderSheet(context, ref),
+                              onTap: () => showSellerCreateCustomOrderSheet(
+                                context,
+                                ref,
+                              ),
                             ),
                             _QuickAction(
                               icon: Icons.groups_rounded,
                               label: 'Customers',
                               tone: c.violetTone,
-                              onTap: () => context
-                                  .pushSeller(const SellerCustomersScreen()),
+                              onTap: () => context.pushSeller(
+                                const SellerCustomersScreen(),
+                              ),
                             ),
                           ],
                           _QuickAction(
                             icon: Icons.payments_rounded,
                             label: 'Collect',
                             tone: c.warningTone,
-                            onTap: () => context
-                                .pushSeller(const SellerInstalmentsScreen()),
+                            onTap: () => context.pushSeller(
+                              const SellerInstalmentsScreen(),
+                            ),
                           ),
                           _QuickAction(
                             icon: Icons.insights_rounded,
@@ -220,9 +238,7 @@ class SellerDashboardScreen extends ConsumerWidget {
                           onAction: () => _go(SellerTab.orders),
                         ),
                         const Gap.v(AppSpace.sm),
-                        _RecentList(
-                          records: d.customOrders.take(4).toList(),
-                        ),
+                        _RecentList(records: d.customOrders.take(4).toList()),
                       ],
                     ],
                   ),
@@ -318,8 +334,16 @@ class _AttentionCard extends StatelessWidget {
           ),
           const Gap.h(AppSpace.xs),
           locked
-              ? Icon(Icons.lock_outline_rounded, size: 16, color: c.textTertiary)
-              : Icon(Icons.chevron_right_rounded, size: 20, color: c.textTertiary),
+              ? Icon(
+                  Icons.lock_outline_rounded,
+                  size: 16,
+                  color: c.textTertiary,
+                )
+              : Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: c.textTertiary,
+                ),
         ],
       ),
     );
@@ -382,7 +406,8 @@ class _RecentList extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < records.length; i++) ...[
-            if (i > 0) Divider(color: c.divider, height: 1, indent: AppSpace.md),
+            if (i > 0)
+              Divider(color: c.divider, height: 1, indent: AppSpace.md),
             Padding(
               padding: const EdgeInsets.all(AppSpace.md),
               child: Row(
@@ -395,7 +420,9 @@ class _RecentList extends StatelessWidget {
                           records[i].title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: text.bodyLg.copyWith(fontWeight: FontWeight.w700),
+                          style: text.bodyLg.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const Gap.v(2),
                         Text(
@@ -465,10 +492,7 @@ class _HomeSkeleton extends StatelessWidget {
   }
 
   Widget _box(SellerColors c, double h) => Container(
-        height: h,
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: AppRadius.brLg,
-        ),
-      );
+    height: h,
+    decoration: BoxDecoration(color: c.surface, borderRadius: AppRadius.brLg),
+  );
 }
