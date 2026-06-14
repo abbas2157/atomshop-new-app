@@ -20,14 +20,16 @@ class SellerLeadsRepository {
   // ── Leads list + bundle ──────────────────────────────────────────────────────
 
   Future<SellerLeadsBundle> getLeadsBundle(SellerLeadsQuery query) async {
+    // eagerError: surface the plan-gate (thrown by getLeads) the instant it
+    // fails rather than waiting for the other two parallel calls to settle.
     final results = await Future.wait([
       getLeads(query),
       getStatusCounts(query.scope),
       if (query.scope == SellerLeadScope.mine)
-        getNewLeadsCount()
+        getNewLeadsCount().catchError((_) => 0)
       else
         Future.value(0),
-    ]);
+    ], eagerError: true);
     return SellerLeadsBundle(
       leads: results[0] as SellerLeadsResponse,
       statusCounts: results[1] as Map<String, int>,
@@ -118,11 +120,14 @@ class SellerLeadsRepository {
       'per_month_percentage': perMonthPercentage.toString(),
       'installments': installments.toString(),
     };
-    final response =
-        await _post(ApiEndpoints.sellerLeadCustomOrder(leadId), body);
+    final response = await _post(
+      ApiEndpoints.sellerLeadCustomOrder(leadId),
+      body,
+    );
     if (response['success'] != true) {
       throw Exception(
-          response['message'] ?? 'Failed to create custom order from lead.');
+        response['message'] ?? 'Failed to create custom order from lead.',
+      );
     }
     return response['data'] is Map
         ? Map<String, dynamic>.from(response['data'])
@@ -187,8 +192,9 @@ class SellerLeadsRepository {
         : (data is Map ? (data['data'] as List? ?? []) : <dynamic>[]);
     return list
         .whereType<Map>()
-        .map((item) =>
-            SellerLeadLookup.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => SellerLeadLookup.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList(growable: false);
   }
 

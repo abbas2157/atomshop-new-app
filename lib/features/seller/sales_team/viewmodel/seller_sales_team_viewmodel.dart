@@ -1,3 +1,4 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/sales_team/model/seller_sales_team_model.dart';
 import 'package:atompro/features/seller/sales_team/repository/seller_sales_team_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,13 +45,20 @@ class SellerSalesTeamQuery {
 }
 
 final sellerSalesTeamProvider = FutureProvider.autoDispose
-    .family<SellerSalesTeamResponse, SellerSalesTeamQuery>((ref, q) {
-      return ref.read(sellerSalesTeamRepositoryProvider).getMembers(
-            page: q.page,
-            status: q.status,
-            memberType: q.memberType,
-            query: q.query,
-          );
+    .family<SellerSalesTeamResponse, SellerSalesTeamQuery>((ref, q) async {
+      try {
+        return await ref.read(sellerSalesTeamRepositoryProvider).getMembers(
+              page: q.page,
+              status: q.status,
+              memberType: q.memberType,
+              query: q.query,
+            );
+      } on SellerPlanUpgradeException {
+        // Pin the errored state so the autoDispose provider isn't disposed and
+        // re-run on every gate-screen rebuild (infinite refetch loop).
+        ref.keepAlive();
+        rethrow;
+      }
     });
 
 final sellerSalesTeamEditProvider = FutureProvider.autoDispose

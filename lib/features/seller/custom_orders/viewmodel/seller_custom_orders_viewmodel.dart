@@ -11,6 +11,8 @@ final sellerCustomOrdersProvider = FutureProvider.autoDispose
         .read(sellerCustomOrdersRepositoryProvider)
         .getCustomOrders(query);
   } on SellerPlanUpgradeException {
+    // Pin the errored state so the autoDispose provider isn't disposed and
+    // re-run on every gate-screen rebuild (infinite refetch loop).
     ref.keepAlive();
     rethrow;
   }

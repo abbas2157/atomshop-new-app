@@ -19,11 +19,13 @@ class SellerProfileRepository {
   SellerProfileRepository(this._network);
 
   Future<SellerProfileBundle> getProfileBundle() async {
+    // eagerError: fail fast on the first failing request rather than blocking
+    // on the slowest one (which can run to the network receiveTimeout).
     final results = await Future.wait([
       getProfile(),
       getSellerInfo(),
       getBusinessInfo(),
-    ]);
+    ], eagerError: true);
 
     return SellerProfileBundle(
       profile: results[0] as SellerProfileUser,
