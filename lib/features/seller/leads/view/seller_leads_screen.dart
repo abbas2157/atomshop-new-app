@@ -7,18 +7,14 @@
 //  pricing guards, convert-to-custom-order, import/download —
 //  is 100% preserved.
 // ============================================================
-import 'dart:io';
-
 import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
-import 'package:atompro/features/seller/core/services/seller_file_service.dart';
 import 'package:atompro/features/seller/leads/model/seller_leads_model.dart';
 import 'package:atompro/features/seller/leads/repository/seller_leads_repository.dart';
 import 'package:atompro/features/seller/leads/viewmodel/seller_leads_viewmodel.dart';
 import 'package:dropdown_search/dropdown_search.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -104,33 +100,6 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
     if (changed == true) ref.invalidate(sellerLeadsBundleProvider(_query));
   }
 
-  Future<void> _importLeads() async {
-    try {
-      final picked = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx', 'xls', 'csv'],
-      );
-      final path = picked?.files.single.path;
-      if (path == null) return;
-      await ref.read(sellerLeadsRepositoryProvider).importLeads(File(path));
-      ref.invalidate(sellerLeadsBundleProvider(_query));
-      SnackbarService().showSuccessSnackBar('Leads imported.');
-    } catch (e) {
-      SnackbarService().showErrorSnackBar(_cleanError(e));
-    }
-  }
-
-  Future<void> _openImportSample() async {
-    try {
-      final path = await ref
-          .read(sellerLeadsRepositoryProvider)
-          .downloadImportSample();
-      await SellerFileService.openLocalFile(path);
-    } catch (e) {
-      SnackbarService().showErrorSnackBar(_cleanError(e));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final c = context.sellerColors;
@@ -204,29 +173,6 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
               hint: 'Search by name, phone, or product',
               onChanged: (v) => setState(() => _search = v),
               onClear: () => setState(() => _search = ''),
-            ),
-          ),
-          const Gap.v(AppSpace.sm),
-          Padding(
-            padding: AppInsets.pageH,
-            child: Row(
-              children: [
-                Expanded(
-                  child: _ImportAction(
-                    icon: Icons.download_outlined,
-                    label: 'Sample file',
-                    onTap: _openImportSample,
-                  ),
-                ),
-                const Gap.h(AppSpace.sm),
-                Expanded(
-                  child: _ImportAction(
-                    icon: Icons.upload_file_outlined,
-                    label: 'Import leads',
-                    onTap: _importLeads,
-                  ),
-                ),
-              ],
             ),
           ),
           const Gap.v(AppSpace.sm),
@@ -1366,54 +1312,6 @@ class _LeadSummary extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ── Import action button ──────────────────────────────────────
-class _ImportAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ImportAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.sellerColors;
-    final text = context.sellerText;
-    return Material(
-      color: c.surface,
-      borderRadius: AppRadius.brMd,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.brMd,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpace.sm,
-            horizontal: AppSpace.sm,
-          ),
-          decoration: BoxDecoration(
-            border: Border.all(color: c.border),
-            borderRadius: AppRadius.brMd,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: c.textSecondary),
-              const Gap.h(AppSpace.xs),
-              Text(
-                label,
-                style: text.labelSm.copyWith(color: c.textSecondary),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

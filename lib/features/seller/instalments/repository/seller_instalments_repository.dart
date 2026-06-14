@@ -85,21 +85,6 @@ class SellerInstalmentsRepository {
     );
   }
 
-  Future<String> getInvoiceUrl(int instalmentId) async {
-    final response = await _get(
-      ApiEndpoints.sellerInstalmentInvoice(instalmentId),
-    );
-    return _urlFromResponse(response, 'Invoice is unavailable.');
-  }
-
-  Future<String> getExportUrl({String? status}) async {
-    return SellerFileService.downloadAuthenticatedFile(
-      endpoint: ApiEndpoints.sellerInstalmentsExport(status: status),
-      fileName:
-          'atomshop_instalments_${(status ?? 'all').toLowerCase()}_export.xlsx',
-    );
-  }
-
   Future<dynamic> _get(String endpoint) async {
     final token = await SellerSessionManager.getToken();
     final response = await _network.getRequest(endpoint, token: token);
@@ -109,12 +94,4 @@ class SellerInstalmentsRepository {
     return response;
   }
 
-  String _urlFromResponse(dynamic response, String fallback) {
-    final data = response['data'] is Map
-        ? Map<String, dynamic>.from(response['data'])
-        : <String, dynamic>{};
-    final url = data['url']?.toString().trim();
-    if (url == null || url.isEmpty) throw Exception(fallback);
-    return url;
-  }
 }

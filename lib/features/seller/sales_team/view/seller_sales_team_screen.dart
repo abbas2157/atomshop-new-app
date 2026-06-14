@@ -136,24 +136,29 @@ class _SellerSalesTeamScreenState extends ConsumerState<SellerSalesTeamScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.sellerColors;
+    final text = context.sellerText;
     final state = ref.watch(sellerSalesTeamProvider(_query));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: c.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: c.canvas,
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.only(bottom: AppSpace.xs),
-          child: SellerButton(
-            label: 'Add Member',
-            icon: Icons.person_add_alt_1_rounded,
-            onPressed: () => _openForm(),
-            expand: false,
-            size: SellerButtonSize.regular,
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.md, AppSpace.xs, AppSpace.md, AppSpace.sm,
+            ),
+            child: SellerButton(
+              label: 'Add Member',
+              icon: Icons.person_add_alt_1_rounded,
+              onPressed: () => _openForm(),
+              size: SellerButtonSize.regular,
+            ),
           ),
         ),
         body: Column(
           children: [
+            // ── Header ────────────────────────────────────────────────────
             SellerGradientHeader(
               leading: SellerIconBadge(
                 icon: Icons.groups_2_rounded,
@@ -173,6 +178,84 @@ class _SellerSalesTeamScreenState extends ConsumerState<SellerSalesTeamScreen> {
                 const SellerHeaderProfileButton(),
               ],
             ),
+
+            // ── Search (sticky, outside the scrollable) ───────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.md, AppSpace.md, AppSpace.md, AppSpace.sm,
+              ),
+              child: SellerSearchField(
+                controller: _searchCtrl,
+                hint: 'Search by name, phone, email, role',
+                onChanged: _onSearchChanged,
+              ),
+            ),
+
+            // ── Type + Status filters (sticky) ────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.md, 0, AppSpace.md, AppSpace.sm,
+              ),
+              child: SellerCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.sm,
+                  vertical: AppSpace.xs + 2,
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 48,
+                          child: Text(
+                            'Type',
+                            style: text.caption.copyWith(
+                              color: c.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const Gap.h(AppSpace.xs),
+                        Expanded(
+                          child: SellerSegmentedTabs(
+                            labels: const ['All', 'Sales', 'Recovery'],
+                            selectedIndex: _typeIndex,
+                            onChanged: _setType,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Gap.v(AppSpace.xs),
+                    Divider(height: 1, color: c.divider),
+                    const Gap.v(AppSpace.xs),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 48,
+                          child: Text(
+                            'Status',
+                            style: text.caption.copyWith(
+                              color: c.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const Gap.h(AppSpace.xs),
+                        Expanded(
+                          child: SellerSegmentedTabs(
+                            labels: const ['All', 'Active', 'Inactive'],
+                            selectedIndex: _statusIndex,
+                            onChanged: _setStatus,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Content (state-driven, direct child of RefreshIndicator) ──
             Expanded(
               child: RefreshIndicator(
                 color: c.accent,
@@ -181,92 +264,91 @@ class _SellerSalesTeamScreenState extends ConsumerState<SellerSalesTeamScreen> {
                   ref.invalidate(sellerSalesTeamProvider(_query));
                   await ref.read(sellerSalesTeamProvider(_query).future);
                 },
-                child: ListView(
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
+                child: state.when(
+                  loading: () => const SellerListSkeleton(
+                    count: 4,
+                    itemHeight: 180,
                   ),
-                  padding: AppInsets.pageWithNav,
-                  children: [
-                    SellerSearchField(
-                      controller: _searchCtrl,
-                      hint: 'Search by name, phone, email, role',
-                      onChanged: _onSearchChanged,
-                    ),
-                    const Gap.v(AppSpace.sm),
-                    SellerSegmentedTabs(
-                      labels: const ['All', 'Sales', 'Recovery'],
-                      selectedIndex: _typeIndex,
-                      onChanged: _setType,
-                    ),
-                    const Gap.v(AppSpace.xs),
-                    SellerSegmentedTabs(
-                      labels: const ['All', 'Active', 'Inactive'],
-                      selectedIndex: _statusIndex,
-                      onChanged: _setStatus,
-                    ),
-                    const Gap.v(AppSpace.md),
-                    state.when(
-                      loading: () =>
-                          const SellerListSkeleton(count: 4, itemHeight: 180),
-                      error: (error, _) => error is SellerPlanUpgradeException
+                  error: (error, _) => ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: AppInsets.pageWithNav,
+                    children: [
+                      error is SellerPlanUpgradeException
                           ? SellerPlanGateState(exception: error)
                           : SellerErrorState(
                               message: _cleanError(error),
-                              onRetry: () =>
-                                  ref.invalidate(sellerSalesTeamProvider(_query)),
-                            ),
-                      data: (data) {
-                        if (data.gate != null) {
-                          return SellerPlanGateState(exception: data.gate!);
-                        }
-                        final members = data.members;
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _RangeStrip(
-                              total: data.pagination.total,
-                              from: data.pagination.from,
-                              to: data.pagination.to,
-                            ),
-                            const Gap.v(AppSpace.sm),
-                            if (members.isEmpty)
-                              SellerEmptyState(
-                                icon: Icons.groups_2_rounded,
-                                title: 'No team members found',
-                                message: _hasFilters
-                                    ? 'Try a different search or filter.'
-                                    : 'Add your first team member to get started.',
-                                actionLabel: _hasFilters ? null : 'Add Member',
-                                onAction: _hasFilters ? null : () => _openForm(),
-                              )
-                            else
-                              ...members.map(
-                                (member) => Padding(
-                                  padding: const EdgeInsets.only(
-                                    bottom: AppSpace.sm,
-                                  ),
-                                  child: _TeamMemberCard(
-                                    member: member,
-                                    onEdit: () =>
-                                        _openForm(existing: member),
-                                    onTap: () => _openPerformance(member),
-                                  ),
-                                ),
+                              onRetry: () => ref.invalidate(
+                                sellerSalesTeamProvider(_query),
                               ),
-                            _PaginationBar(
-                              pagination: data.pagination,
-                              onPrevious: data.pagination.hasPrevious
-                                  ? () => setState(() => _page--)
-                                  : null,
-                              onNext: data.pagination.hasNext
-                                  ? () => setState(() => _page++)
-                                  : null,
                             ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
+                    ],
+                  ),
+                  data: (data) {
+                    if (data.gate != null) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: AppInsets.pageWithNav,
+                        children: [
+                          SellerPlanGateState(exception: data.gate!),
+                        ],
+                      );
+                    }
+                    final members = data.members;
+                    if (members.isEmpty) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: AppInsets.pageWithNav,
+                        children: [
+                          ConstrainedBox(
+                            constraints:
+                                const BoxConstraints(minHeight: 320),
+                            child: SellerEmptyState(
+                              icon: Icons.groups_2_rounded,
+                              title: 'No team members found',
+                              message: _hasFilters
+                                  ? 'Try adjusting your search or filters.'
+                                  : 'Add your first sales or recovery member to get started.',
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return ListView(
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      padding: AppInsets.pageWithNav,
+                      children: [
+                        _RangeStrip(
+                          total: data.pagination.total,
+                          from: data.pagination.from,
+                          to: data.pagination.to,
+                        ),
+                        const Gap.v(AppSpace.sm),
+                        ...members.map(
+                          (member) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpace.sm,
+                            ),
+                            child: _TeamMemberCard(
+                              member: member,
+                              onEdit: () => _openForm(existing: member),
+                              onTap: () => _openPerformance(member),
+                            ),
+                          ),
+                        ),
+                        _PaginationBar(
+                          pagination: data.pagination,
+                          onPrevious: data.pagination.hasPrevious
+                              ? () => setState(() => _page--)
+                              : null,
+                          onNext: data.pagination.hasNext
+                              ? () => setState(() => _page++)
+                              : null,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),

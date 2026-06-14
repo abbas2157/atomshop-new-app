@@ -53,9 +53,6 @@ class ApiEndpoints {
   static const String sellerMyCustomers = "seller-app/customers/my";
   static const String sellerOtherCustomers = "seller-app/customers/other";
   static const String sellerStoreCustomer = "seller-app/customers/store";
-  static const String sellerImportCustomers = "seller-app/customers/import";
-  static const String sellerCustomersImportSample =
-      "seller-app/customers/import/sample";
   static const String sellerCustomersNotificationCount =
       "seller-app/customers/notification-count";
   static const String sellerOrders = "seller-app/orders";
@@ -76,8 +73,6 @@ class ApiEndpoints {
   static const String sellerOtherLeadStatusCounts =
       "seller-app/leads/others-status-counts";
   static const String sellerNewLeadsCount = "seller-app/leads/count";
-  static const String sellerImportLeads = "seller-app/leads/import";
-  static const String sellerLeadsSample = "seller-app/leads/sample";
   static const String sellerSalesTeam = "seller-app/sales-team";
   static const String sellerStoreSalesTeamMember =
       "seller-app/sales-team/store";
@@ -117,19 +112,11 @@ class ApiEndpoints {
   static String sellerCustomerAreasByCity(int cityId) =>
       "seller-app/customers/areas?city_id=$cityId";
 
-  static String sellerInstalmentsExport({String? status}) {
-    final suffix = status == null || status.isEmpty ? "" : "?status=$status";
-    return "seller-app/instalment/export$suffix";
-  }
-
   static String sellerInstalmentOrderDetail(int orderId) =>
       "seller-app/instalment/order/$orderId";
 
   static String sellerInstalmentInvoiceData(int instalmentId) =>
       "seller-app/instalment/invoice/$instalmentId/data";
-
-  static String sellerInstalmentInvoice(int instalmentId) =>
-      "seller-app/instalment/invoice/$instalmentId";
 
   static String sellerLeadUpdate(int leadId) =>
       "seller-app/leads/update/$leadId";

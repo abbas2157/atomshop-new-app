@@ -1,10 +1,7 @@
-import 'dart:io';
-
 import 'package:atompro/core/auth/seller_session_manager.dart';
 import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/network/network_manager.dart';
 import 'package:atompro/core/network/network_provider.dart';
-import 'package:atompro/features/seller/core/services/seller_file_service.dart';
 import 'package:atompro/features/seller/leads/model/seller_leads_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -158,28 +155,6 @@ class SellerLeadsRepository {
   Future<List<SellerLeadLookup>> getBrands() async {
     final response = await _get(ApiEndpoints.brands);
     return _parseFlatList(response['data']);
-  }
-
-  // ── Import / export ──────────────────────────────────────────────────────────
-
-  Future<void> importLeads(File file) async {
-    final token = await SellerSessionManager.getToken();
-    final response = await _network.postMultipartRequest(
-      ApiEndpoints.sellerImportLeads,
-      const {},
-      {'file': file},
-      token: token,
-    );
-    if (response['success'] != true) {
-      throw Exception(response['message'] ?? 'Failed to import leads.');
-    }
-  }
-
-  Future<String> downloadImportSample() {
-    return SellerFileService.downloadAuthenticatedFile(
-      endpoint: ApiEndpoints.sellerLeadsSample,
-      fileName: 'atomshop_leads_import_sample.xlsx',
-    );
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────

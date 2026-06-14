@@ -5,6 +5,7 @@ import 'package:atompro/features/seller/customers/model/seller_customers_model.d
 import 'package:atompro/features/seller/customers/view/seller_customer_details_screen.dart';
 import 'package:atompro/features/seller/customers/view/seller_customer_form_screen.dart';
 import 'package:atompro/features/seller/customers/viewmodel/seller_customers_viewmodel.dart';
+import 'package:atompro/features/seller/subscription/viewmodel/seller_subscription_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,6 +57,9 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
       sellerCustomersNotificationCountProvider,
     );
 
+    final sub = ref.watch(sellerSubscriptionProvider).asData?.value;
+    final hasFinancial = sub?.plan?.featureFinancial ?? false;
+
     final notifCount = notificationState.asData?.value;
     final subtitle = notifCount == null
         ? 'Manage seller customer records'
@@ -89,11 +93,12 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
               subtitle: subtitle,
               actions: [
                 const SellerNotificationBell(),
-                SellerHeaderIconButton(
-                  icon: Icons.person_add_alt_1_outlined,
-                  onTap: _showAddCustomerSheet,
-                  tooltip: 'Add customer',
-                ),
+                if (hasFinancial)
+                  SellerHeaderIconButton(
+                    icon: Icons.person_add_alt_1_outlined,
+                    onTap: _showAddCustomerSheet,
+                    tooltip: 'Add customer',
+                  ),
                 const SellerHeaderProfileButton(),
               ],
             ),
