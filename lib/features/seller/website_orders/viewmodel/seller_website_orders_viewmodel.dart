@@ -11,6 +11,8 @@ final sellerWebsiteOrdersProvider = FutureProvider.autoDispose
         .read(sellerWebsiteOrdersRepositoryProvider)
         .getWebsiteOrders(search: query.search, page: query.page);
   } on SellerPlanUpgradeException {
+    // Pin the errored state so the autoDispose provider isn't disposed and
+    // re-run on every gate-screen rebuild (infinite refetch loop).
     ref.keepAlive();
     rethrow;
   }
