@@ -1,120 +1,27 @@
 import 'package:atompro/core/routes/app_navigator.dart';
+import 'package:atompro/core/routes/app_route_constants.dart';
 import 'package:atompro/core/style/color_palette.dart';
+import 'package:atompro/features/customer/notifications/model/app_notification_model.dart';
+import 'package:atompro/features/customer/notifications/viewmodel/customer_notifications_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-// ── Notification type ──────────────────────────────────────────────────────
-enum NotifType { order, payment, promo, system }
-
-// ── Model ──────────────────────────────────────────────────────────────────
-class NotificationItem {
-  final String id;
-  final NotifType type;
-  final String title;
-  final String body;
-  final DateTime time;
-  bool isRead;
-
-  NotificationItem({
-    required this.id,
-    required this.type,
-    required this.title,
-    required this.body,
-    required this.time,
-    this.isRead = false,
-  });
-}
-
-// ── Dummy data ─────────────────────────────────────────────────────────────
-final _dummyNotifications = <NotificationItem>[
-  NotificationItem(
-    id: '1',
-    type: NotifType.order,
-    title: 'Order Approved!',
-    body:
-        'Your order #36E77B for "Samsung Galaxy S24" has been approved. Supplier details are now available.',
-    time: DateTime.now().subtract(const Duration(minutes: 12)),
-    isRead: false,
-  ),
-  NotificationItem(
-    id: '2',
-    type: NotifType.payment,
-    title: 'Installment Due Tomorrow',
-    body:
-        'Your 3rd installment of PKR 18,708 for order #36E77B is due tomorrow. Please ensure timely payment.',
-    time: DateTime.now().subtract(const Duration(hours: 2)),
-    isRead: false,
-  ),
-  NotificationItem(
-    id: '3',
-    type: NotifType.promo,
-    title: 'Exclusive Deal — Up to 20% Off!',
-    body:
-        'This week only: save big on electronics and home appliances. Browse our latest offers now.',
-    time: DateTime.now().subtract(const Duration(hours: 5)),
-    isRead: true,
-  ),
-  NotificationItem(
-    id: '4',
-    type: NotifType.system,
-    title: 'Profile Verification Pending',
-    body:
-        'Your account verification is still incomplete. Submit your CNIC to unlock all features.',
-    time: DateTime.now().subtract(const Duration(hours: 11)),
-    isRead: false,
-  ),
-  NotificationItem(
-    id: '5',
-    type: NotifType.payment,
-    title: 'Payment Received',
-    body:
-        'We\'ve received your installment payment of PKR 18,708 for order #36E77B. Thank you!',
-    time: DateTime.now().subtract(const Duration(days: 1)),
-    isRead: true,
-  ),
-  NotificationItem(
-    id: '6',
-    type: NotifType.order,
-    title: 'Order Submitted',
-    body:
-        'Your custom order for "HP Laptop Core i7" has been submitted and is under review.',
-    time: DateTime.now().subtract(const Duration(days: 2)),
-    isRead: true,
-  ),
-  NotificationItem(
-    id: '7',
-    type: NotifType.promo,
-    title: 'New Arrivals This Week',
-    body:
-        'Fresh products just added to our catalogue. Check out the latest smartphones and appliances.',
-    time: DateTime.now().subtract(const Duration(days: 3)),
-    isRead: true,
-  ),
-  NotificationItem(
-    id: '8',
-    type: NotifType.system,
-    title: 'Password Changed Successfully',
-    body:
-        'Your account password was updated. If you did not make this change, contact support immediately.',
-    time: DateTime.now().subtract(const Duration(days: 5)),
-    isRead: true,
-  ),
-];
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  SCREEN
 // ══════════════════════════════════════════════════════════════════════════════
-class NotificationsScreen extends StatefulWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen>
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
     with SingleTickerProviderStateMixin {
-  late final List<NotificationItem> _notifications;
-  String _filter = 'All'; // All | Unread | Order | Payment | Promo | System
+  final _scroll = ScrollController();
+  String _filter = 'All';
 
   late final AnimationController _entryCtrl;
   late final Animation<double> _fadeIn;
@@ -122,62 +29,74 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   void initState() {
     super.initState();
-    _notifications = List.from(_dummyNotifications);
     _entryCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
     _fadeIn = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _entryCtrl.forward();
+
+    _scroll.addListener(_onScroll);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(customerNotificationsProvider.notifier).load();
+    });
+  }
+
+  void _onScroll() {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 250) {
+      ref.read(customerNotificationsProvider.notifier).loadMore();
+    }
   }
 
   @override
   void dispose() {
     _entryCtrl.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
   // ── Filtering ──────────────────────────────────────────────────────────────
-  List<NotificationItem> get _filtered {
+  List<AppNotification> _applyFilter(List<AppNotification> items) {
     switch (_filter) {
       case 'Unread':
-        return _notifications.where((n) => !n.isRead).toList();
-      case 'Order':
-        return _notifications.where((n) => n.type == NotifType.order).toList();
-      case 'Payment':
-        return _notifications
-            .where((n) => n.type == NotifType.payment)
+        return items.where((n) => !n.isRead).toList();
+      case 'Orders':
+        return items
+            .where((n) => _filterForType(n.type) == 'Orders')
+            .toList();
+      case 'Payments':
+        return items
+            .where((n) => _filterForType(n.type) == 'Payments')
+            .toList();
+      case 'Account':
+        return items
+            .where((n) => _filterForType(n.type) == 'Account')
             .toList();
       case 'Promo':
-        return _notifications.where((n) => n.type == NotifType.promo).toList();
-      case 'System':
-        return _notifications.where((n) => n.type == NotifType.system).toList();
+        return items
+            .where((n) => _filterForType(n.type) == 'Promo')
+            .toList();
       default:
-        return _notifications;
+        return items;
     }
   }
 
-  int get _unreadCount => _notifications.where((n) => !n.isRead).length;
-
-  void _markAllRead() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      for (final n in _notifications) {
-        n.isRead = true;
-      }
-    });
-  }
-
-  void _toggleRead(NotificationItem item) {
-    HapticFeedback.selectionClick();
-    setState(() => item.isRead = !item.isRead);
+  String _filterForType(String type) {
+    return switch (type) {
+      'order_status' || 'deal_closed' => 'Orders',
+      'instalment_paid' => 'Payments',
+      'account_verified' => 'Account',
+      'broadcast' => 'Promo',
+      _ => 'Other',
+    };
   }
 
   // ── Group by date ──────────────────────────────────────────────────────────
-  Map<String, List<NotificationItem>> get _grouped {
-    final map = <String, List<NotificationItem>>{};
-    for (final n in _filtered) {
-      final label = _dateLabel(n.time);
+  Map<String, List<AppNotification>> _grouped(List<AppNotification> items) {
+    final map = <String, List<AppNotification>>{};
+    for (final n in items) {
+      final label = _dateLabel(n.createdAtDate);
       map.putIfAbsent(label, () => []).add(n);
     }
     return map;
@@ -194,11 +113,49 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return 'Older';
   }
 
+  List<Widget> _buildFlatList(List<AppNotification> items) {
+    final grouped = _grouped(items);
+    final widgets = <Widget>[];
+    for (final key in grouped.keys) {
+      widgets.add(_GroupHeader(label: key));
+      for (final n in grouped[key]!) {
+        widgets.add(_NotifCard(
+          notification: n,
+          onTap: () => _handleTap(n),
+        ));
+        widgets.add(const SizedBox(height: 10));
+      }
+    }
+    return widgets;
+  }
+
+  void _handleTap(AppNotification n) {
+    HapticFeedback.selectionClick();
+    if (!n.isRead) {
+      ref.read(customerNotificationsProvider.notifier).markRead(n.id);
+    }
+    _navigate(n);
+  }
+
+  void _navigate(AppNotification n) {
+    switch (n.screen) {
+      case 'orders':
+        AppNavigator.goToMyOrders();
+      case 'instalments':
+        AppNavigator.goToMyOrders();
+      case 'profile':
+        AppNavigator.pushNamed(AppRoutes.profile);
+      default:
+        break;
+    }
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final grouped = _grouped;
-    final groupKeys = grouped.keys.toList();
+    final state = ref.watch(customerNotificationsProvider);
+    final filtered = _applyFilter(state.items);
+    final flat = _buildFlatList(filtered);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -207,32 +164,44 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         body: FadeTransition(
           opacity: _fadeIn,
           child: CustomScrollView(
+            controller: _scroll,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(child: _buildHeader()),
+              SliverToBoxAdapter(
+                child: _buildHeader(state, filtered),
+              ),
 
-              if (_filtered.isEmpty)
-                SliverFillRemaining(hasScrollBody: false, child: _buildEmpty())
+              if (state.isLoading)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (state.error != null && state.items.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildError(state.error!),
+                )
+              else if (filtered.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildEmpty(),
+                )
               else
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((ctx, i) {
-                      // Build group headers + cards
-                      final items = <Widget>[];
-                      for (final key in groupKeys) {
-                        items.add(_GroupHeader(label: key));
-                        for (final n in grouped[key]!) {
-                          items.add(
-                            _NotifCard(item: n, onTap: () => _toggleRead(n)),
-                          );
-                          items.add(const SizedBox(height: 10));
-                        }
-                      }
-                      return i < items.length
-                          ? items[i]
-                          : const SizedBox.shrink();
-                    }, childCount: _buildFlatList().length),
+                    delegate: SliverChildBuilderDelegate(
+                      (ctx, i) => flat[i],
+                      childCount: flat.length,
+                    ),
+                  ),
+                ),
+
+              if (state.isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
                 ),
             ],
@@ -242,22 +211,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  // Flatten grouped items into a single list for SliverChildBuilderDelegate
-  List<Widget> _buildFlatList() {
-    final grouped = _grouped;
-    final items = <Widget>[];
-    for (final key in grouped.keys) {
-      items.add(_GroupHeader(label: key));
-      for (final n in grouped[key]!) {
-        items.add(_NotifCard(item: n, onTap: () => _toggleRead(n)));
-        items.add(const SizedBox(height: 10));
-      }
-    }
-    return items;
-  }
-
   // ── Header ─────────────────────────────────────────────────────────────────
-  Widget _buildHeader() {
+  Widget _buildHeader(NotificationsState state, List<AppNotification> filtered) {
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -265,7 +220,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title row
             Row(
               children: [
                 GestureDetector(
@@ -302,8 +256,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   ),
                 ),
                 const Spacer(),
-                // Unread badge
-                if (_unreadCount > 0)
+                if (state.unreadCount > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -316,7 +269,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '$_unreadCount Unread',
+                      '${state.unreadCount} Unread',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -328,21 +281,25 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
             const SizedBox(height: 14),
 
-            // Mark all read row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${_filtered.length} notification${_filtered.length == 1 ? '' : 's'}',
+                  '${filtered.length} notification${filtered.length == 1 ? '' : 's'}',
                   style: TextStyle(
                     fontSize: 12,
                     color: ColorPalette.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                if (_unreadCount > 0)
+                if (state.unreadCount > 0)
                   GestureDetector(
-                    onTap: _markAllRead,
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      ref
+                          .read(customerNotificationsProvider.notifier)
+                          .markAllRead();
+                    },
                     child: Row(
                       children: [
                         Icon(
@@ -366,68 +323,60 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
             const SizedBox(height: 12),
 
-            // Filter chips
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children:
-                    [
-                      'All',
-                      'Unread',
-                      'Order',
-                      'Payment',
-                      'Promo',
-                      'System',
-                    ].map((f) {
-                      final active = _filter == f;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _filter = f);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? ColorPalette.secondary
-                                  : ColorPalette.surface,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: active
-                                    ? ColorPalette.secondary
-                                    : ColorPalette.border,
-                              ),
-                              boxShadow: active
-                                  ? [
-                                      BoxShadow(
-                                        color: ColorPalette.secondary
-                                            .withOpacity(0.25),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ]
-                                  : [],
-                            ),
-                            child: Text(
-                              f,
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: active
-                                    ? Colors.white
-                                    : ColorPalette.textSecondary,
-                              ),
-                            ),
+                children: ['All', 'Unread', 'Orders', 'Payments', 'Account', 'Promo']
+                    .map((f) {
+                  final active = _filter == f;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _filter = f);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? ColorPalette.secondary
+                              : ColorPalette.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: active
+                                ? ColorPalette.secondary
+                                : ColorPalette.border,
+                          ),
+                          boxShadow: active
+                              ? [
+                                  BoxShadow(
+                                    color: ColorPalette.secondary
+                                        .withOpacity(0.25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Text(
+                          f,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: active
+                                ? Colors.white
+                                : ColorPalette.textSecondary,
                           ),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
             const SizedBox(height: 16),
@@ -474,6 +423,46 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       ),
     );
   }
+
+  Widget _buildError(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded,
+                size: 40, color: ColorPalette.textSecondary),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: ColorPalette.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () =>
+                  ref.read(customerNotificationsProvider.notifier).load(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: ColorPalette.secondary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -510,9 +499,9 @@ class _GroupHeader extends StatelessWidget {
 //  NOTIFICATION CARD
 // ══════════════════════════════════════════════════════════════════════════════
 class _NotifCard extends StatefulWidget {
-  final NotificationItem item;
+  final AppNotification notification;
   final VoidCallback onTap;
-  const _NotifCard({required this.item, required this.onTap});
+  const _NotifCard({required this.notification, required this.onTap});
 
   @override
   State<_NotifCard> createState() => _NotifCardState();
@@ -521,34 +510,34 @@ class _NotifCard extends StatefulWidget {
 class _NotifCardState extends State<_NotifCard> {
   bool _pressed = false;
 
-  // ── Type config ────────────────────────────────────────────────────────────
   _NotifConfig get _config {
-    switch (widget.item.type) {
-      case NotifType.order:
-        return _NotifConfig(
-          icon: Icons.inventory_2_outlined,
+    return switch (widget.notification.type) {
+      'order_status' || 'deal_closed' => _NotifConfig(
+          icon: Icons.local_shipping_outlined,
           color: ColorPalette.secondary,
           label: 'Order',
-        );
-      case NotifType.payment:
-        return _NotifConfig(
-          icon: Icons.payments_outlined,
+        ),
+      'instalment_paid' => _NotifConfig(
+          icon: Icons.receipt_outlined,
           color: const Color(0xFF2ECC71),
           label: 'Payment',
-        );
-      case NotifType.promo:
-        return _NotifConfig(
-          icon: Icons.local_offer_outlined,
-          color: const Color(0xFFE67E22),
-          label: 'Offer',
-        );
-      case NotifType.system:
-        return _NotifConfig(
-          icon: Icons.info_outline_rounded,
+        ),
+      'account_verified' => _NotifConfig(
+          icon: Icons.verified_user_outlined,
           color: const Color(0xFF8E44AD),
-          label: 'System',
-        );
-    }
+          label: 'Account',
+        ),
+      'broadcast' => _NotifConfig(
+          icon: Icons.campaign_outlined,
+          color: const Color(0xFFE67E22),
+          label: 'Promo',
+        ),
+      _ => _NotifConfig(
+          icon: Icons.notifications_outlined,
+          color: ColorPalette.secondary,
+          label: 'Alert',
+        ),
+    };
   }
 
   String _timeAgo(DateTime dt) {
@@ -563,8 +552,8 @@ class _NotifCardState extends State<_NotifCard> {
   @override
   Widget build(BuildContext context) {
     final cfg = _config;
-    final item = widget.item;
-    final isUnread = !item.isRead;
+    final n = widget.notification;
+    final isUnread = !n.isRead;
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
@@ -610,28 +599,26 @@ class _NotifCardState extends State<_NotifCard> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Icon ──────────────────────────────────────────────
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: cfg.color.withOpacity(isUnread ? 0.12 : 0.07),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Icon(
-                    cfg.icon,
-                    size: 21,
-                    color: cfg.color.withOpacity(isUnread ? 1.0 : 0.5),
-                  ),
-                ),
+                // ── Icon / Image ───────────────────────────────────
+                n.image != null && n.image!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: Image.network(
+                          n.image!,
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _iconWidget(cfg, isUnread),
+                        ),
+                      )
+                    : _iconWidget(cfg, isUnread),
                 const SizedBox(width: 12),
 
-                // ── Content ───────────────────────────────────────────
+                // ── Content ───────────────────────────────────────
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Type label + time
                       Row(
                         children: [
                           Container(
@@ -655,16 +642,13 @@ class _NotifCardState extends State<_NotifCard> {
                           ),
                           const Spacer(),
                           Text(
-                            _timeAgo(item.time),
+                            _timeAgo(n.createdAtDate),
                             style: TextStyle(
                               fontSize: 11,
-                              color: ColorPalette.textSecondary.withOpacity(
-                                0.7,
-                              ),
+                              color: ColorPalette.textSecondary.withOpacity(0.7),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          // Unread dot
                           if (isUnread) ...[
                             const SizedBox(width: 8),
                             Container(
@@ -679,14 +663,12 @@ class _NotifCardState extends State<_NotifCard> {
                         ],
                       ),
                       const SizedBox(height: 7),
-                      // Title
                       Text(
-                        item.title,
+                        n.title,
                         style: TextStyle(
                           fontSize: 13.5,
-                          fontWeight: isUnread
-                              ? FontWeight.w700
-                              : FontWeight.w600,
+                          fontWeight:
+                              isUnread ? FontWeight.w700 : FontWeight.w600,
                           color: isUnread
                               ? ColorPalette.textPrimary
                               : ColorPalette.textSecondary,
@@ -694,9 +676,8 @@ class _NotifCardState extends State<_NotifCard> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      // Body
                       Text(
-                        item.body,
+                        n.body,
                         style: TextStyle(
                           fontSize: 12.5,
                           color: ColorPalette.textSecondary.withOpacity(
@@ -717,9 +698,24 @@ class _NotifCardState extends State<_NotifCard> {
       ),
     );
   }
+
+  Widget _iconWidget(_NotifConfig cfg, bool isUnread) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: cfg.color.withOpacity(isUnread ? 0.12 : 0.07),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Icon(
+        cfg.icon,
+        size: 21,
+        color: cfg.color.withOpacity(isUnread ? 1.0 : 0.5),
+      ),
+    );
+  }
 }
 
-// ── Simple config helper ───────────────────────────────────────────────────
 class _NotifConfig {
   final IconData icon;
   final Color color;

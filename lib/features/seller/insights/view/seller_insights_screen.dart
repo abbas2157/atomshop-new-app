@@ -61,11 +61,8 @@ class _SellerInsightsScreenState extends ConsumerState<SellerInsightsScreen> {
             title: 'Insights',
             subtitle: 'Performance & analytics',
             actions: [
-              SellerHeaderIconButton(
-                icon: Icons.refresh_rounded,
-                tooltip: 'Refresh',
-                onTap: () => ref.invalidate(sellerDashboardProvider(query)),
-              ),
+              const SellerNotificationBell(),
+              const SellerHeaderProfileButton(),
             ],
           ),
           Expanded(

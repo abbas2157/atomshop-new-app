@@ -153,11 +153,13 @@ class _SellerInstalmentsScreenState
               title: 'Instalments & Dues',
               subtitle: 'Track recovery and collect payments',
               actions: [
+                const SellerNotificationBell(),
                 SellerHeaderIconButton(
                   icon: Icons.picture_as_pdf_outlined,
                   onTap: _openTopupPdf,
                   tooltip: 'Recovery sheet PDF',
                 ),
+                const SellerHeaderProfileButton(),
               ],
             ),
             // ── Status tabs ───────────────────────────────────────────

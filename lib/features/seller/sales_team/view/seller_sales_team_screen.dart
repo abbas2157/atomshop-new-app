@@ -169,11 +169,8 @@ class _SellerSalesTeamScreenState extends ConsumerState<SellerSalesTeamScreen> {
               title: 'Sales Team',
               subtitle: 'Manage field sales and recovery members',
               actions: [
-                SellerHeaderIconButton(
-                  icon: Icons.refresh_rounded,
-                  onTap: () => ref.invalidate(sellerSalesTeamProvider),
-                  tooltip: 'Refresh',
-                ),
+                const SellerNotificationBell(),
+                const SellerHeaderProfileButton(),
               ],
             ),
             Expanded(
@@ -557,14 +554,9 @@ class SellerSalesTeamPerformanceScreen extends ConsumerWidget {
                   title: member.user.name,
                   subtitle:
                       '${_memberTypeLabel(member.memberType)} · ${member.user.phone}',
-                  actions: [
-                    SellerHeaderIconButton(
-                      icon: Icons.refresh_rounded,
-                      onTap: () => ref.invalidate(
-                        sellerSalesTeamPerformanceProvider(userUuid),
-                      ),
-                      tooltip: 'Refresh',
-                    ),
+                  actions: const [
+                    SellerNotificationBell(),
+                    SellerHeaderProfileButton(),
                   ],
                 ),
                 Expanded(

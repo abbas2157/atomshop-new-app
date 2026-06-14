@@ -65,6 +65,7 @@ class _BottomBarPageState extends State<BottomBarPage> {
         () => _scaffoldKey.currentState?.openDrawer(),
         false,
         showMenuButton: true,
+        showNotificationBell: true,
       ),
       key: _scaffoldKey,
       drawer: AppDrawer(
