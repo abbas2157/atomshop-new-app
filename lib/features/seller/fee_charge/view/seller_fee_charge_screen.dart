@@ -144,7 +144,9 @@ class _SellerFeeChargeScreenState extends ConsumerState<SellerFeeChargeScreen> {
             ],
           ),
         ),
-        data: (data) => Column(
+        data: (data) => data.gate != null
+            ? SellerPlanGateState(exception: data.gate!)
+            : Column(
           children: [
             _FeeChargeHeader(
               data: data,

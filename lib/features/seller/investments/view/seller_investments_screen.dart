@@ -103,7 +103,9 @@ class _SellerInvestmentsScreenState
             ],
           ),
         ),
-        data: (data) => Column(
+        data: (data) => data.gate != null
+            ? SellerPlanGateState(exception: data.gate!)
+            : Column(
           children: [
             SellerGradientHeader(
               leading: SellerIconBadge(

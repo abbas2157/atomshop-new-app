@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 class SellerCustomOrdersQuery {
   final int page;
   final String? status;
@@ -90,11 +92,31 @@ class SellerCustomOrdersResponse {
   final SellerCustomOrdersPagination pagination;
   final Map<String, int> statuses;
 
+  /// Non-null when the seller's plan doesn't include custom orders. Carried as
+  /// data (not thrown) so the provider settles into a stable AsyncData state and
+  /// can't enter the AsyncError refetch loop. The screen renders the gate from it.
+  final SellerPlanUpgradeException? gate;
+
   const SellerCustomOrdersResponse({
     required this.orders,
     required this.pagination,
     required this.statuses,
+    this.gate,
   });
+
+  factory SellerCustomOrdersResponse.gated(SellerPlanUpgradeException gate) {
+    return SellerCustomOrdersResponse(
+      orders: const [],
+      pagination: const SellerCustomOrdersPagination(
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 0,
+        total: 0,
+      ),
+      statuses: const {},
+      gate: gate,
+    );
+  }
 
   factory SellerCustomOrdersResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? {};

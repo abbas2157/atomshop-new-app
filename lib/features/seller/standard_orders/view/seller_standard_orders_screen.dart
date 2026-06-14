@@ -72,7 +72,9 @@ class _SellerStandardOrdersScreenState
                   message: _cleanError(error),
                   onRetry: _refresh,
                 ),
-          data: (data) => ListView(
+          data: (data) => data.gate != null
+              ? SellerPlanGateState(exception: data.gate!)
+              : ListView(
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),

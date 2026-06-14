@@ -30,7 +30,12 @@ class SellerOutstandingScreen extends ConsumerWidget {
                 message: e.toString().replaceFirst('Exception: ', ''),
                 onRetry: () => ref.invalidate(sellerOutstandingProvider),
               ),
-              data: (data) => RefreshIndicator(
+              data: (g) {
+                if (g.isGated) {
+                  return SellerPlanGateState(exception: g.gate!);
+                }
+                final data = g.value!;
+                return RefreshIndicator(
                 color: c.accent,
                 backgroundColor: c.surface,
                 onRefresh: () async {
@@ -44,7 +49,8 @@ class SellerOutstandingScreen extends ConsumerWidget {
                         message: 'All accounts are settled.',
                       )
                     : _OutstandingBody(data: data),
-              ),
+                );
+              },
             ),
           ),
         ],

@@ -252,6 +252,9 @@ class _SellerInstalmentsScreenState
                               ref.invalidate(sellerInstalmentsListProvider(_query)),
                         ),
                   data: (data) {
+                    if (data.gate != null) {
+                      return SellerPlanGateState(exception: data.gate!);
+                    }
                     return ListView(
                       physics: const BouncingScrollPhysics(
                         parent: AlwaysScrollableScrollPhysics(),

@@ -133,7 +133,11 @@ class _SellerOffersReportScreenState
                       onRetry: () => ref.invalidate(
                           sellerOffersReportProvider(_query)),
                     ),
-                    data: (data) {
+                    data: (g) {
+                      if (g.isGated) {
+                        return SellerPlanGateState(exception: g.gate!);
+                      }
+                      final data = g.value!;
                       if (data.rows.isEmpty) {
                         return const SellerEmptyState(
                           icon: Icons.local_offer_outlined,

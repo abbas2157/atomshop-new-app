@@ -1,4 +1,5 @@
 import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+import 'package:atompro/features/seller/core/models/seller_gated.dart';
 import 'package:atompro/features/seller/sales_team/model/seller_sales_team_model.dart';
 import 'package:atompro/features/seller/sales_team/repository/seller_sales_team_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,24 +54,39 @@ final sellerSalesTeamProvider = FutureProvider.autoDispose
               memberType: q.memberType,
               query: q.query,
             );
-      } on SellerPlanUpgradeException {
-        // Pin the errored state so the autoDispose provider isn't disposed and
-        // re-run on every gate-screen rebuild (infinite refetch loop).
+      } on SellerPlanUpgradeException catch (e) {
+        // Return the gate as data so the provider settles into a stable
+        // AsyncData state instead of an AsyncError that re-runs every rebuild.
         ref.keepAlive();
-        rethrow;
+        return SellerSalesTeamResponse.gated(e);
       }
     });
 
 final sellerSalesTeamEditProvider = FutureProvider.autoDispose
-    .family<SellerSalesTeamEditData, String>((ref, memberUuid) {
-      return ref
-          .read(sellerSalesTeamRepositoryProvider)
-          .getMemberEdit(memberUuid);
+    .family<SellerGated<SellerSalesTeamEditData>, String>((ref, memberUuid) async {
+      try {
+        return SellerGated.value(
+          await ref.read(sellerSalesTeamRepositoryProvider).getMemberEdit(memberUuid),
+        );
+      } on SellerPlanUpgradeException catch (e) {
+        ref.keepAlive();
+        return SellerGated.gated(e);
+      }
     });
 
 final sellerSalesTeamPerformanceProvider = FutureProvider.autoDispose
-    .family<SellerSalesTeamPerformance, String>((ref, memberUuid) {
-      return ref
-          .read(sellerSalesTeamRepositoryProvider)
-          .getPerformance(memberUuid);
+    .family<SellerGated<SellerSalesTeamPerformance>, String>((
+      ref,
+      memberUuid,
+    ) async {
+      try {
+        return SellerGated.value(
+          await ref
+              .read(sellerSalesTeamRepositoryProvider)
+              .getPerformance(memberUuid),
+        );
+      } on SellerPlanUpgradeException catch (e) {
+        ref.keepAlive();
+        return SellerGated.gated(e);
+      }
     });

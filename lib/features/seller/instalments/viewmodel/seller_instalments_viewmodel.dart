@@ -12,11 +12,11 @@ final sellerInstalmentsListProvider = FutureProvider.autoDispose
         return await ref
             .read(sellerInstalmentsRepositoryProvider)
             .getInstalmentsList(query);
-      } on SellerPlanUpgradeException {
-        // Pin the errored state so the autoDispose provider isn't disposed and
-        // re-run on every gate-screen rebuild (infinite refetch loop).
+      } on SellerPlanUpgradeException catch (e) {
+        // Return the gate as data so the provider settles into a stable
+        // AsyncData state instead of an AsyncError that re-runs every rebuild.
         ref.keepAlive();
-        rethrow;
+        return SellerInstalmentsListResponse.gated(e);
       }
     });
 

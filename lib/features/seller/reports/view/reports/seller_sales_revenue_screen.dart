@@ -117,7 +117,11 @@ class _SellerSalesRevenueScreenState
                       onRetry: () => ref.invalidate(
                           sellerSalesRevenueProvider(_query)),
                     ),
-                    data: (data) {
+                    data: (g) {
+                      if (g.isGated) {
+                        return SellerPlanGateState(exception: g.gate!);
+                      }
+                      final data = g.value!;
                       if (data.rows.isEmpty) {
                         return SellerEmptyState(
                           icon: Icons.trending_up_rounded,

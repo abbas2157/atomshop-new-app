@@ -10,11 +10,12 @@ final sellerCustomOrdersProvider = FutureProvider.autoDispose
     return await ref
         .read(sellerCustomOrdersRepositoryProvider)
         .getCustomOrders(query);
-  } on SellerPlanUpgradeException {
-    // Pin the errored state so the autoDispose provider isn't disposed and
-    // re-run on every gate-screen rebuild (infinite refetch loop).
+  } on SellerPlanUpgradeException catch (e) {
+    // Return the gate as data (not thrown) so the provider settles into a
+    // stable AsyncData state instead of an AsyncError that re-runs on every
+    // rebuild (infinite refetch loop). The screen reads `.gate`.
     ref.keepAlive();
-    rethrow;
+    return SellerCustomOrdersResponse.gated(e);
   }
 });
 

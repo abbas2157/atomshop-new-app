@@ -30,15 +30,21 @@ class SellerAgingReportScreen extends ConsumerWidget {
                 message: e.toString().replaceFirst('Exception: ', ''),
                 onRetry: () => ref.invalidate(sellerAgingReportProvider),
               ),
-              data: (data) => RefreshIndicator(
-                color: c.accent,
-                backgroundColor: c.surface,
-                onRefresh: () async {
-                  ref.invalidate(sellerAgingReportProvider);
-                  await ref.read(sellerAgingReportProvider.future);
-                },
-                child: _AgingBody(data: data),
-              ),
+              data: (g) {
+                if (g.isGated) {
+                  return SellerPlanGateState(exception: g.gate!);
+                }
+                final data = g.value!;
+                return RefreshIndicator(
+                  color: c.accent,
+                  backgroundColor: c.surface,
+                  onRefresh: () async {
+                    ref.invalidate(sellerAgingReportProvider);
+                    await ref.read(sellerAgingReportProvider.future);
+                  },
+                  child: _AgingBody(data: data),
+                );
+              },
             ),
           ),
         ],

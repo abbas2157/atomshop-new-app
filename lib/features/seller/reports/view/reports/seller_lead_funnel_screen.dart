@@ -122,7 +122,9 @@ class _SellerLeadFunnelScreenState
                       onRetry: () => ref.invalidate(
                           sellerLeadFunnelProvider(_query)),
                     ),
-                    data: (data) => _FunnelBody(data: data),
+                    data: (g) => g.isGated
+                        ? SellerPlanGateState(exception: g.gate!)
+                        : _FunnelBody(data: g.value!),
                   ),
                 ],
               ],

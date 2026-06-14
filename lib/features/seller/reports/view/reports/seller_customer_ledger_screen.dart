@@ -136,7 +136,9 @@ class _SellerCustomerLedgerScreenState
                       onRetry: () =>
                           ref.invalidate(sellerCustomerLedgerProvider(_query)),
                     ),
-                    data: (data) => _LedgerBody(data: data),
+                    data: (g) => g.isGated
+                        ? SellerPlanGateState(exception: g.gate!)
+                        : _LedgerBody(data: g.value!),
                   ),
                 ],
               ],

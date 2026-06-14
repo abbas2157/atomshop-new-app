@@ -1,11 +1,31 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 class SellerSalesTeamResponse {
   final List<SellerSalesTeamMember> members;
   final SellerSalesTeamPagination pagination;
 
+  /// Non-null when the plan doesn't include this feature — carried as data, not
+  /// thrown, to avoid the AsyncError refetch loop. Screen renders the gate from it.
+  final SellerPlanUpgradeException? gate;
+
   const SellerSalesTeamResponse({
     required this.members,
     required this.pagination,
+    this.gate,
   });
+
+  factory SellerSalesTeamResponse.gated(SellerPlanUpgradeException gate) {
+    return SellerSalesTeamResponse(
+      members: const [],
+      pagination: const SellerSalesTeamPagination(
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 0,
+        total: 0,
+      ),
+      gate: gate,
+    );
+  }
 
   factory SellerSalesTeamResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'] is Map

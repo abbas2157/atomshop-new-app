@@ -81,7 +81,12 @@ class _SellerDefaultersScreenState
                 onRetry: () =>
                     ref.invalidate(sellerDefaultersProvider(_query)),
               ),
-              data: (data) => RefreshIndicator(
+              data: (g) {
+                if (g.isGated) {
+                  return SellerPlanGateState(exception: g.gate!);
+                }
+                final data = g.value!;
+                return RefreshIndicator(
                 color: c.accent,
                 backgroundColor: c.surface,
                 onRefresh: () async {
@@ -123,7 +128,8 @@ class _SellerDefaultersScreenState
                           )),
                         ],
                       ),
-              ),
+                );
+              },
             ),
           ),
         ],

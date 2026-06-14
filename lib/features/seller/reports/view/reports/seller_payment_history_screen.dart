@@ -87,13 +87,19 @@ class _SellerPaymentHistoryScreenState
                       onRetry: () => ref.invalidate(
                           sellerPaymentHistoryProvider(_query!)),
                     ),
-                    data: (data) => data.rows.isEmpty
-                        ? const SellerEmptyState(
-                            icon: Icons.history_rounded,
-                            title: 'No payments',
-                            message: 'No payment records found.',
-                          )
-                        : _PaymentBody(data: data),
+                    data: (g) {
+                      if (g.isGated) {
+                        return SellerPlanGateState(exception: g.gate!);
+                      }
+                      final data = g.value!;
+                      return data.rows.isEmpty
+                          ? const SellerEmptyState(
+                              icon: Icons.history_rounded,
+                              title: 'No payments',
+                              message: 'No payment records found.',
+                            )
+                          : _PaymentBody(data: data);
+                    },
                   ),
                 ],
               ],

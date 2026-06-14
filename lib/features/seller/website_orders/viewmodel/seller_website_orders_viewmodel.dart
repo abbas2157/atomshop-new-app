@@ -6,14 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final sellerWebsiteOrdersProvider = FutureProvider.autoDispose
     .family<SellerWebsiteOrdersResponse, SellerWebsiteOrdersQuery>(
         (ref, query) async {
+  // The plan gate is returned as DATA (SellerWebsiteOrdersResponse.gated),
+  // never thrown. A thrown SellerPlanUpgradeException left the provider in an
+  // AsyncError state that was re-executed on every rebuild — an infinite
+  // refetch loop. Settling into a stable AsyncData state stops it. The screen
+  // reads `response.gate` to decide whether to show the plan gate.
   try {
     return await ref
         .read(sellerWebsiteOrdersRepositoryProvider)
         .getWebsiteOrders(search: query.search, page: query.page);
-  } on SellerPlanUpgradeException {
-    // Pin the errored state so the autoDispose provider isn't disposed and
-    // re-run on every gate-screen rebuild (infinite refetch loop).
+  } on SellerPlanUpgradeException catch (e) {
     ref.keepAlive();
-    rethrow;
+    return SellerWebsiteOrdersResponse.gated(e);
   }
 });

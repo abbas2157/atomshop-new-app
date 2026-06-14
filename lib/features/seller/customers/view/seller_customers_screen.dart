@@ -152,6 +152,9 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                               ref.invalidate(sellerCustomersProvider(_query)),
                         ),
                   data: (data) {
+                    if (data.gate != null) {
+                      return SellerPlanGateState(exception: data.gate!);
+                    }
                     final customers = _filter(data.customers, _search);
                     return ListView(
                       physics: const BouncingScrollPhysics(

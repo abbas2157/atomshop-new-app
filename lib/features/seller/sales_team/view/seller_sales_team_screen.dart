@@ -216,6 +216,9 @@ class _SellerSalesTeamScreenState extends ConsumerState<SellerSalesTeamScreen> {
                                   ref.invalidate(sellerSalesTeamProvider(_query)),
                             ),
                       data: (data) {
+                        if (data.gate != null) {
+                          return SellerPlanGateState(exception: data.gate!);
+                        }
                         final members = data.members;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -590,9 +593,11 @@ class SellerSalesTeamPerformanceScreen extends ConsumerWidget {
                                 ),
                               ],
                             ),
-                      data: (performance) => _PerformanceBody(
-                        performance: performance,
-                      ),
+                      data: (g) => g.isGated
+                          ? SellerPlanGateState(exception: g.gate!)
+                          : _PerformanceBody(
+                              performance: g.value!,
+                            ),
                     ),
                   ),
                 ),

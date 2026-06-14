@@ -251,13 +251,15 @@ class _SellerCustomOrdersScreenState
                             onRetry: () =>
                                 ref.invalidate(sellerCustomOrdersProvider(_query)),
                           ),
-                    data: (data) => _OrdersContent(
-                      data: data,
-                      statusCounts: statusCounts,
-                      selectedStatus: _query.status,
-                      onStatusSelect: _selectStatus,
-                      onPage: _goToPage,
-                    ),
+                    data: (data) => data.gate != null
+                        ? SellerPlanGateState(exception: data.gate!)
+                        : _OrdersContent(
+                            data: data,
+                            statusCounts: statusCounts,
+                            selectedStatus: _query.status,
+                            onStatusSelect: _selectStatus,
+                            onPage: _goToPage,
+                          ),
                   ),
                 ],
               ),
