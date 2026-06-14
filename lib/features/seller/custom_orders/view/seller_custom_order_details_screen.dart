@@ -12,6 +12,7 @@
 
 import 'dart:io';
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
@@ -19,6 +20,8 @@ import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/model/seller_custom_orders_model.dart';
 import 'package:atompro/features/seller/custom_orders/repository/seller_custom_orders_repository.dart';
 import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_orders_viewmodel.dart';
+import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
+import 'package:atompro/features/seller/customers/view/seller_customer_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,11 +71,13 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
             ),
             body: state.when(
               loading: () => _LoadingView(initialOrder: initialOrder),
-              error: (error, _) => SellerErrorState(
-                message: error.toString().replaceFirst('Exception: ', ''),
-                onRetry: () =>
-                    ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid)),
-              ),
+              error: (error, _) => error is SellerPlanUpgradeException
+                  ? SellerPlanGateState(exception: error)
+                  : SellerErrorState(
+                      message: error.toString().replaceFirst('Exception: ', ''),
+                      onRetry: () =>
+                          ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid)),
+                    ),
               data: (details) => _DetailsContent(
                 details: details,
                 orderUuid: orderUuid,
@@ -116,6 +121,16 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
                   orderUuid: orderUuid,
                   initial: initial,
                 ),
+                onVerifyCustomer: details.user.customer.hasData
+                    ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SellerCustomerFormScreen(
+                              existing: _customerFromOrderUser(details.user),
+                            ),
+                          ),
+                        )
+                    : null,
                 onRefresh: () async {
                   ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
                   ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
@@ -156,6 +171,7 @@ class _DetailsContent extends StatelessWidget {
   final VoidCallback? onCloseDeal;
   final ValueChanged<SellerCustomOrderInstalment>? onPayInstalment;
   final ValueChanged<SellerCustomOrderGuarantor?> onAddGuarantor;
+  final VoidCallback? onVerifyCustomer;
   final Future<void> Function() onRefresh;
 
   const _DetailsContent({
@@ -166,6 +182,7 @@ class _DetailsContent extends StatelessWidget {
     required this.onCloseDeal,
     required this.onPayInstalment,
     required this.onAddGuarantor,
+    required this.onVerifyCustomer,
     required this.onRefresh,
   });
 
@@ -253,6 +270,7 @@ class _DetailsContent extends StatelessWidget {
               user: user,
               customer: customer,
               hasCustomer: customer.hasData,
+              onVerifyCustomer: onVerifyCustomer,
             ),
           ),
 
@@ -820,16 +838,55 @@ class _SpecCell extends StatelessWidget {
   }
 }
 
+/// Maps a [SellerCustomOrderUser] → [SellerCustomer] so the customer form
+/// screen can be opened in edit mode directly from the order detail screen.
+SellerCustomer _customerFromOrderUser(SellerCustomOrderUser user) {
+  final c = user.customer;
+  return SellerCustomer(
+    id: user.id,
+    uuid: user.uuid,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: 'customer',
+    status: user.status,
+    joinedThrough: user.joinedThrough,
+    createdAt: user.createdAt,
+    lastLoginAt: '',
+    profile: SellerCustomerProfile(
+      id: c.id,
+      identifier: c.identifier,
+      picture: 'Not available',
+      address: c.address,
+      cityId: c.cityId,
+      areaId: c.areaId,
+      cityTitle: c.cityTitle,
+      areaTitle: c.areaTitle,
+      cnicNo: c.cnicNo,
+      fatherName: c.fatherName,
+      residencePhone: c.residencePhone,
+      officeAddress: c.officeAddress,
+      officePhone: c.officePhone,
+      verified: c.verified,
+      type: c.type,
+      portal: c.portal,
+      notVerifiedReason: 'Not available',
+    ),
+  );
+}
+
 // ── Customer details ──────────────────────────────────────────────────────────
 class _CustomerContent extends StatelessWidget {
   final SellerCustomOrderUser user;
   final SellerCustomOrderCustomer customer;
   final bool hasCustomer;
+  final VoidCallback? onVerifyCustomer;
 
   const _CustomerContent({
     required this.user,
     required this.customer,
     required this.hasCustomer,
+    required this.onVerifyCustomer,
   });
 
   @override
@@ -865,6 +922,14 @@ class _CustomerContent extends StatelessWidget {
               ),
             ],
           ),
+          if (onVerifyCustomer != null) ...[
+            const Gap.v(AppSpace.sm),
+            SellerButton.secondary(
+              label: 'Verify Customer',
+              icon: Icons.verified_user_outlined,
+              onPressed: onVerifyCustomer,
+            ),
+          ],
         ],
       ],
     );

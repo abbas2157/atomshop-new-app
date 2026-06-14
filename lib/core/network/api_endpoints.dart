@@ -53,9 +53,6 @@ class ApiEndpoints {
   static const String sellerMyCustomers = "seller-app/customers/my";
   static const String sellerOtherCustomers = "seller-app/customers/other";
   static const String sellerStoreCustomer = "seller-app/customers/store";
-  static const String sellerImportCustomers = "seller-app/customers/import";
-  static const String sellerCustomersImportSample =
-      "seller-app/customers/import/sample";
   static const String sellerCustomersNotificationCount =
       "seller-app/customers/notification-count";
   static const String sellerOrders = "seller-app/orders";
@@ -76,8 +73,6 @@ class ApiEndpoints {
   static const String sellerOtherLeadStatusCounts =
       "seller-app/leads/others-status-counts";
   static const String sellerNewLeadsCount = "seller-app/leads/count";
-  static const String sellerImportLeads = "seller-app/leads/import";
-  static const String sellerLeadsSample = "seller-app/leads/sample";
   static const String sellerSalesTeam = "seller-app/sales-team";
   static const String sellerStoreSalesTeamMember =
       "seller-app/sales-team/store";
@@ -117,19 +112,11 @@ class ApiEndpoints {
   static String sellerCustomerAreasByCity(int cityId) =>
       "seller-app/customers/areas?city_id=$cityId";
 
-  static String sellerInstalmentsExport({String? status}) {
-    final suffix = status == null || status.isEmpty ? "" : "?status=$status";
-    return "seller-app/instalment/export$suffix";
-  }
-
   static String sellerInstalmentOrderDetail(int orderId) =>
       "seller-app/instalment/order/$orderId";
 
   static String sellerInstalmentInvoiceData(int instalmentId) =>
       "seller-app/instalment/invoice/$instalmentId/data";
-
-  static String sellerInstalmentInvoice(int instalmentId) =>
-      "seller-app/instalment/invoice/$instalmentId";
 
   static String sellerLeadUpdate(int leadId) =>
       "seller-app/leads/update/$leadId";
@@ -162,4 +149,44 @@ class ApiEndpoints {
       "seller-app/custom-orders/guarantor/$orderUuid";
 
   static const String sellerWebsiteOrders = "seller-app/website-orders";
+
+  // ── Seller reports ─────────────────────────────────────────────────────
+  static const String sellerReportsCustomers =
+      'seller-app/reports/customers';
+  static const String sellerReportsRecoverySheet =
+      'seller-app/reports/recovery-sheet';
+  static const String sellerReportsCustomerLedger =
+      'seller-app/reports/customer-ledger';
+  static const String sellerReportsAging =
+      'seller-app/reports/aging';
+  static const String sellerReportsUpcomingDues =
+      'seller-app/reports/upcoming-dues';
+  static const String sellerReportsDefaulters =
+      'seller-app/reports/defaulters';
+  static const String sellerReportsCollection =
+      'seller-app/reports/collection';
+  static const String sellerReportsSalesRevenue =
+      'seller-app/reports/sales-revenue';
+  static const String sellerReportsOrderSummary =
+      'seller-app/reports/order-summary';
+  static const String sellerReportsLeadFunnel =
+      'seller-app/reports/lead-funnel';
+  static const String sellerReportsOffersReport =
+      'seller-app/reports/offers-report';
+  static const String sellerReportsOutstanding =
+      'seller-app/reports/outstanding';
+  static const String sellerReportsPaymentHistory =
+      'seller-app/reports/payment-history';
+
+  // ── Customer notifications ──────────────────────────────────────────────
+  static const String customerNotifications = 'notifications';
+  static const String customerNotificationsCount = 'notifications/count';
+  static String customerNotificationRead(int id) => 'notifications/$id/read';
+  static const String customerNotificationsReadAll = 'notifications/read-all';
+
+  // ── Seller notifications ────────────────────────────────────────────────
+  static const String sellerNotifications = 'seller-app/notifications';
+  static const String sellerNotificationsCount = 'seller-app/notifications/count';
+  static String sellerNotificationRead(int id) => 'seller-app/notifications/$id/read';
+  static const String sellerNotificationsReadAll = 'seller-app/notifications/read-all';
 }

@@ -1,11 +1,31 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 class SellerInvestmentsResponse {
   final List<SellerInvestment> investments;
   final SellerInvestmentsPagination pagination;
 
+  /// Non-null when the plan doesn't include this feature — carried as data, not
+  /// thrown, to avoid the AsyncError refetch loop. Screen renders the gate from it.
+  final SellerPlanUpgradeException? gate;
+
   const SellerInvestmentsResponse({
     required this.investments,
     required this.pagination,
+    this.gate,
   });
+
+  factory SellerInvestmentsResponse.gated(SellerPlanUpgradeException gate) {
+    return SellerInvestmentsResponse(
+      investments: const [],
+      pagination: const SellerInvestmentsPagination(
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 0,
+        total: 0,
+      ),
+      gate: gate,
+    );
+  }
 
   int get totalAmount => investments.fold(0, (sum, item) => sum + item.amount);
   int get activeCount =>

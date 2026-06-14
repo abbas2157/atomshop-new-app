@@ -1,3 +1,5 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 enum SellerCustomerScope {
   all('All Area', 'All'),
   mine('My Customers', 'My'),
@@ -40,10 +42,28 @@ class SellerCustomersResponse {
   final List<SellerCustomer> customers;
   final SellerCustomersPagination pagination;
 
+  /// Non-null when the plan doesn't include this feature — carried as data, not
+  /// thrown, to avoid the AsyncError refetch loop. Screen renders the gate from it.
+  final SellerPlanUpgradeException? gate;
+
   const SellerCustomersResponse({
     required this.customers,
     required this.pagination,
+    this.gate,
   });
+
+  factory SellerCustomersResponse.gated(SellerPlanUpgradeException gate) {
+    return SellerCustomersResponse(
+      customers: const [],
+      pagination: const SellerCustomersPagination(
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 0,
+        total: 0,
+      ),
+      gate: gate,
+    );
+  }
 
   factory SellerCustomersResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'] is Map

@@ -1,15 +1,37 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 class SellerFeeChargeResponse {
   final int grandTotal;
   final int totalPaid;
   final List<SellerFeeCharge> charges;
   final SellerFeeChargePagination pagination;
 
+  /// Non-null when the plan doesn't include this feature — carried as data, not
+  /// thrown, to avoid the AsyncError refetch loop. Screen renders the gate from it.
+  final SellerPlanUpgradeException? gate;
+
   const SellerFeeChargeResponse({
     required this.grandTotal,
     required this.totalPaid,
     required this.charges,
     required this.pagination,
+    this.gate,
   });
+
+  factory SellerFeeChargeResponse.gated(SellerPlanUpgradeException gate) {
+    return SellerFeeChargeResponse(
+      grandTotal: 0,
+      totalPaid: 0,
+      charges: const [],
+      pagination: const SellerFeeChargePagination(
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 0,
+        total: 0,
+      ),
+      gate: gate,
+    );
+  }
 
   int get outstanding => grandTotal - totalPaid;
   bool get hasOutstanding => outstanding > 0;

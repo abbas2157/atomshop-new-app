@@ -1,10 +1,20 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
 import 'package:atompro/features/seller/customers/repository/seller_customers_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final sellerCustomersProvider = FutureProvider.autoDispose
-    .family<SellerCustomersResponse, SellerCustomersQuery>((ref, query) {
-      return ref.read(sellerCustomersRepositoryProvider).getCustomers(query);
+    .family<SellerCustomersResponse, SellerCustomersQuery>((ref, query) async {
+      try {
+        return await ref
+            .read(sellerCustomersRepositoryProvider)
+            .getCustomers(query);
+      } on SellerPlanUpgradeException catch (e) {
+        // Return the gate as data so the provider settles into a stable
+        // AsyncData state instead of an AsyncError that re-runs every rebuild.
+        ref.keepAlive();
+        return SellerCustomersResponse.gated(e);
+      }
     });
 
 final sellerCustomersNotificationCountProvider =

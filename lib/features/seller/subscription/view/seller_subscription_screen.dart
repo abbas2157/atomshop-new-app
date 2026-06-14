@@ -52,11 +52,13 @@ class SellerSubscriptionScreen extends ConsumerWidget {
                     ),
                   ]
                 : [
+                    const SellerNotificationBell(),
                     SellerHeaderIconButton(
                       icon: Icons.refresh_rounded,
                       tooltip: 'Refresh',
                       onTap: () => ref.invalidate(sellerSubscriptionProvider),
                     ),
+                    const SellerHeaderProfileButton(),
                   ],
           ),
           Expanded(

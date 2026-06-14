@@ -9,6 +9,7 @@
 
 import 'dart:io';
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
@@ -97,20 +98,27 @@ class SellerInstalmentOrderScreen extends ConsumerWidget {
                     label: detail.orderStatus,
                     tone: orderStatusTone(detail.orderStatus, c),
                   ),
+                  const SellerNotificationBell(),
+                  const SellerHeaderProfileButton(),
                 ],
               ),
-              orElse: () => const SellerGradientHeader(title: 'Order Ledger'),
+              orElse: () => const SellerGradientHeader(
+                title: 'Order Ledger',
+                actions: [SellerNotificationBell(), SellerHeaderProfileButton()],
+              ),
             ),
             Expanded(
               child: state.when(
                 loading: () =>
                     const SellerListSkeleton(count: 5, itemHeight: 120),
-                error: (error, _) => SellerErrorState(
-                  message: _cleanError(error),
-                  onRetry: () => ref.invalidate(
-                    sellerInstalmentOrderDetailProvider(orderId),
-                  ),
-                ),
+                error: (error, _) => error is SellerPlanUpgradeException
+                    ? SellerPlanGateState(exception: error)
+                    : SellerErrorState(
+                        message: _cleanError(error),
+                        onRetry: () => ref.invalidate(
+                          sellerInstalmentOrderDetailProvider(orderId),
+                        ),
+                      ),
                 data: (detail) => RefreshIndicator(
                   color: c.accent,
                   backgroundColor: c.surface,

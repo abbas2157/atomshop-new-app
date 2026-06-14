@@ -9,16 +9,16 @@
 //  avatar. Business logic & data model unchanged.
 // ============================================================
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
-import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_orders_viewmodel.dart';
 import 'package:atompro/features/seller/profile/viewmodel/seller_profile_viewmodel.dart';
-import 'package:atompro/features/seller/customers/view/seller_customers_screen.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
 import 'package:atompro/features/seller/dashboard/viewmodel/seller_dashboard_viewmodel.dart';
 import 'package:atompro/features/seller/instalments/view/seller_instalments_screen.dart';
 import 'package:atompro/features/seller/profile/view/seller_profile_screen.dart';
+import 'package:atompro/features/seller/subscription/viewmodel/seller_subscription_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,8 +27,8 @@ class SellerTab {
   static const home = 0;
   static const leads = 1;
   static const orders = 2;
-  static const finance = 3;
-  static const insights = 4;
+  static const customers = 3;
+  static const reports = 4;
 }
 
 class SellerDashboardScreen extends ConsumerWidget {
@@ -45,42 +45,51 @@ class SellerDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.sellerColors;
     final bundle = ref.watch(sellerDashboardProvider(_query));
-    final pictureUrl = ref.watch(sellerProfileBundleProvider).asData?.value.profile.profilePictureUrl;
+    final pictureUrl = ref
+        .watch(sellerProfileBundleProvider)
+        .asData
+        ?.value
+        .profile
+        .profilePictureUrl;
+    final hasMarketing =
+        ref
+            .watch(sellerSubscriptionProvider)
+            .asData
+            ?.value
+            .plan
+            ?.featureMarketing ??
+        false;
 
     return Scaffold(
       backgroundColor: c.canvas,
       body: bundle.when(
         loading: () => const _HomeSkeleton(),
         error: (e, _) => SafeArea(
-          child: SellerErrorState(
-            message: e.toString().replaceFirst('Exception: ', ''),
-            onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
-          ),
+          child: e is SellerPlanUpgradeException
+              ? SellerPlanGateState(exception: e)
+              : SellerErrorState(
+                  message: e.toString().replaceFirst('Exception: ', ''),
+                  onRetry: () =>
+                      ref.invalidate(sellerDashboardProvider(_query)),
+                ),
         ),
         data: (data) {
           final d = data.dashboard;
-          final pendingOrders =
-              ref.watch(sellerCustomOrdersPendingCountProvider).value;
 
           return Column(
             children: [
               SellerGradientHeader(
                 leading: GestureDetector(
-                  onTap: () =>
-                      context.pushSeller(const SellerProfileScreen()),
-                  child: SellerMonogram(name: d.businessName, imageUrl: pictureUrl),
+                  onTap: () => context.pushSeller(const SellerProfileScreen()),
+                  child: SellerMonogram(
+                    name: d.businessName,
+                    imageUrl: pictureUrl,
+                  ),
                 ),
                 title: d.businessName,
                 subtitle: 'Hi, ${d.userName}',
-                actions: [
-                  SellerHeaderIconButton(
-                    icon: c.isDark
-                        ? Icons.light_mode_rounded
-                        : Icons.dark_mode_rounded,
-                    tooltip: c.isDark ? 'Light mode' : 'Dark mode',
-                    onTap: () =>
-                        ref.read(sellerThemeModeProvider.notifier).toggle(),
-                  ),
+                actions: const [
+                  SellerNotificationBell(),
                 ],
               ),
               Expanded(
@@ -89,89 +98,17 @@ class SellerDashboardScreen extends ConsumerWidget {
                   backgroundColor: c.surface,
                   onRefresh: () async {
                     ref.invalidate(sellerDashboardProvider(_query));
-                    ref.invalidate(sellerCustomOrdersPendingCountProvider);
                     await ref.read(sellerDashboardProvider(_query).future);
                   },
                   child: ListView(
                     padding: AppInsets.pageWithNav,
                     children: [
-                      // ── Needs attention (balanced) ──────────────
-                      const SellerSectionHeader(
-                        overline: 'Today',
-                        title: 'Needs attention',
-                      ),
-                      const Gap.v(AppSpace.sm),
-                      _AttentionCard(
-                        icon: Icons.account_balance_wallet_rounded,
-                        tone: c.warningTone,
-                        title: 'Collect dues',
-                        value: d.pendingRecoverySum,
-                        meta: '${d.pendingRecoveryCount} accounts pending',
-                        onTap: () => _go(SellerTab.finance),
-                      ),
-                      const Gap.v(AppSpace.sm),
-                      _AttentionCard(
-                        icon: Icons.trending_up_rounded,
-                        tone: c.infoTone,
-                        title: 'Leads this month',
-                        value: '${d.monthlyLeads}',
-                        meta:
-                            '${d.monthlyWonLeads} won · ${d.monthlyLostLeads} lost',
-                        onTap: () => _go(SellerTab.leads),
-                      ),
-                      const Gap.v(AppSpace.sm),
-                      _AttentionCard(
-                        icon: Icons.receipt_long_rounded,
-                        tone: c.successTone,
-                        title: 'Orders to process',
-                        value: pendingOrders == null ? '—' : '$pendingOrders',
-                        meta: 'Custom orders pending action',
-                        onTap: () => _go(SellerTab.orders),
-                      ),
-
-                      // ── Quick actions ───────────────────────────
+                      // ── Welcome ─────────────────────────────────
+                      _WelcomeBanner(userName: d.userName),
                       const Gap.v(AppSpace.lg),
-                      const SellerSectionHeader(title: 'Quick actions'),
-                      const Gap.v(AppSpace.sm),
-                      SellerGrid(
-                        columns: 4,
-                        children: [
-                          _QuickAction(
-                            icon: Icons.add_box_rounded,
-                            label: 'New order',
-                            tone: c.accentTone,
-                            onTap: () =>
-                                showSellerCreateCustomOrderSheet(context, ref),
-                          ),
-                          _QuickAction(
-                            icon: Icons.groups_rounded,
-                            label: 'Customers',
-                            tone: c.violetTone,
-                            onTap: () => context
-                                .pushSeller(const SellerCustomersScreen()),
-                          ),
-                          _QuickAction(
-                            icon: Icons.payments_rounded,
-                            label: 'Collect',
-                            tone: c.warningTone,
-                            onTap: () => context
-                                .pushSeller(const SellerInstalmentsScreen()),
-                          ),
-                          _QuickAction(
-                            icon: Icons.insights_rounded,
-                            label: 'Insights',
-                            tone: c.infoTone,
-                            onTap: () => _go(SellerTab.insights),
-                          ),
-                        ],
-                      ),
 
                       // ── Snapshot ────────────────────────────────
-                      const Gap.v(AppSpace.lg),
-                      SellerSectionHeader(
-                        title: 'Snapshot',
-                        overline: 'Last ${d.days} days',
-                      ),
+                      const SellerSectionHeader(title: 'Snapshot'),
                       const Gap.v(AppSpace.sm),
                       SellerGrid(
                         children: [
@@ -186,7 +123,8 @@ class SellerDashboardScreen extends ConsumerWidget {
                             value: d.totalCustomRecovery,
                             icon: Icons.savings_rounded,
                             tone: c.successTone,
-                            caption: '${d.totalCustomRecoveryPercentage} recovered',
+                            caption:
+                                '${d.totalCustomRecoveryPercentage} recovered',
                           ),
                           SellerKpiCard(
                             label: 'Outstanding',
@@ -203,6 +141,83 @@ class SellerDashboardScreen extends ConsumerWidget {
                         ],
                       ),
 
+                      // ── Quick actions ───────────────────────────
+                      const Gap.v(AppSpace.lg),
+                      const SellerSectionHeader(title: 'Quick actions'),
+                      const Gap.v(AppSpace.sm),
+                      SellerGrid(
+                        columns: hasMarketing ? 2 : 4,
+                        children: [
+                          if (!hasMarketing) ...[
+                            _QuickAction(
+                              icon: Icons.add_box_rounded,
+                              label: 'New order',
+                              tone: c.accentTone,
+                              onTap: () => showSellerCreateCustomOrderSheet(
+                                context,
+                                ref,
+                              ),
+                            ),
+                            _QuickAction(
+                              icon: Icons.groups_rounded,
+                              label: 'Customers',
+                              tone: c.violetTone,
+                              onTap: () => _go(SellerTab.customers),
+                            ),
+                          ],
+                          _QuickAction(
+                            icon: Icons.payments_rounded,
+                            label: 'Instalments & Dues',
+                            tone: c.warningTone,
+                            onTap: () => context.pushSeller(
+                              const SellerInstalmentsScreen(),
+                            ),
+                          ),
+                          _QuickAction(
+                            icon: Icons.bar_chart_rounded,
+                            label: 'Reports',
+                            tone: c.infoTone,
+                            onTap: () => _go(SellerTab.reports),
+                          ),
+                        ],
+                      ),
+
+                      // ── Needs attention ──────────────────────────
+                      const Gap.v(AppSpace.lg),
+                      const SellerSectionHeader(
+                        overline: 'Today',
+                        title: 'Needs attention',
+                      ),
+                      const Gap.v(AppSpace.sm),
+                      _AttentionCard(
+                        icon: Icons.account_balance_wallet_rounded,
+                        tone: c.warningTone,
+                        title: 'Collect dues',
+                        value: d.pendingRecoverySum,
+                        meta: '${d.pendingRecoveryCount} accounts pending',
+                        onTap: () => _go(SellerTab.reports),
+                      ),
+                      const Gap.v(AppSpace.sm),
+                      _AttentionCard(
+                        icon: Icons.trending_up_rounded,
+                        tone: c.infoTone,
+                        title: 'Leads this month',
+                        value: '${d.monthlyLeads}',
+                        meta:
+                            '${d.monthlyWonLeads} won · ${d.monthlyLostLeads} lost',
+                        onTap: hasMarketing ? () => _go(SellerTab.leads) : null,
+                        locked: !hasMarketing,
+                      ),
+                      const Gap.v(AppSpace.sm),
+                      _AttentionCard(
+                        icon: Icons.receipt_long_rounded,
+                        tone: c.successTone,
+                        title: 'Orders to process',
+                        value: '${d.totalCustomOrders}',
+                        meta: 'Custom orders pending action',
+                        onTap: () => _go(SellerTab.orders),
+                      ),
+
                       // ── Recent orders ───────────────────────────
                       if (d.customOrders.isNotEmpty) ...[
                         const Gap.v(AppSpace.lg),
@@ -213,9 +228,7 @@ class SellerDashboardScreen extends ConsumerWidget {
                           onAction: () => _go(SellerTab.orders),
                         ),
                         const Gap.v(AppSpace.sm),
-                        _RecentList(
-                          records: d.customOrders.take(4).toList(),
-                        ),
+                        _RecentList(records: d.customOrders.take(4).toList()),
                       ],
                     ],
                   ),
@@ -229,6 +242,32 @@ class SellerDashboardScreen extends ConsumerWidget {
   }
 }
 
+// ── Welcome banner ────────────────────────────────────────────
+class _WelcomeBanner extends StatelessWidget {
+  final String userName;
+  const _WelcomeBanner({required this.userName});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.sellerText;
+    final c = context.sellerColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Welcome back,',
+          style: text.bodySm.copyWith(color: c.textSecondary),
+        ),
+        const Gap.v(2),
+        Text(
+          userName,
+          style: text.titleLg.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Needs-attention card ──────────────────────────────────────
 class _AttentionCard extends StatelessWidget {
   final IconData icon;
@@ -236,7 +275,8 @@ class _AttentionCard extends StatelessWidget {
   final String title;
   final String value;
   final String meta;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool locked;
 
   const _AttentionCard({
     required this.icon,
@@ -245,6 +285,7 @@ class _AttentionCard extends StatelessWidget {
     required this.value,
     required this.meta,
     required this.onTap,
+    this.locked = false,
   });
 
   @override
@@ -282,7 +323,17 @@ class _AttentionCard extends StatelessWidget {
             ),
           ),
           const Gap.h(AppSpace.xs),
-          Icon(Icons.chevron_right_rounded, size: 20, color: c.textTertiary),
+          locked
+              ? Icon(
+                  Icons.lock_outline_rounded,
+                  size: 16,
+                  color: c.textTertiary,
+                )
+              : Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: c.textTertiary,
+                ),
         ],
       ),
     );
@@ -345,7 +396,8 @@ class _RecentList extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < records.length; i++) ...[
-            if (i > 0) Divider(color: c.divider, height: 1, indent: AppSpace.md),
+            if (i > 0)
+              Divider(color: c.divider, height: 1, indent: AppSpace.md),
             Padding(
               padding: const EdgeInsets.all(AppSpace.md),
               child: Row(
@@ -358,7 +410,9 @@ class _RecentList extends StatelessWidget {
                           records[i].title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: text.bodyLg.copyWith(fontWeight: FontWeight.w700),
+                          style: text.bodyLg.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const Gap.v(2),
                         Text(
@@ -428,10 +482,8 @@ class _HomeSkeleton extends StatelessWidget {
   }
 
   Widget _box(SellerColors c, double h) => Container(
-        height: h,
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: AppRadius.brLg,
-        ),
-      );
+    height: h,
+    decoration: BoxDecoration(color: c.surface, borderRadius: AppRadius.brLg),
+  );
 }
+

@@ -3,12 +3,11 @@ import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
 import 'package:atompro/features/seller/customers/view/seller_customer_form_screen.dart';
+import 'package:atompro/features/seller/customers/view/seller_customers_screen.dart';
 import 'package:atompro/features/seller/dashboard/view/seller_dashboard_screen.dart';
-import 'package:atompro/features/seller/finance/view/seller_finance_hub_screen.dart';
-import 'package:atompro/features/seller/insights/view/seller_insights_screen.dart';
+import 'package:atompro/features/seller/reports/view/seller_reports_hub_screen.dart';
 import 'package:atompro/features/seller/leads/view/seller_leads_screen.dart';
 import 'package:atompro/features/seller/orders/view/seller_orders_hub_screen.dart';
-import 'package:atompro/features/seller/standard_orders/view/seller_standard_orders_screen.dart';
 import 'package:atompro/features/seller/subscription/model/seller_subscription_model.dart';
 import 'package:atompro/features/seller/subscription/view/seller_subscription_screen.dart';
 import 'package:atompro/features/seller/subscription/viewmodel/seller_subscription_viewmodel.dart';
@@ -18,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// ─────────────────────────────────────────────────────────────────────────
 ///  Seller Shell — workflow-oriented navigation.
 ///
-///  5 sections (Home · Leads · Orders · Finance · Insights), a global Create
+///  5 sections (Home · Leads · Orders · Customers · Reports), a global Create
 ///  action, and account/settings behind the Home header avatar. Wraps the
 ///  whole experience in [SellerThemeScope] for unified, dark-mode-capable theming.
 /// ─────────────────────────────────────────────────────────────────────────
@@ -34,34 +33,39 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
   bool _gated = false;
   bool _gatedUnderReview = false;
 
-  static const _navItems = <_NavItem>[
-    _NavItem(label: 'Home', icon: Icons.space_dashboard_rounded),
-    _NavItem(label: 'Leads', icon: Icons.trending_up_rounded),
-    _NavItem(label: 'Orders', icon: Icons.receipt_long_rounded),
-    _NavItem(label: 'Finance', icon: Icons.account_balance_wallet_rounded),
-    _NavItem(label: 'Insights', icon: Icons.insights_rounded),
-  ];
-
   late final List<Widget> _pages = [
     SellerDashboardScreen(onNavigateToTab: _select),
     const SellerLeadsScreen(),
     const SellerOrdersHubScreen(),
-    const SellerFinanceHubScreen(),
-    const SellerInsightsScreen(),
+    const SellerCustomersScreen(),
+    const SellerReportsHubScreen(),
   ];
 
-  void _select(int i) => setState(() => _index = i);
+  // Tabs are built lazily: a tab only mounts (and fires its network calls) the
+  // first time it is visited. This avoids a startup stampede where all five
+  // screens hit the API at once — which serialised the secure-storage token
+  // reads and stalled the first-visited screen for up to ~1 minute. Once a tab
+  // is activated it stays mounted, so its state is preserved like a plain
+  // IndexedStack.
+  final Set<int> _activated = {0};
+
+  void _select(int i) => setState(() {
+        _index = i;
+        _activated.add(i);
+      });
 
   @override
   void initState() {
     super.initState();
     SellerSubscriptionGate.setListener((underReview) {
       if (!mounted) return;
-      ref.invalidate(sellerSubscriptionProvider);
-      setState(() {
-        _gated = true;
-        _gatedUnderReview = underReview;
-      });
+      if (!_gated) {
+        ref.invalidate(sellerSubscriptionProvider);
+        setState(() {
+          _gated = true;
+          _gatedUnderReview = underReview;
+        });
+      }
     });
   }
 
@@ -102,6 +106,9 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
             );
           }
 
+          final sub = gate.asData?.value;
+          final hasFinancial = sub?.plan?.featureFinancial ?? false;
+
           // ── Initial load gate (subscription check on login) ───────────
           return gate.when(
             loading: () => Scaffold(
@@ -117,11 +124,13 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
                 ),
               ),
             ),
-            error: (_, _) => _buildShell(context, c),
+            error: (_, _) => _buildShell(context, c, hasFinancial: hasFinancial),
             data: (sub) {
               final locked =
                   sub.hasActivePlan && !sub.payments.any((p) => p.isReceived);
-              if (!locked) return _buildShell(context, c);
+              if (!locked) {
+                return _buildShell(context, c, hasFinancial: hasFinancial);
+              }
               final underReview = _hasPendingPayment(sub);
               return SellerSubscriptionScreen(
                 locked: true,
@@ -143,17 +152,36 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
         (plan.monthly.isPending || plan.commissionAction.isPending);
   }
 
-  Widget _buildShell(BuildContext context, SellerColors c) {
+  Widget _buildShell(BuildContext context, SellerColors c,
+      {bool hasFinancial = false}) {
+    const navItems = [
+      _NavItem(label: 'Home', icon: Icons.space_dashboard_rounded),
+      _NavItem(label: 'Leads', icon: Icons.trending_up_rounded),
+      _NavItem(label: 'Orders', icon: Icons.receipt_long_rounded),
+      _NavItem(label: 'Customers', icon: Icons.groups_rounded),
+      _NavItem(label: 'Reports', icon: Icons.bar_chart_rounded),
+    ];
+
     return Scaffold(
       backgroundColor: c.canvas,
       extendBody: true,
-      body: IndexedStack(index: _index, children: _pages),
-      // Orders surfaces its own create FAB; hide the global one there to
-      // avoid two stacked FABs.
+      body: IndexedStack(
+        index: _index,
+        children: List.generate(
+          _pages.length,
+          (i) => _activated.contains(i)
+              ? _pages[i]
+              : const SizedBox.shrink(),
+        ),
+      ),
+      // Hide FAB on the Orders tab (it has its own create flow) and for
+      // marketing-only plans (they have no order/customer creation actions).
       floatingActionButton:
-          _index == 2 ? null : _CreateButton(onTap: () => _showCreate(context)),
+          (_index == 2 || !hasFinancial)
+              ? null
+              : _CreateButton(onTap: () => _showCreate(context)),
       bottomNavigationBar: _FloatingNavBar(
-        items: _navItems,
+        items: navItems,
         selectedIndex: _index,
         onTap: _select,
       ),
@@ -212,16 +240,6 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
                     },
                   ),
                   _CreateAction(
-                    icon: Icons.shopping_bag_rounded,
-                    tone: c.infoTone,
-                    title: 'New standard order',
-                    subtitle: 'Regular platform order',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      showSellerCreateStandardOrderSheet(context, ref);
-                    },
-                  ),
-                  _CreateAction(
                     icon: Icons.person_add_alt_1_rounded,
                     tone: c.violetTone,
                     title: 'New customer',
@@ -234,16 +252,6 @@ class _SellerShellScreenState extends ConsumerState<SellerShellScreen> {
                           builder: (_) => const SellerCustomerFormScreen(),
                         ),
                       );
-                    },
-                  ),
-                  _CreateAction(
-                    icon: Icons.payments_rounded,
-                    tone: c.warningTone,
-                    title: 'Collect a payment',
-                    subtitle: 'Go to dues to record an instalment',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      _select(3);
                     },
                   ),
                 ],

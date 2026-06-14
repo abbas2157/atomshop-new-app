@@ -7,19 +7,14 @@
 //  pricing guards, convert-to-custom-order, import/download —
 //  is 100% preserved.
 // ============================================================
-
-import 'dart:io';
-
 import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
-import 'package:atompro/features/seller/core/services/seller_file_service.dart';
 import 'package:atompro/features/seller/leads/model/seller_leads_model.dart';
 import 'package:atompro/features/seller/leads/repository/seller_leads_repository.dart';
 import 'package:atompro/features/seller/leads/viewmodel/seller_leads_viewmodel.dart';
 import 'package:dropdown_search/dropdown_search.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,8 +33,16 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
   String _search = '';
   final _searchCtrl = TextEditingController();
 
-  SellerLeadsQuery get _query =>
-      SellerLeadsQuery(scope: _scope, page: _page, status: _status);
+  // Stable query instance. A getter that allocated a fresh SellerLeadsQuery on
+  // every build handed the provider family a new key each rebuild, creating a
+  // brand-new provider (and a fresh network fetch) every frame — an infinite
+  // loop, since the screen rebuilds whenever the wrapping AnimatedTheme ticks.
+  // Recompute it only when scope/page/status actually change.
+  SellerLeadsQuery _query = const SellerLeadsQuery();
+
+  void _syncQuery() {
+    _query = SellerLeadsQuery(scope: _scope, page: _page, status: _status);
+  }
 
   @override
   void dispose() {
@@ -54,6 +57,7 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
       _scope = scope;
       _status = null;
       _page = 1;
+      _syncQuery();
     });
   }
 
@@ -64,6 +68,7 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
     setState(() {
       _status = chosen;
       _page = 1;
+      _syncQuery();
     });
   }
 
@@ -93,33 +98,6 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
       ),
     );
     if (changed == true) ref.invalidate(sellerLeadsBundleProvider(_query));
-  }
-
-  Future<void> _importLeads() async {
-    try {
-      final picked = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx', 'xls', 'csv'],
-      );
-      final path = picked?.files.single.path;
-      if (path == null) return;
-      await ref.read(sellerLeadsRepositoryProvider).importLeads(File(path));
-      ref.invalidate(sellerLeadsBundleProvider(_query));
-      SnackbarService().showSuccessSnackBar('Leads imported.');
-    } catch (e) {
-      SnackbarService().showErrorSnackBar(_cleanError(e));
-    }
-  }
-
-  Future<void> _openImportSample() async {
-    try {
-      final path = await ref
-          .read(sellerLeadsRepositoryProvider)
-          .downloadImportSample();
-      await SellerFileService.openLocalFile(path);
-    } catch (e) {
-      SnackbarService().showErrorSnackBar(_cleanError(e));
-    }
   }
 
   @override
@@ -162,16 +140,8 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
                 ? 'Manage sales pipeline'
                 : '$newLeadsCount new leads',
             actions: [
-              SellerHeaderIconButton(
-                icon: Icons.download_outlined,
-                onTap: _openImportSample,
-                tooltip: 'Sample file',
-              ),
-              SellerHeaderIconButton(
-                icon: Icons.upload_file_outlined,
-                onTap: _importLeads,
-                tooltip: 'Import leads',
-              ),
+              const SellerNotificationBell(),
+              const SellerHeaderProfileButton(),
             ],
           ),
 
@@ -226,11 +196,17 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
                           SellerErrorState(
                             message: _cleanError(error),
                             onRetry: () => ref.invalidate(
-                                sellerLeadsBundleProvider(_query)),
+                              sellerLeadsBundleProvider(_query),
+                            ),
                           ),
                         ],
                       ),
                 data: (bundle) {
+                  // Plan gate is carried as data (see viewmodel) to avoid an
+                  // AsyncError refetch loop.
+                  if (bundle.gate != null) {
+                    return SellerPlanGateState(exception: bundle.gate!);
+                  }
                   final leads = _filter(bundle.leads.leads, _search);
                   return ListView(
                     padding: AppInsets.pageWithNav,
@@ -269,10 +245,16 @@ class _SellerLeadsScreenState extends ConsumerState<SellerLeadsScreen> {
                       _PaginationBar(
                         pagination: bundle.leads.pagination,
                         onPrevious: bundle.leads.pagination.hasPrevious
-                            ? () => setState(() => _page--)
+                            ? () => setState(() {
+                                _page--;
+                                _syncQuery();
+                              })
                             : null,
                         onNext: bundle.leads.pagination.hasNext
-                            ? () => setState(() => _page++)
+                            ? () => setState(() {
+                                _page++;
+                                _syncQuery();
+                              })
                             : null,
                       ),
                     ],
@@ -340,8 +322,11 @@ class _LeadCard extends StatelessWidget {
             // ── Product ───────────────────────────────────────────────────
             Row(
               children: [
-                Icon(Icons.inventory_2_outlined,
-                    size: 13, color: c.textTertiary),
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 13,
+                  color: c.textTertiary,
+                ),
                 const Gap.h(AppSpace.xxs),
                 Text('Product: ', style: text.bodySm),
                 Expanded(
@@ -380,8 +365,11 @@ class _LeadCard extends StatelessWidget {
                 const Gap.h(AppSpace.xxs),
                 Text(lead.portal, style: text.caption),
                 const Gap.h(AppSpace.sm),
-                Icon(Icons.calendar_today_outlined,
-                    size: 13, color: c.textTertiary),
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 13,
+                  color: c.textTertiary,
+                ),
                 const Gap.h(AppSpace.xxs),
                 Text(lead.formattedCreatedAt, style: text.caption),
               ],
@@ -474,16 +462,9 @@ class _RangeStrip extends StatelessWidget {
       elevated: false,
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: text.titleSm,
-            ),
-          ),
+          Expanded(child: Text(label, style: text.titleSm)),
           Text(
-            total == 0
-                ? '0 leads'
-                : '${from ?? 0}–${to ?? 0} of $total',
+            total == 0 ? '0 leads' : '${from ?? 0}–${to ?? 0} of $total',
             style: text.bodySm.copyWith(color: c.accent),
           ),
         ],
@@ -579,7 +560,9 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
     try {
-      await ref.read(sellerLeadsRepositoryProvider).updateLead(
+      await ref
+          .read(sellerLeadsRepositoryProvider)
+          .updateLead(
             leadId: widget.lead.id,
             status: _status,
             reason: _isLost ? _reason.text.trim() : null,
@@ -616,10 +599,12 @@ class _LeadStatusSheetState extends ConsumerState<_LeadStatusSheet> {
               dropdownColor: c.surface,
               style: text.body,
               items: sellerLeadStatuses
-                  .map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s, style: text.body),
-                      ))
+                  .map(
+                    (s) => DropdownMenuItem(
+                      value: s,
+                      child: Text(s, style: text.body),
+                    ),
+                  )
                   .toList(),
               onChanged: _saving
                   ? null
@@ -677,8 +662,7 @@ class _LeadCustomOrderSheet extends ConsumerStatefulWidget {
       _LeadCustomOrderSheetState();
 }
 
-class _LeadCustomOrderSheetState
-    extends ConsumerState<_LeadCustomOrderSheet> {
+class _LeadCustomOrderSheetState extends ConsumerState<_LeadCustomOrderSheet> {
   final _formKey = GlobalKey<FormState>();
   final _productPrice = TextEditingController();
   final _advancePrice = TextEditingController();
@@ -792,7 +776,8 @@ class _LeadCustomOrderSheetState
 
     if (advancePrice >= productPrice) {
       SnackbarService().showErrorSnackBar(
-          'Advance price must be less than product price.');
+        'Advance price must be less than product price.',
+      );
       return;
     }
 
@@ -831,9 +816,7 @@ class _LeadCustomOrderSheetState
         title: 'Convert to Custom Order',
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpace.xxl),
-          child: Center(
-            child: CircularProgressIndicator(color: c.accent),
-          ),
+          child: Center(child: CircularProgressIndicator(color: c.accent)),
         ),
       );
     }
@@ -886,8 +869,9 @@ class _LeadCustomOrderSheetState
             // City (searchable)
             DropdownSearch<SellerLeadLookup>(
               items: (filter, _) => _cities
-                  .where((c) =>
-                      c.title.toLowerCase().contains(filter.toLowerCase()))
+                  .where(
+                    (c) => c.title.toLowerCase().contains(filter.toLowerCase()),
+                  )
                   .toList(),
               selectedItem: _city,
               itemAsString: (c) => c.title,
@@ -910,8 +894,11 @@ class _LeadCustomOrderSheetState
                 itemBuilder: (_, item, isSelected, x) => ListTile(
                   dense: true,
                   selected: isSelected,
-                  title: Text(item.title,
-                      overflow: TextOverflow.ellipsis, maxLines: 1),
+                  title: Text(
+                    item.title,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
                 constraints: const BoxConstraints(maxHeight: 300),
               ),
@@ -928,7 +915,9 @@ class _LeadCustomOrderSheetState
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: c.accent),
+                        strokeWidth: 2,
+                        color: c.accent,
+                      ),
                     ),
                     const Gap.h(AppSpace.xs),
                     Text('Loading areas…', style: text.bodySm),
@@ -938,8 +927,10 @@ class _LeadCustomOrderSheetState
             else
               DropdownSearch<SellerLeadLookup>(
                 items: (filter, _) => _areas
-                    .where((a) =>
-                        a.title.toLowerCase().contains(filter.toLowerCase()))
+                    .where(
+                      (a) =>
+                          a.title.toLowerCase().contains(filter.toLowerCase()),
+                    )
                     .toList(),
                 selectedItem: _area,
                 itemAsString: (a) => a.title,
@@ -965,8 +956,11 @@ class _LeadCustomOrderSheetState
                   itemBuilder: (_, item, isSelected, x) => ListTile(
                     dense: true,
                     selected: isSelected,
-                    title: Text(item.title,
-                        overflow: TextOverflow.ellipsis, maxLines: 1),
+                    title: Text(
+                      item.title,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
                   constraints: const BoxConstraints(maxHeight: 300),
                 ),
@@ -1009,19 +1003,22 @@ class _LeadCustomOrderSheetState
               title: 'Installment Plan',
             ),
             DropdownButtonFormField<double>(
-              initialValue:
-                  _markupValues.contains(_monthlyPct) ? _monthlyPct : 4.0,
+              initialValue: _markupValues.contains(_monthlyPct)
+                  ? _monthlyPct
+                  : 4.0,
               decoration: _sheetDecoration('Monthly Markup %', c),
               dropdownColor: c.surface,
               style: text.body,
               items: _markupValues
-                  .map((v) => DropdownMenuItem(
-                        value: v,
-                        child: Text(
-                          '${v % 1 == 0 ? v.toInt() : v}%',
-                          style: text.body,
-                        ),
-                      ))
+                  .map(
+                    (v) => DropdownMenuItem(
+                      value: v,
+                      child: Text(
+                        '${v % 1 == 0 ? v.toInt() : v}%',
+                        style: text.body,
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: _saving
                   ? null
@@ -1143,9 +1140,7 @@ class _SheetShell extends StatelessWidget {
                       tooltip: 'Go back',
                     ),
                     const Gap.h(AppSpace.xs),
-                    Expanded(
-                      child: Text(title, style: text.titleMd),
-                    ),
+                    Expanded(child: Text(title, style: text.titleMd)),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: Icon(
@@ -1261,18 +1256,12 @@ class _TypeChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? c.accent : c.accentSurface,
             borderRadius: AppRadius.brMd,
-            border: Border.all(
-              color: selected ? c.accent : c.border,
-            ),
+            border: Border.all(color: selected ? c.accent : c.border),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 15,
-                color: selected ? c.onAccent : c.accent,
-              ),
+              Icon(icon, size: 15, color: selected ? c.onAccent : c.accent),
               const Gap.h(AppSpace.xs - 2),
               Text(
                 label,

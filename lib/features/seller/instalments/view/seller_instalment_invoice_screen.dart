@@ -267,6 +267,10 @@ class _SellerInstalmentInvoiceScreenState
               ),
               title: 'Payment Invoice',
               subtitle: _data.invoiceNumber,
+              actions: const [
+                SellerNotificationBell(),
+                SellerHeaderProfileButton(),
+              ],
             ),
             Expanded(
               child: ListView(

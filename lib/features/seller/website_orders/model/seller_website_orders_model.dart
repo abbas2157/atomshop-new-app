@@ -1,3 +1,5 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 class SellerWebsiteOrdersQuery {
   final String? search;
   final int page;
@@ -29,10 +31,30 @@ class SellerWebsiteOrdersResponse {
   final List<SellerWebsiteOrder> orders;
   final SellerWebsiteOrdersPagination pagination;
 
+  /// Non-null when the seller's plan doesn't include website orders. Carried as
+  /// DATA (not a thrown error) so the provider settles into a stable AsyncData
+  /// state — an AsyncError state was re-run on every rebuild, causing an
+  /// infinite refetch loop. The screen renders the plan gate from this field.
+  final SellerPlanUpgradeException? gate;
+
   const SellerWebsiteOrdersResponse({
     required this.orders,
     required this.pagination,
+    this.gate,
   });
+
+  /// Empty response that carries the plan-gate exception as data.
+  factory SellerWebsiteOrdersResponse.gated(SellerPlanUpgradeException gate) {
+    return SellerWebsiteOrdersResponse(
+      orders: const [],
+      pagination: const SellerWebsiteOrdersPagination(
+        currentPage: 1,
+        lastPage: 1,
+        total: 0,
+      ),
+      gate: gate,
+    );
+  }
 
   factory SellerWebsiteOrdersResponse.fromResponse(
     Map<String, dynamic> response,

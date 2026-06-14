@@ -1,9 +1,11 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
 import 'package:atompro/features/seller/customers/view/seller_customer_details_screen.dart';
 import 'package:atompro/features/seller/customers/view/seller_customer_form_screen.dart';
 import 'package:atompro/features/seller/customers/viewmodel/seller_customers_viewmodel.dart';
+import 'package:atompro/features/seller/subscription/viewmodel/seller_subscription_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +57,9 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
       sellerCustomersNotificationCountProvider,
     );
 
+    final sub = ref.watch(sellerSubscriptionProvider).asData?.value;
+    final hasFinancial = sub?.plan?.featureFinancial ?? false;
+
     final notifCount = notificationState.asData?.value;
     final subtitle = notifCount == null
         ? 'Manage seller customer records'
@@ -87,11 +92,14 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
               title: 'Customers',
               subtitle: subtitle,
               actions: [
-                SellerHeaderIconButton(
-                  icon: Icons.person_add_alt_1_outlined,
-                  onTap: _showAddCustomerSheet,
-                  tooltip: 'Add customer',
-                ),
+                const SellerNotificationBell(),
+                if (hasFinancial)
+                  SellerHeaderIconButton(
+                    icon: Icons.person_add_alt_1_outlined,
+                    onTap: _showAddCustomerSheet,
+                    tooltip: 'Add customer',
+                  ),
+                const SellerHeaderProfileButton(),
               ],
             ),
             // ── Search + scope ───────────────────────────────────────────
@@ -141,12 +149,17 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                 },
                 child: state.when(
                   loading: () => const SellerListSkeleton(),
-                  error: (error, _) => SellerErrorState(
-                    message: _cleanError(error),
-                    onRetry: () =>
-                        ref.invalidate(sellerCustomersProvider(_query)),
-                  ),
+                  error: (error, _) => error is SellerPlanUpgradeException
+                      ? SellerPlanGateState(exception: error)
+                      : SellerErrorState(
+                          message: _cleanError(error),
+                          onRetry: () =>
+                              ref.invalidate(sellerCustomersProvider(_query)),
+                        ),
                   data: (data) {
+                    if (data.gate != null) {
+                      return SellerPlanGateState(exception: data.gate!);
+                    }
                     final customers = _filter(data.customers, _search);
                     return ListView(
                       physics: const BouncingScrollPhysics(
@@ -262,6 +275,53 @@ class _SummaryStrip extends StatelessWidget {
   }
 }
 
+// ── Customer avatar ───────────────────────────────────────────────────────────
+class _CustomerAvatar extends StatelessWidget {
+  final String name;
+  final String? imageUrl;
+
+  const _CustomerAvatar({required this.name, this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+
+    Widget fallback = Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: c.violetTone.bg,
+        shape: BoxShape.circle,
+        border: Border.all(color: c.violetTone.border),
+      ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontFamily: 'Roboto',
+          color: c.violetTone.fg,
+          fontSize: 40 * 0.42,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+
+    if (!hasImage) return fallback;
+
+    return ClipOval(
+      child: Image.network(
+        imageUrl!,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => fallback,
+      ),
+    );
+  }
+}
+
 // ── Customer card ─────────────────────────────────────────────────────────────
 class _CustomerCard extends StatelessWidget {
   final SellerCustomer customer;
@@ -293,7 +353,12 @@ class _CustomerCard extends StatelessWidget {
             // ── Name + avatar + status pill ─────────────────────────────
             Row(
               children: [
-                SellerMonogram(name: customer.name, size: 40),
+                _CustomerAvatar(
+                  name: customer.name,
+                  imageUrl: customer.profile.picture == 'Not available'
+                      ? null
+                      : customer.profile.picture,
+                ),
                 const Gap.h(AppSpace.sm),
                 Expanded(
                   child: Column(

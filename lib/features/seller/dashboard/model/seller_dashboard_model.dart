@@ -1,10 +1,16 @@
 import 'package:atompro/core/auth/seller_session_manager.dart';
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 
 class SellerDashboardBundle {
   final SellerDashboardModel dashboard;
   final SellerSalesRevenueModel revenue;
+  final SellerPlanUpgradeException? revenueGate;
 
-  const SellerDashboardBundle({required this.dashboard, required this.revenue});
+  const SellerDashboardBundle({
+    required this.dashboard,
+    required this.revenue,
+    this.revenueGate,
+  });
 }
 
 class SellerDashboardModel {
@@ -23,6 +29,7 @@ class SellerDashboardModel {
   final String totalCustomRecoveryAll;
   final String totalCustomRecoveryPercentage;
   final String totalCustomRecoveryPercentageAll;
+  final int totalCustomOrders;
   final int totalCustomers;
   final String outstandingBalance;
   final int salesVelocityWeek;
@@ -50,6 +57,7 @@ class SellerDashboardModel {
     required this.totalCustomRecoveryAll,
     required this.totalCustomRecoveryPercentage,
     required this.totalCustomRecoveryPercentageAll,
+    required this.totalCustomOrders,
     required this.totalCustomers,
     required this.outstandingBalance,
     required this.salesVelocityWeek,
@@ -89,6 +97,7 @@ class SellerDashboardModel {
       totalCustomRecoveryPercentageAll: _percent(
         data['total_custom_recovery_percentage_all'],
       ),
+      totalCustomOrders: _asInt(data['total_custom_orders']),
       totalCustomers: _asInt(data['total_customers']),
       outstandingBalance: _money(data['outstanding_balance']),
       salesVelocityWeek: _asInt(data['sales_velocity_week']),
@@ -329,6 +338,18 @@ class SellerSalesRevenueModel {
     required this.performanceMetrics,
   });
 
+  factory SellerSalesRevenueModel.empty() => SellerSalesRevenueModel(
+        totalSales: 'Rs 0',
+        totalRecovered: 'Rs 0',
+        outstanding: 'Rs 0',
+        recoveryPercentage: '0%',
+        from: '',
+        to: '',
+        days: 0,
+        revenuePoints: const [],
+        performanceMetrics: SellerPerformanceMetrics.empty(),
+      );
+
   factory SellerSalesRevenueModel.fromResponse(Map<String, dynamic> response) {
     final data = response['data'] as Map<String, dynamic>? ?? {};
     return SellerSalesRevenueModel(
@@ -393,6 +414,18 @@ class SellerPerformanceMetrics {
     required this.topAreas,
     required this.topProducts,
   });
+
+  factory SellerPerformanceMetrics.empty() => SellerPerformanceMetrics(
+        averageOrderValue: 'Rs 0',
+        conversionRate: '0%',
+        averageDaysToRecover: 0,
+        onTimeRecoveryRate: '0%',
+        uniqueCustomers: 0,
+        repeatCustomers: 0,
+        repeatCustomerRate: '0%',
+        topAreas: const [],
+        topProducts: const [],
+      );
 
   factory SellerPerformanceMetrics.fromMap(Map<String, dynamic> data) {
     return SellerPerformanceMetrics(

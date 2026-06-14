@@ -1,13 +1,23 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/custom_orders/model/seller_custom_orders_model.dart';
 import 'package:atompro/features/seller/custom_orders/repository/seller_custom_orders_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final sellerCustomOrdersProvider = FutureProvider.autoDispose
-    .family<SellerCustomOrdersResponse, SellerCustomOrdersQuery>((ref, query) {
-      return ref
-          .read(sellerCustomOrdersRepositoryProvider)
-          .getCustomOrders(query);
-    });
+    .family<SellerCustomOrdersResponse, SellerCustomOrdersQuery>(
+        (ref, query) async {
+  try {
+    return await ref
+        .read(sellerCustomOrdersRepositoryProvider)
+        .getCustomOrders(query);
+  } on SellerPlanUpgradeException catch (e) {
+    // Return the gate as data (not thrown) so the provider settles into a
+    // stable AsyncData state instead of an AsyncError that re-runs on every
+    // rebuild (infinite refetch loop). The screen reads `.gate`.
+    ref.keepAlive();
+    return SellerCustomOrdersResponse.gated(e);
+  }
+});
 
 final sellerCustomOrderDetailsProvider = FutureProvider.autoDispose
     .family<SellerCustomOrderDetails, String>((ref, orderUuid) {

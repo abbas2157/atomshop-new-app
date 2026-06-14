@@ -7,6 +7,8 @@
 //  a full per-order ledger, and an invoice-data shape.
 // ============================================================
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 class SellerInstalmentsQuery {
   final String q;
   final int? customer;
@@ -116,11 +118,35 @@ class SellerInstalmentsListResponse {
   final List<SellerInstalmentOrderSummary> orders;
   final SellerInstalmentsPagination pagination;
 
+  /// Non-null when the plan doesn't include this feature — carried as data, not
+  /// thrown, to avoid the AsyncError refetch loop. Screen renders the gate from it.
+  final SellerPlanUpgradeException? gate;
+
   const SellerInstalmentsListResponse({
     required this.kpi,
     required this.orders,
     required this.pagination,
+    this.gate,
   });
+
+  factory SellerInstalmentsListResponse.gated(SellerPlanUpgradeException gate) {
+    return SellerInstalmentsListResponse(
+      kpi: const SellerInstalmentKpi(
+        totalOrders: 0,
+        totalPending: 0,
+        collectedThisMonth: 0,
+        overdueCount: 0,
+      ),
+      orders: const [],
+      pagination: const SellerInstalmentsPagination(
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 0,
+        total: 0,
+      ),
+      gate: gate,
+    );
+  }
 
   factory SellerInstalmentsListResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'] is Map

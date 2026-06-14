@@ -1,3 +1,5 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 enum SellerLeadScope {
   mine('My Area', 'My Area'),
   other('All Leads', 'All Leads');
@@ -56,11 +58,36 @@ class SellerLeadsBundle {
   final Map<String, int> statusCounts;
   final int newLeadsCount;
 
+  /// Non-null when the seller's plan doesn't include leads. Carried as DATA
+  /// (not a thrown error) so the provider settles into a stable AsyncData
+  /// state — an AsyncError state was being re-run on every rebuild, causing an
+  /// infinite refetch loop. The screen renders the plan gate from this field.
+  final SellerPlanUpgradeException? gate;
+
   const SellerLeadsBundle({
     required this.leads,
     required this.statusCounts,
     required this.newLeadsCount,
+    this.gate,
   });
+
+  /// Empty bundle that carries the plan-gate exception as data.
+  factory SellerLeadsBundle.gated(SellerPlanUpgradeException gate) {
+    return SellerLeadsBundle(
+      leads: const SellerLeadsResponse(
+        leads: [],
+        pagination: SellerLeadsPagination(
+          currentPage: 1,
+          lastPage: 1,
+          perPage: 0,
+          total: 0,
+        ),
+      ),
+      statusCounts: const {},
+      newLeadsCount: 0,
+      gate: gate,
+    );
+  }
 }
 
 class SellerLeadsResponse {

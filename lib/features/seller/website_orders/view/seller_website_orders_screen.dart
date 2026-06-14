@@ -124,6 +124,11 @@ class _SellerWebsiteOrdersScreenState
                         ref.invalidate(sellerWebsiteOrdersProvider(_query)),
                   ),
             data: (data) {
+              // Plan gate is carried as data (see viewmodel) to avoid an
+              // AsyncError refetch loop.
+              if (data.gate != null) {
+                return SellerPlanGateState(exception: data.gate!);
+              }
               if (data.orders.isEmpty) {
                 return SellerEmptyState(
                   icon: Icons.language_rounded,

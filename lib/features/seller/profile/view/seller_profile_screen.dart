@@ -13,7 +13,6 @@ import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/auth/viewmodel/seller_auth_viewmodel.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
-import 'package:atompro/features/seller/investments/view/seller_investments_screen.dart';
 import 'package:atompro/features/seller/profile/model/seller_profile_model.dart';
 import 'package:atompro/features/seller/profile/repository/seller_profile_repository.dart';
 import 'package:atompro/features/seller/profile/viewmodel/seller_profile_viewmodel.dart';
@@ -174,7 +173,12 @@ class SellerProfileScreen extends ConsumerWidget {
                           Divider(color: c.divider, height: 1),
                           SellerDataRow(
                             label: 'Experience',
-                            value: bundle.sellerInfo.previousExperience,
+                            value: () {
+                              final raw = bundle.sellerInfo.previousExperience.trim();
+                              final n = int.tryParse(raw);
+                              if (n == null) return raw;
+                              return '$n ${n == 1 ? 'year' : 'years'}';
+                            }(),
                           ),
                           Divider(color: c.divider, height: 1),
                           SellerDataRow(
@@ -193,24 +197,53 @@ class SellerProfileScreen extends ConsumerWidget {
                     ),
                     const Gap.v(AppSpace.sm),
                     SellerCard(
-                      child: bundle.sellerInfo.activeAreas.isEmpty
-                          ? Text(
-                              'No active areas assigned yet.',
-                              style: context.sellerText.bodySm,
-                            )
-                          : Wrap(
-                              spacing: AppSpace.xs,
-                              runSpacing: AppSpace.xs,
-                              children: bundle.sellerInfo.activeAreas
-                                  .map(
-                                    (area) => SellerStatusPill(
-                                      label: area.title,
-                                      tone: c.accentTone,
-                                      showDot: false,
-                                    ),
-                                  )
-                                  .toList(),
+                      child: _CoverageAreas(
+                        areas: bundle.sellerInfo.activeAreas,
+                      ),
+                    ),
+                    const Gap.v(AppSpace.lg),
+
+                    // ── Settings ──────────────────────────────────────────
+                    const SellerSectionHeader(
+                      overline: 'Appearance',
+                      title: 'Settings',
+                    ),
+                    const Gap.v(AppSpace.sm),
+                    SellerCard(
+                      child: Row(
+                        children: [
+                          SellerIconBadge(
+                            icon: c.isDark
+                                ? Icons.light_mode_rounded
+                                : Icons.dark_mode_rounded,
+                            tone: c.infoTone,
+                          ),
+                          const Gap.h(AppSpace.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Dark Mode',
+                                  style: context.sellerText.titleSm,
+                                ),
+                                const Gap.v(AppSpace.xxs),
+                                Text(
+                                  c.isDark ? 'Currently dark' : 'Currently light',
+                                  style: context.sellerText.bodySm,
+                                ),
+                              ],
                             ),
+                          ),
+                          Switch(
+                            value: c.isDark,
+                            onChanged: (_) => ref
+                                .read(sellerThemeModeProvider.notifier)
+                                .toggle(),
+                            activeThumbColor: c.accent,
+                          ),
+                        ],
+                      ),
                     ),
                     const Gap.v(AppSpace.lg),
 
@@ -296,24 +329,6 @@ class SellerProfileScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    const Gap.v(AppSpace.sm),
-                    _QuickActionCard(
-                      icon: Icons.trending_up_rounded,
-                      title: 'Investments',
-                      subtitle: 'Track investment records and status',
-                      tone: c.successTone,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SellerThemeScope(
-                            child: Builder(
-                              builder: (context) =>
-                                  const SellerInvestmentsScreen(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                     const Gap.v(AppSpace.lg),
 
                     // ── Logout ────────────────────────────────────────────
@@ -380,18 +395,45 @@ class _ProfileHeader extends StatelessWidget {
     final seller = bundle.sellerInfo;
 
     return SellerGradientHeader(
-      leading: SellerMonogram(
-        name: bundle.profile.name,
-        imageUrl: bundle.profile.profilePictureUrl,
-        size: 46,
-      ),
       title: seller.businessName,
       subtitle: bundle.profile.email,
       actions: [
-        SellerHeaderIconButton(
-          icon: Icons.photo_camera_outlined,
+        GestureDetector(
           onTap: onPickImage,
-          tooltip: 'Change picture',
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              SellerMonogram(
+                name: bundle.profile.name,
+                imageUrl: bundle.profile.profilePictureUrl,
+                size: 36,
+              ),
+              Positioned(
+                bottom: -2,
+                right: -2,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    size: 11,
+                    color: Colors.black54,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         SellerHeaderIconButton(
           icon: Icons.logout_rounded,
@@ -512,6 +554,86 @@ class _QuickActionCard extends StatelessWidget {
           Icon(Icons.chevron_right_rounded, color: c.textTertiary, size: 20),
         ],
       ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COVERAGE AREAS
+// ═══════════════════════════════════════════════════════════
+class _CoverageAreas extends StatefulWidget {
+  final List<SellerLookupOption> areas;
+  const _CoverageAreas({required this.areas});
+
+  @override
+  State<_CoverageAreas> createState() => _CoverageAreasState();
+}
+
+class _CoverageAreasState extends State<_CoverageAreas> {
+  static const _previewCount = 4;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final areas = widget.areas;
+
+    if (areas.isEmpty) {
+      return Text('No active areas assigned yet.', style: text.bodySm);
+    }
+
+    final showAll = _expanded || areas.length <= _previewCount;
+    final visible = showAll ? areas : areas.take(_previewCount).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: AppSpace.xs,
+          runSpacing: AppSpace.xs,
+          children: visible
+              .map((area) => SellerStatusPill(
+                    label: area.title,
+                    tone: c.accentTone,
+                    showDot: false,
+                  ))
+              .toList(),
+        ),
+        if (!showAll) ...[
+          const Gap.v(AppSpace.sm),
+          GestureDetector(
+            onTap: () => setState(() => _expanded = true),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'See ${areas.length - _previewCount} more',
+                  style: text.labelSm.copyWith(color: c.accent),
+                ),
+                const Gap.h(AppSpace.xxs),
+                Icon(Icons.expand_more_rounded, size: 16, color: c.accent),
+              ],
+            ),
+          ),
+        ] else if (_expanded) ...[
+          const Gap.v(AppSpace.sm),
+          GestureDetector(
+            onTap: () => setState(() => _expanded = false),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'See less',
+                  style: text.labelSm.copyWith(color: c.accent),
+                ),
+                const Gap.h(AppSpace.xxs),
+                Icon(Icons.expand_less_rounded, size: 16, color: c.accent),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -644,6 +766,7 @@ Future<void> _showUserInfoSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (_) => Theme(
       data: isDark ? SellerTheme.dark : SellerTheme.light,
@@ -663,6 +786,7 @@ Future<void> _showSellerInfoSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (_) => Theme(
       data: isDark ? SellerTheme.dark : SellerTheme.light,
@@ -682,6 +806,7 @@ Future<void> _showBusinessInfoSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (_) => Theme(
       data: isDark ? SellerTheme.dark : SellerTheme.light,
@@ -697,6 +822,7 @@ Future<void> _showPasswordSheet(BuildContext context, WidgetRef ref) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (_) => Theme(
       data: isDark ? SellerTheme.dark : SellerTheme.light,
@@ -920,7 +1046,7 @@ class _BusinessInfoSheetState extends ConsumerState<_BusinessInfoSheet> {
   late final TextEditingController _experience;
   late final TextEditingController _cityId;
   late final TextEditingController _address;
-  late final TextEditingController _areaIds;
+  late Set<int> _selectedAreaIds;
   bool _saving = false;
 
   @override
@@ -936,7 +1062,7 @@ class _BusinessInfoSheetState extends ConsumerState<_BusinessInfoSheet> {
           .toString(),
     );
     _address = TextEditingController(text: seller.address);
-    _areaIds = TextEditingController(text: business.sellerAreaIds.join(', '));
+    _selectedAreaIds = widget.bundle.businessInfo.sellerAreaIds.toSet();
   }
 
   @override
@@ -946,7 +1072,6 @@ class _BusinessInfoSheetState extends ConsumerState<_BusinessInfoSheet> {
     _experience.dispose();
     _cityId.dispose();
     _address.dispose();
-    _areaIds.dispose();
     super.dispose();
   }
 
@@ -963,7 +1088,7 @@ class _BusinessInfoSheetState extends ConsumerState<_BusinessInfoSheet> {
             previousExperience: _experience.text.trim(),
             cityId: _cityId.text.trim(),
             address: _address.text.trim(),
-            areaIds: _parseIds(_areaIds.text),
+            areaIds: _selectedAreaIds.toList(),
           ),
       success: 'Business info updated.',
       context: context,
@@ -973,7 +1098,6 @@ class _BusinessInfoSheetState extends ConsumerState<_BusinessInfoSheet> {
   @override
   Widget build(BuildContext context) {
     final cityCount = widget.bundle.businessInfo.cities.length;
-    final areaCount = widget.bundle.businessInfo.areas.length;
     return _SheetShell(
       title: 'Edit Business Info',
       child: Form(
@@ -1012,12 +1136,20 @@ class _BusinessInfoSheetState extends ConsumerState<_BusinessInfoSheet> {
               maxLines: 3,
               validator: _required,
             ),
-            _SheetTextField(
-              controller: _areaIds,
-              label: 'Area IDs ($areaCount available, comma separated)',
-              enabled: !_saving,
-              validator: _required,
+            _AreaSelector(
+              all: widget.bundle.businessInfo.areas,
+              selectedIds: _selectedAreaIds,
+              onToggle: _saving
+                  ? null
+                  : (id) => setState(() {
+                        if (_selectedAreaIds.contains(id)) {
+                          _selectedAreaIds.remove(id);
+                        } else {
+                          _selectedAreaIds.add(id);
+                        }
+                      }),
             ),
+            const Gap.v(AppSpace.sm),
             SellerButton(
               label: 'Save Business Info',
               icon: Icons.save_outlined,
@@ -1122,6 +1254,230 @@ class _PasswordSheetState extends ConsumerState<_PasswordSheet> {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  AREA SELECTOR
+// ═══════════════════════════════════════════════════════════
+class _AreaSelector extends StatefulWidget {
+  final List<SellerLookupOption> all;
+  final Set<int> selectedIds;
+  final void Function(int id)? onToggle;
+
+  const _AreaSelector({
+    required this.all,
+    required this.selectedIds,
+    required this.onToggle,
+  });
+
+  @override
+  State<_AreaSelector> createState() => _AreaSelectorState();
+}
+
+class _AreaSelectorState extends State<_AreaSelector> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+
+    final selected = widget.all
+        .where((a) => widget.selectedIds.contains(a.id))
+        .toList();
+    final available = widget.all
+        .where((a) => !widget.selectedIds.contains(a.id))
+        .where((a) =>
+            _query.isEmpty ||
+            a.title.toLowerCase().contains(_query.toLowerCase()))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Coverage Areas',
+              style: text.bodyLg.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            if (selected.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.xs,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: c.accent.withValues(alpha: 0.12),
+                  borderRadius: AppRadius.brPill,
+                ),
+                child: Text(
+                  '${selected.length} selected',
+                  style: text.labelSm.copyWith(color: c.accent),
+                ),
+              ),
+          ],
+        ),
+        if (selected.isNotEmpty) ...[
+          const Gap.v(AppSpace.sm),
+          Wrap(
+            spacing: AppSpace.xs,
+            runSpacing: AppSpace.xs,
+            children: selected
+                .map((a) => _AreaChip(
+                      label: a.title,
+                      selected: true,
+                      onTap: widget.onToggle == null
+                          ? null
+                          : () => widget.onToggle!(a.id),
+                    ))
+                .toList(),
+          ),
+          const Gap.v(AppSpace.sm),
+          Divider(color: c.divider),
+        ],
+        const Gap.v(AppSpace.sm),
+        TextField(
+          controller: _searchCtrl,
+          onChanged: (v) => setState(() => _query = v),
+          style: TextStyle(color: c.textPrimary, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'Search areas…',
+            hintStyle: TextStyle(color: c.textTertiary, fontSize: 14),
+            prefixIcon:
+                Icon(Icons.search_rounded, color: c.textSecondary, size: 20),
+            suffixIcon: _query.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear_rounded,
+                        color: c.textSecondary, size: 18),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() => _query = '');
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: c.surfaceAlt,
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: AppSpace.sm,
+              horizontal: AppSpace.sm,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: AppRadius.brMd,
+              borderSide: BorderSide(color: c.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: AppRadius.brMd,
+              borderSide: BorderSide(color: c.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: AppRadius.brMd,
+              borderSide: BorderSide(color: c.accent, width: 1.5),
+            ),
+          ),
+        ),
+        const Gap.v(AppSpace.sm),
+        if (available.isEmpty)
+          Text(
+            _query.isEmpty
+                ? 'All areas selected'
+                : 'No areas match "$_query"',
+            style: text.bodySm.copyWith(color: c.textTertiary),
+          )
+        else ...[
+          Wrap(
+            spacing: AppSpace.xs,
+            runSpacing: AppSpace.xs,
+            children: available
+                .take(60)
+                .map((a) => _AreaChip(
+                      label: a.title,
+                      selected: false,
+                      onTap: widget.onToggle == null
+                          ? null
+                          : () => widget.onToggle!(a.id),
+                    ))
+                .toList(),
+          ),
+          if (available.length > 60) ...[
+            const Gap.v(AppSpace.xs),
+            Text(
+              '+ ${available.length - 60} more — search to narrow down',
+              style: text.caption.copyWith(color: c.textTertiary),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _AreaChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _AreaChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return Material(
+      color: selected ? c.accent.withValues(alpha: 0.10) : Colors.transparent,
+      borderRadius: AppRadius.brPill,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.brPill,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpace.sm,
+            vertical: AppSpace.xxs + 2,
+          ),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: selected ? c.accent : c.border,
+              width: selected ? 1.5 : 1,
+            ),
+            borderRadius: AppRadius.brPill,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                Icon(Icons.check_rounded, size: 12, color: c.accent),
+                const Gap.h(AppSpace.xxs),
+              ],
+              Text(
+                label,
+                style: text.labelSm.copyWith(
+                  color: selected ? c.accent : c.textSecondary,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              if (selected) ...[
+                const Gap.h(AppSpace.xxs),
+                Icon(Icons.close_rounded,
+                    size: 12, color: c.accent.withValues(alpha: 0.7)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 //  SHEET SHELL
 // ═══════════════════════════════════════════════════════════
 class _SheetShell extends StatelessWidget {
@@ -1166,8 +1522,28 @@ class _SheetShell extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Gap.v(AppSpace.md),
-                Text(title, style: text.titleMd),
+                const Gap.v(AppSpace.sm),
+                Row(
+                  children: [
+                    Expanded(child: Text(title, style: text.titleMd)),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: c.surfaceAlt,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: c.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const Gap.v(AppSpace.md),
                 child,
               ],
@@ -1287,13 +1663,6 @@ String? _emailValidator(String? value) {
   return null;
 }
 
-List<int> _parseIds(String value) {
-  return value
-      .split(',')
-      .map((item) => int.tryParse(item.trim()) ?? 0)
-      .where((item) => item > 0)
-      .toList(growable: false);
-}
 
 String _cleanError(Object error) {
   final text = error.toString().replaceFirst('Exception: ', '').trim();

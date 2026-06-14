@@ -1,9 +1,9 @@
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/dashboard/model/seller_dashboard_model.dart';
 import 'package:atompro/features/seller/dashboard/viewmodel/seller_dashboard_viewmodel.dart';
 import 'package:atompro/features/seller/instalments/view/seller_instalments_screen.dart';
-import 'package:atompro/features/seller/investments/view/seller_investments_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,22 +27,21 @@ class SellerFinanceHubScreen extends ConsumerWidget {
           SellerGradientHeader(
             leading: const _HeaderGlyph(icon: Icons.account_balance_rounded),
             title: 'Finance',
-            subtitle: 'Dues, fees & investments',
+            subtitle: 'Dues & fees',
             actions: [
-              SellerHeaderIconButton(
-                icon: Icons.refresh_rounded,
-                tooltip: 'Refresh',
-                onTap: () => ref.invalidate(sellerDashboardProvider(_query)),
-              ),
+              const SellerNotificationBell(),
+              const SellerHeaderProfileButton(),
             ],
           ),
           Expanded(
             child: bundle.when(
               loading: () => const SellerListSkeleton(),
-              error: (e, _) => SellerErrorState(
-                message: e.toString().replaceFirst('Exception: ', ''),
-                onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
-              ),
+              error: (e, _) => e is SellerPlanUpgradeException
+                  ? SellerPlanGateState(exception: e)
+                  : SellerErrorState(
+                      message: e.toString().replaceFirst('Exception: ', ''),
+                      onRetry: () => ref.invalidate(sellerDashboardProvider(_query)),
+                    ),
               data: (data) => RefreshIndicator(
                 color: c.accent,
                 backgroundColor: c.surface,
@@ -98,14 +97,6 @@ class _Body extends StatelessWidget {
           subtitle:
               '${d.pendingRecoveryCount} pending · ${d.pendingRecoverySum} to collect',
           onTap: () => context.pushSeller(const SellerInstalmentsScreen()),
-        ),
-        const Gap.v(AppSpace.sm),
-        _NavCard(
-          icon: Icons.trending_up_rounded,
-          tone: c.violetTone,
-          title: 'Investments',
-          subtitle: 'Capital, returns & status',
-          onTap: () => context.pushSeller(const SellerInvestmentsScreen()),
         ),
       ],
     );

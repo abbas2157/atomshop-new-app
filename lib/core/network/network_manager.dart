@@ -15,8 +15,8 @@ class NetworkManager {
     final dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 90),
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 30),
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
           'Accept': 'application/json',
@@ -183,22 +183,30 @@ class NetworkManager {
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = response.data;
       if (data is Map) {
+        final path = response.requestOptions.path;
+        final isSubscriptionEndpoint = path.contains('seller-app/subscription');
+
         if (data['requires_subscription'] == true) {
-          SellerSubscriptionGate.trigger(false);
+          if (!isSubscriptionEndpoint) {
+            SellerSubscriptionGate.trigger(false);
+          }
           throw Exception(data['message'] ?? 'No active subscription.');
         }
         final msg = data['message'];
         if (data['success'] == false &&
             msg is String &&
             msg.contains('pending monthly payment')) {
-          SellerSubscriptionGate.trigger(true);
+          if (!isSubscriptionEndpoint) {
+            SellerSubscriptionGate.trigger(true);
+          }
           throw Exception(msg);
         }
-        if (data['requires_upgrade'] == true) {
+        if (data['requires_upgrade'] == true || data['requires_plan'] is String) {
           throw SellerPlanUpgradeException(
             message: msg is String && msg.isNotEmpty
                 ? msg
                 : 'Your current plan does not include access to this feature.',
+            messageUr: data['message_ur']?.toString() ?? '',
             phone: data['phone']?.toString() ?? '+923302277522',
           );
         }
@@ -213,7 +221,20 @@ class NetworkManager {
     if (error is SellerPlanUpgradeException) throw error;
     if (error is DioException) {
       if (error.response != null) {
-        throw Exception(error.response!.data['message'] ?? 'Error occurred');
+        final data = error.response!.data;
+        if (data is Map &&
+            (data['requires_upgrade'] == true ||
+                data['requires_plan'] is String)) {
+          final msg = data['message'];
+          throw SellerPlanUpgradeException(
+            message: msg is String && msg.isNotEmpty
+                ? msg
+                : 'Your current plan does not include access to this feature.',
+            messageUr: data['message_ur']?.toString() ?? '',
+            phone: data['phone']?.toString() ?? '+923302277522',
+          );
+        }
+        throw Exception(data['message'] ?? 'Error occurred');
       } else {
         throw Exception("Network Error: ${error.message}");
       }

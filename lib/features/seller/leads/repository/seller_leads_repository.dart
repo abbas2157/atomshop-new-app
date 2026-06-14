@@ -1,10 +1,7 @@
-import 'dart:io';
-
 import 'package:atompro/core/auth/seller_session_manager.dart';
 import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/network/network_manager.dart';
 import 'package:atompro/core/network/network_provider.dart';
-import 'package:atompro/features/seller/core/services/seller_file_service.dart';
 import 'package:atompro/features/seller/leads/model/seller_leads_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,14 +17,20 @@ class SellerLeadsRepository {
   // ── Leads list + bundle ──────────────────────────────────────────────────────
 
   Future<SellerLeadsBundle> getLeadsBundle(SellerLeadsQuery query) async {
-    final leads = await getLeads(query);
-    final counts = await getStatusCounts(query.scope);
-    final newCount =
-        query.scope == SellerLeadScope.mine ? await getNewLeadsCount() : 0;
+    // eagerError: surface the plan-gate (thrown by getLeads) the instant it
+    // fails rather than waiting for the other two parallel calls to settle.
+    final results = await Future.wait([
+      getLeads(query),
+      getStatusCounts(query.scope),
+      if (query.scope == SellerLeadScope.mine)
+        getNewLeadsCount().catchError((_) => 0)
+      else
+        Future.value(0),
+    ], eagerError: true);
     return SellerLeadsBundle(
-      leads: leads,
-      statusCounts: counts,
-      newLeadsCount: newCount,
+      leads: results[0] as SellerLeadsResponse,
+      statusCounts: results[1] as Map<String, int>,
+      newLeadsCount: results[2] as int,
     );
   }
 
@@ -114,11 +117,14 @@ class SellerLeadsRepository {
       'per_month_percentage': perMonthPercentage.toString(),
       'installments': installments.toString(),
     };
-    final response =
-        await _post(ApiEndpoints.sellerLeadCustomOrder(leadId), body);
+    final response = await _post(
+      ApiEndpoints.sellerLeadCustomOrder(leadId),
+      body,
+    );
     if (response['success'] != true) {
       throw Exception(
-          response['message'] ?? 'Failed to create custom order from lead.');
+        response['message'] ?? 'Failed to create custom order from lead.',
+      );
     }
     return response['data'] is Map
         ? Map<String, dynamic>.from(response['data'])
@@ -151,28 +157,6 @@ class SellerLeadsRepository {
     return _parseFlatList(response['data']);
   }
 
-  // ── Import / export ──────────────────────────────────────────────────────────
-
-  Future<void> importLeads(File file) async {
-    final token = await SellerSessionManager.getToken();
-    final response = await _network.postMultipartRequest(
-      ApiEndpoints.sellerImportLeads,
-      const {},
-      {'file': file},
-      token: token,
-    );
-    if (response['success'] != true) {
-      throw Exception(response['message'] ?? 'Failed to import leads.');
-    }
-  }
-
-  Future<String> downloadImportSample() {
-    return SellerFileService.downloadAuthenticatedFile(
-      endpoint: ApiEndpoints.sellerLeadsSample,
-      fileName: 'atomshop_leads_import_sample.xlsx',
-    );
-  }
-
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   /// Parses a flat List response into [SellerLeadLookup] items.
@@ -183,8 +167,9 @@ class SellerLeadsRepository {
         : (data is Map ? (data['data'] as List? ?? []) : <dynamic>[]);
     return list
         .whereType<Map>()
-        .map((item) =>
-            SellerLeadLookup.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => SellerLeadLookup.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList(growable: false);
   }
 

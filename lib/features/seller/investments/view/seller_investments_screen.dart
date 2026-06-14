@@ -6,6 +6,7 @@
 //  updated to the Seller Design System.
 // ============================================================
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
@@ -92,15 +93,19 @@ class _SellerInvestmentsScreenState
                 ],
               ),
               Expanded(
-                child: SellerErrorState(
-                  message: _cleanError(error),
-                  onRetry: _refresh,
-                ),
+                child: error is SellerPlanUpgradeException
+                    ? SellerPlanGateState(exception: error)
+                    : SellerErrorState(
+                        message: _cleanError(error),
+                        onRetry: _refresh,
+                      ),
               ),
             ],
           ),
         ),
-        data: (data) => Column(
+        data: (data) => data.gate != null
+            ? SellerPlanGateState(exception: data.gate!)
+            : Column(
           children: [
             SellerGradientHeader(
               leading: SellerIconBadge(
@@ -303,14 +308,16 @@ class _SellerInvestmentDetailsScreenState
                             count: 3,
                             itemHeight: 64,
                           ),
-                          error: (error, _) => SellerErrorState(
-                            message: _cleanError(error),
-                            onRetry: () => ref.invalidate(
-                              sellerInvestmentDetailsProvider(
-                                widget.investment.id,
-                              ),
-                            ),
-                          ),
+                          error: (error, _) => error is SellerPlanUpgradeException
+                              ? SellerPlanGateState(exception: error)
+                              : SellerErrorState(
+                                  message: _cleanError(error),
+                                  onRetry: () => ref.invalidate(
+                                    sellerInvestmentDetailsProvider(
+                                      widget.investment.id,
+                                    ),
+                                  ),
+                                ),
                           data: (details) => Column(
                             crossAxisAlignment:
                                 CrossAxisAlignment.stretch,

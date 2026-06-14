@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:atompro/core/network/api_endpoints.dart';
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
@@ -87,11 +88,13 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
               body: profileState.when(
                 loading: () =>
                     _LoadingView(initialCustomer: initialCustomer),
-                error: (error, _) => SellerErrorState(
-                  message: _cleanError(error),
-                  onRetry: () => ref.invalidate(
-                      sellerCustomerProfileProvider(customerUuid)),
-                ),
+                error: (error, _) => error is SellerPlanUpgradeException
+                    ? SellerPlanGateState(exception: error)
+                    : SellerErrorState(
+                        message: _cleanError(error),
+                        onRetry: () => ref.invalidate(
+                            sellerCustomerProfileProvider(customerUuid)),
+                      ),
                 data: (details) => RefreshIndicator(
                   color: c.accent,
                   backgroundColor: c.surface,

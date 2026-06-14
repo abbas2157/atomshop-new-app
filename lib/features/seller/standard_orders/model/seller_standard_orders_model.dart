@@ -1,13 +1,33 @@
 import 'dart:convert';
 
+import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+
 class SellerStandardOrdersResponse {
   final List<SellerStandardOrder> orders;
   final SellerStandardOrdersPagination pagination;
 
+  /// Non-null when the plan doesn't include this feature — carried as data, not
+  /// thrown, to avoid the AsyncError refetch loop. Screen renders the gate from it.
+  final SellerPlanUpgradeException? gate;
+
   const SellerStandardOrdersResponse({
     required this.orders,
     required this.pagination,
+    this.gate,
   });
+
+  factory SellerStandardOrdersResponse.gated(SellerPlanUpgradeException gate) {
+    return SellerStandardOrdersResponse(
+      orders: const [],
+      pagination: const SellerStandardOrdersPagination(
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 0,
+        total: 0,
+      ),
+      gate: gate,
+    );
+  }
 
   int get pendingCount => orders
       .where((order) => order.status.toLowerCase().contains('pending'))

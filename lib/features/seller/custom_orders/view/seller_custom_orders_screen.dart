@@ -251,13 +251,15 @@ class _SellerCustomOrdersScreenState
                             onRetry: () =>
                                 ref.invalidate(sellerCustomOrdersProvider(_query)),
                           ),
-                    data: (data) => _OrdersContent(
-                      data: data,
-                      statusCounts: statusCounts,
-                      selectedStatus: _query.status,
-                      onStatusSelect: _selectStatus,
-                      onPage: _goToPage,
-                    ),
+                    data: (data) => data.gate != null
+                        ? SellerPlanGateState(exception: data.gate!)
+                        : _OrdersContent(
+                            data: data,
+                            statusCounts: statusCounts,
+                            selectedStatus: _query.status,
+                            onStatusSelect: _selectStatus,
+                            onPage: _goToPage,
+                          ),
                   ),
                 ],
               ),
@@ -270,7 +272,7 @@ class _SellerCustomOrdersScreenState
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  HEADER
+//  HEADER  —  stat tiles on canvas (no gradient)
 // ─────────────────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
   final bool hasFilters;
@@ -289,118 +291,72 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SellerGradientHeader(
-      leading: const SellerHeaderIconBadge(icon: Icons.receipt_long_rounded),
-      title: 'Custom Orders',
-      subtitle: 'Instalment & deal orders',
-      actions: [
-        if (hasFilters)
-          SellerHeaderIconButton(
-            icon: Icons.filter_alt_off_outlined,
-            onTap: onReset,
-            tooltip: 'Reset filters',
-          ),
-      ],
-      bottom: Row(
+    final c = context.sellerColors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.md,
+        AppSpace.sm,
+        AppSpace.md,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: _HeaderStat(
-              icon: Icons.layers_rounded,
-              label: 'Total',
-              value: totalOrders?.toString() ?? '—',
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: SellerKpiCard(
+                  label: 'Total',
+                  value: totalOrders?.toString() ?? '—',
+                  icon: Icons.layers_rounded,
+                  tone: c.infoTone,
+                ),
+              ),
+              const Gap.h(AppSpace.sm),
+              Expanded(
+                child: SellerKpiCard(
+                  label: 'Pending',
+                  value: pendingCount?.toString() ?? '—',
+                  icon: Icons.pending_actions_rounded,
+                  tone: c.warningTone,
+                ),
+              ),
+              const Gap.h(AppSpace.sm),
+              Expanded(
+                child: SellerKpiCard(
+                  label: 'Completed',
+                  value: completedCount?.toString() ?? '—',
+                  icon: Icons.check_circle_outline_rounded,
+                  tone: c.successTone,
+                ),
+              ),
+            ],
           ),
-          const _HeaderDivider(),
-          Expanded(
-            child: _HeaderStat(
-              icon: Icons.pending_actions_rounded,
-              label: 'Pending',
-              value: pendingCount?.toString() ?? '—',
+          if (hasFilters) ...[
+            const Gap.v(AppSpace.xs),
+            GestureDetector(
+              onTap: onReset,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.filter_alt_off_outlined,
+                      size: 14, color: c.textSecondary),
+                  const Gap.h(AppSpace.xxs),
+                  Text(
+                    'Reset filters',
+                    style: context.sellerText.bodySm
+                        .copyWith(color: c.textSecondary),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const _HeaderDivider(),
-          Expanded(
-            child: _HeaderStat(
-              icon: Icons.check_circle_outline_rounded,
-              label: 'Completed',
-              value: completedCount?.toString() ?? '—',
-            ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// A frosted square icon container for the gradient header (matches the
-/// circular [SellerHeaderIconButton] family but non-interactive).
-class SellerHeaderIconBadge extends StatelessWidget {
-  final IconData icon;
-  const SellerHeaderIconBadge({super.key, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: AppRadius.brMd,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-      ),
-      child: Icon(icon, color: Colors.white, size: 22),
-    );
-  }
-}
-
-class _HeaderStat extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _HeaderStat({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 16),
-      const Gap.v(AppSpace.xxs),
-      Text(
-        value,
-        style: const TextStyle(
-          fontFamily: 'Roboto',
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-          height: 1.1,
-        ),
-      ),
-      Text(
-        label,
-        style: TextStyle(
-          fontFamily: 'Roboto',
-          color: Colors.white.withValues(alpha: 0.64),
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    ],
-  );
-}
-
-class _HeaderDivider extends StatelessWidget {
-  const _HeaderDivider();
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 1,
-    height: 40,
-    color: Colors.white.withValues(alpha: 0.15),
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  COLLAPSIBLE FILTER PANEL
