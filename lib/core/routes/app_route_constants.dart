@@ -25,4 +25,5 @@ class AppRoutes {
   static const String sellerMode = '/seller';
   static const String sellerLogin = '/seller/login';
   static const String sellerShell = '/seller/shell';
+  static const String sellerNotificationSettings = '/seller/notification-settings';
 }

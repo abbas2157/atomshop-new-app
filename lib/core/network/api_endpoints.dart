@@ -189,4 +189,10 @@ class ApiEndpoints {
   static const String sellerNotificationsCount = 'seller-app/notifications/count';
   static String sellerNotificationRead(int id) => 'seller-app/notifications/$id/read';
   static const String sellerNotificationsReadAll = 'seller-app/notifications/read-all';
+
+  // ── Seller notification settings ────────────────────────────────────────
+  static const String sellerNotificationSettings =
+      'seller-app/settings/notifications';
+  static const String sellerNotificationSettingsToggle =
+      'seller-app/settings/notifications/toggle';
 }

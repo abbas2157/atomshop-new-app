@@ -1,3 +1,4 @@
+import 'package:atompro/core/cache/reference_data_provider.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_generator.dart';
 import 'package:atompro/core/services/fcm_service.dart';
@@ -52,11 +53,25 @@ Future<void> _initializeFirebase() async {
   }
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Kick off reference data cache load + silent background sync.
+    // Runs once per app session; provider stays alive for the lifetime of
+    // ProviderScope so cities / areas / categories / brands are always ready.
+    ref.read(referenceDataProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Resolve the customer theme mode and apply it to the dynamic palette
     // before the theme is built, so every ColorPalette.* reference adapts.
     final mode = ref.watch(customerThemeModeProvider);

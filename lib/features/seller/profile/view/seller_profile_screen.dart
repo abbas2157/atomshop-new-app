@@ -19,6 +19,7 @@ import 'package:atompro/features/seller/profile/viewmodel/seller_profile_viewmod
 import 'package:atompro/features/seller/sales_team/view/seller_sales_team_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:atompro/features/seller/notification_settings/view/seller_notification_settings_screen.dart';
 import 'package:atompro/features/seller/subscription/view/seller_subscription_screen.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -324,6 +325,24 @@ class SellerProfileScreen extends ConsumerWidget {
                             child: Builder(
                               builder: (context) =>
                                   const SellerSalesTeamScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Gap.v(AppSpace.sm),
+                    _QuickActionCard(
+                      icon: Icons.notifications_outlined,
+                      title: 'Notification Settings',
+                      subtitle: 'Manage your alert preferences',
+                      tone: c.infoTone,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SellerThemeScope(
+                            child: Builder(
+                              builder: (context) =>
+                                  const SellerNotificationSettingsScreen(),
                             ),
                           ),
                         ),

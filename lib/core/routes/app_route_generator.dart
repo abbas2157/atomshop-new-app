@@ -21,7 +21,9 @@ import 'package:atompro/features/customer/terms_and_conditions/terms_and_conditi
 import 'package:atompro/features/customer/terms_of_use/terms_of_use.dart';
 import 'package:atompro/features/customer/why_atomshop/view/why_atomshop_view.dart';
 import 'package:atompro/features/seller/auth/view/seller_login_screen.dart';
+import 'package:atompro/features/seller/core/design/seller_theme.dart';
 import 'package:atompro/features/seller/mode_gate/view/seller_mode_gate_screen.dart';
+import 'package:atompro/features/seller/notification_settings/view/seller_notification_settings_screen.dart';
 import 'package:atompro/features/seller/shell/view/seller_shell_screen.dart';
 
 import 'package:flutter/material.dart';
@@ -92,6 +94,15 @@ class AppRouteGenerator {
         return MaterialPageRoute(builder: (_) => const SellerLoginScreen());
       case AppRoutes.sellerShell:
         return MaterialPageRoute(builder: (_) => const SellerShellScreen());
+      case AppRoutes.sellerNotificationSettings:
+        return MaterialPageRoute(
+          builder: (_) => SellerThemeScope(
+            child: Builder(
+              builder: (context) =>
+                  const SellerNotificationSettingsScreen(),
+            ),
+          ),
+        );
 
       default:
         return MaterialPageRoute(
