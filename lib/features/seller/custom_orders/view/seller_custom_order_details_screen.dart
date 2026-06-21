@@ -1481,13 +1481,18 @@ const _kWhatsAppSvg =
 
 Future<void> _launchCall(String phone) async {
   final uri = Uri(scheme: 'tel', path: phone);
-  if (await canLaunchUrl(uri)) launchUrl(uri);
+  if (await canLaunchUrl(uri)) await launchUrl(uri);
 }
 
 Future<void> _launchWhatsApp(String phone) async {
-  final normalized = phone.startsWith('0') ? '92${phone.substring(1)}' : phone;
+  final digits = phone.replaceAll(RegExp(r'[^\d]'), '');
+  final normalized = digits.startsWith('92')
+      ? digits
+      : digits.startsWith('0')
+          ? '92${digits.substring(1)}'
+          : digits;
   final uri = Uri.parse('https://wa.me/$normalized');
-  if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
 Future<void> _shareOnWhatsApp(SellerCustomOrderDetails details) async {
@@ -1506,7 +1511,7 @@ Future<void> _shareOnWhatsApp(SellerCustomOrderDetails details) async {
   buf.writeln('🗓 *Date:* ${o.formattedCreatedAt}');
   final text = Uri.encodeComponent(buf.toString());
   final uri = Uri.parse('https://wa.me/?text=$text');
-  if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
 class _DetailContactBtn extends StatelessWidget {
