@@ -12,7 +12,9 @@
 
 import 'dart:io';
 
+import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/services/seller_file_service.dart';
@@ -25,7 +27,9 @@ import 'package:atompro/features/seller/customers/view/seller_customer_form_scre
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SellerCustomOrderDetailsScreen extends ConsumerWidget {
   final String orderUuid;
@@ -54,18 +58,16 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
               titleSpacing: 0,
               title: Text('Custom Order Details', style: text.titleMd),
               actions: [
+                if (state.asData != null)
+                  IconButton(
+                    tooltip: 'Share on WhatsApp',
+                    onPressed: () => _shareOnWhatsApp(state.asData!.value),
+                    icon: const Icon(Icons.share_outlined),
+                  ),
                 IconButton(
                   tooltip: 'Open PDF',
                   onPressed: () => _openPdf(ref, orderUuid),
                   icon: const Icon(Icons.picture_as_pdf_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Refresh',
-                  onPressed: () {
-                    ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
-                    ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
-                  },
-                  icon: const Icon(Icons.refresh_rounded),
                 ),
               ],
             ),
@@ -81,9 +83,6 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
               data: (details) => _DetailsContent(
                 details: details,
                 orderUuid: orderUuid,
-                guarantorState: ref.watch(
-                  sellerCustomOrderGuarantorProvider(orderUuid),
-                ),
                 onUpdateStatus: () => _showStatusPickerSheet(
                   context: context,
                   ref: ref,
@@ -115,12 +114,6 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
                         instalment: instalment,
                       )
                     : null,
-                onAddGuarantor: (initial) => _showGuarantorSheet(
-                  context: context,
-                  ref: ref,
-                  orderUuid: orderUuid,
-                  initial: initial,
-                ),
                 onVerifyCustomer: details.user.customer.hasData
                     ? () => Navigator.push(
                           context,
@@ -133,11 +126,9 @@ class SellerCustomOrderDetailsScreen extends ConsumerWidget {
                     : null,
                 onRefresh: () async {
                   ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
-                  ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
-                  await Future.wait([
-                    ref.read(sellerCustomOrderDetailsProvider(orderUuid).future),
-                    ref.read(sellerCustomOrderGuarantorProvider(orderUuid).future),
-                  ]);
+                  await ref.read(
+                    sellerCustomOrderDetailsProvider(orderUuid).future,
+                  );
                 },
               ),
             ),
@@ -166,22 +157,18 @@ Future<void> _openPdf(WidgetRef ref, String orderUuid) async {
 class _DetailsContent extends StatelessWidget {
   final SellerCustomOrderDetails details;
   final String orderUuid;
-  final AsyncValue<SellerCustomOrderGuarantor> guarantorState;
   final VoidCallback onUpdateStatus;
   final VoidCallback? onCloseDeal;
   final ValueChanged<SellerCustomOrderInstalment>? onPayInstalment;
-  final ValueChanged<SellerCustomOrderGuarantor?> onAddGuarantor;
   final VoidCallback? onVerifyCustomer;
   final Future<void> Function() onRefresh;
 
   const _DetailsContent({
     required this.details,
     required this.orderUuid,
-    required this.guarantorState,
     required this.onUpdateStatus,
     required this.onCloseDeal,
     required this.onPayInstalment,
-    required this.onAddGuarantor,
     required this.onVerifyCustomer,
     required this.onRefresh,
   });
@@ -290,8 +277,8 @@ class _DetailsContent extends StatelessWidget {
           // ORDER GUARANTORS
           const Gap.v(AppSpace.sm),
           _GuarantorSection(
-            state: guarantorState,
-            onAdd: () => onAddGuarantor(guarantorState.asData?.value),
+            guarantors: details.guarantors,
+            orderUuid: orderUuid,
           ),
 
           // ORDER CHANGE HISTORY
@@ -428,22 +415,21 @@ class _HeroCard extends StatelessWidget {
                   const Gap.v(AppSpace.sm),
                 ],
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Expanded(
-                      child: _HeroActionButton(
-                        icon: Icons.edit_note_rounded,
-                        label: 'Update Status',
-                        onTap: onUpdateStatus,
-                      ),
+                    _HeroActionButton(
+                      icon: Icons.edit_note_rounded,
+                      label: 'Update Status',
+                      onTap: onUpdateStatus,
+                      compact: true,
                     ),
                     if (onCloseDeal != null) ...[
                       const Gap.h(AppSpace.sm),
-                      Expanded(
-                        child: _HeroActionButton(
-                          icon: Icons.handshake_outlined,
-                          label: 'Close Deal',
-                          onTap: onCloseDeal!,
-                        ),
+                      _HeroActionButton(
+                        icon: Icons.handshake_outlined,
+                        label: 'Close Deal',
+                        onTap: onCloseDeal!,
+                        compact: true,
                       ),
                     ],
                   ],
@@ -496,12 +482,15 @@ class _HeroActionButton extends StatelessWidget {
   /// Solid white fill for the highest-priority action on the card (e.g. the
   /// next collectible payment) so it stands out from the outlined actions.
   final bool filled;
+  /// Compact mode: intrinsic width, shorter height — for secondary actions.
+  final bool compact;
 
   const _HeroActionButton({
     required this.icon,
     required this.label,
     required this.onTap,
     this.filled = false,
+    this.compact = false,
   });
 
   @override
@@ -515,10 +504,10 @@ class _HeroActionButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 44,
-          width: double.infinity,
+          height: compact ? 34 : 44,
+          width: compact ? null : double.infinity,
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+          padding: EdgeInsets.symmetric(horizontal: compact ? AppSpace.sm : AppSpace.sm),
           decoration: BoxDecoration(
             borderRadius: AppRadius.brMd,
             border: filled
@@ -526,21 +515,20 @@ class _HeroActionButton extends StatelessWidget {
                 : Border.all(color: Colors.white.withValues(alpha: 0.34)),
           ),
           child: Row(
+            mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: fg),
+              Icon(icon, size: 15, color: fg),
               const Gap.h(AppSpace.xs),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Roboto',
-                    color: fg,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  color: fg,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -633,11 +621,13 @@ class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget child;
+  final Widget? action;
 
   const _SectionCard({
     required this.title,
     required this.icon,
     required this.child,
+    this.action,
   });
 
   @override
@@ -650,9 +640,8 @@ class _SectionCard extends StatelessWidget {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpace.md,
-              vertical: AppSpace.sm,
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.md, AppSpace.xs + 2, AppSpace.xs + 2, AppSpace.xs + 2,
             ),
             decoration: BoxDecoration(
               color: c.accentSurface,
@@ -668,6 +657,7 @@ class _SectionCard extends StatelessWidget {
                         color: c.accent,
                       )),
                 ),
+                if (action case final w?) w,
               ],
             ),
           ),
@@ -684,8 +674,11 @@ class _GridRow extends StatelessWidget {
   final String value1;
   final String label2;
   final String value2;
+  final bool c1;
+  final bool c2;
 
-  const _GridRow(this.label1, this.value1, this.label2, this.value2);
+  const _GridRow(this.label1, this.value1, this.label2, this.value2,
+      {this.c1 = false, this.c2 = false});
 
   @override
   Widget build(BuildContext context) {
@@ -694,9 +687,9 @@ class _GridRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: _Cell(label: label1, value: value1)),
+          Expanded(child: _Cell(label: label1, value: value1, copyable: c1)),
           const Gap.h(AppSpace.sm),
-          Expanded(child: _Cell(label: label2, value: value2)),
+          Expanded(child: _Cell(label: label2, value: value2, copyable: c2)),
         ],
       ),
     );
@@ -706,24 +699,57 @@ class _GridRow extends StatelessWidget {
 class _Cell extends StatelessWidget {
   final String label;
   final String value;
-  const _Cell({required this.label, required this.value});
+  final bool copyable;
+  const _Cell({required this.label, required this.value, this.copyable = false});
+
+  static const _skip = {'—', 'Not available', 'Not Available', 'N/A', 'No PR number', 'No image', ''};
+  bool get _canCopy => copyable && !_skip.contains(value);
+
+  void _copy(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label copied'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final text = context.sellerText;
+    final c = context.sellerColors;
+    final display = value.isEmpty ? '—' : value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: text.caption),
         const Gap.v(AppSpace.xxs - 1),
-        Text(
-          value.isEmpty ? '—' : value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: text.bodySm.copyWith(
-            color: context.sellerColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                display,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: text.bodySm.copyWith(
+                  color: c.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (_canCopy)
+              GestureDetector(
+                onTap: () => _copy(context),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4, top: 1, bottom: 1, right: 2),
+                  child: Icon(Icons.copy_rounded, size: 12, color: c.textTertiary),
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -896,11 +922,43 @@ class _CustomerContent extends StatelessWidget {
     const na = '—';
     return Column(
       children: [
+        // ── Compact contact box ──────────────────
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs + 2),
+          decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: AppRadius.brSm),
+          child: Row(
+            children: [
+              _CustomerAvatar(name: user.name, picture: customer.picture, size: 36),
+              const Gap.h(AppSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(user.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodyLg.copyWith(fontWeight: FontWeight.w700)),
+                    const Gap.v(2),
+                    Text(user.phone, style: text.caption),
+                  ],
+                ),
+              ),
+              if (user.phone.isNotEmpty) ...[
+                const Gap.h(AppSpace.xs),
+                _DetailContactBtn(icon: Icon(Icons.call_outlined, size: 15, color: c.accent), color: c.accent, onTap: () => _launchCall(user.phone)),
+                const Gap.h(6),
+                _DetailContactBtn(
+                  icon: SvgPicture.string(_kWhatsAppSvg, width: 15, height: 15, colorFilter: const ColorFilter.mode(Color(0xFF25D366), BlendMode.srcIn)),
+                  color: const Color(0xFF25D366),
+                  onTap: () => _launchWhatsApp(user.phone),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const Gap.v(AppSpace.sm),
         _GridRow('Identifier', hasCustomer ? customer.identifier : na, 'Name',
-            user.name),
-        _GridRow('Phone', user.phone, 'Email', user.email),
+            user.name, c1: true, c2: true),
+        _GridRow('Phone', user.phone, 'Email', user.email, c1: true),
         _GridRow('Father Name', hasCustomer ? customer.fatherName : na, 'CNIC',
-            hasCustomer ? customer.cnicNo : na),
+            hasCustomer ? customer.cnicNo : na, c2: true),
         _GridRow('Address', hasCustomer ? customer.address : na, 'Res. Phone',
             hasCustomer ? customer.residencePhone : na),
         _GridRow('Office Address', hasCustomer ? customer.officeAddress : na,
@@ -927,11 +985,62 @@ class _CustomerContent extends StatelessWidget {
             SellerButton.secondary(
               label: 'Verify Customer',
               icon: Icons.verified_user_outlined,
+              size: SellerButtonSize.small,
               onPressed: onVerifyCustomer,
             ),
           ],
         ],
       ],
+    );
+  }
+}
+
+// ── Customer avatar ───────────────────────────────────────────────────────────
+class _CustomerAvatar extends StatelessWidget {
+  final String name;
+  final String picture;
+  final double size;
+
+  const _CustomerAvatar({
+    required this.name,
+    required this.picture,
+    this.size = 36,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final url = picture.isNotEmpty ? ApiEndpoints.publicAsset(picture) : '';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size / 2),
+      child: url.isNotEmpty
+          ? CachedNetworkImage(
+              imageUrl: url,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorWidget: (_, _, _) => _monogram(c),
+              placeholder: (_, _) => _monogram(c),
+            )
+          : _monogram(c),
+    );
+  }
+
+  Widget _monogram(dynamic c) {
+    final letter = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return Container(
+      width: size,
+      height: size,
+      color: (c as dynamic).accentSurface,
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: TextStyle(
+          color: c.accent,
+          fontSize: size * 0.4,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -1136,76 +1245,177 @@ class _HistoryContent extends StatelessWidget {
   }
 }
 
-class _GuarantorSection extends StatelessWidget {
-  final AsyncValue<SellerCustomOrderGuarantor> state;
-  final VoidCallback onAdd;
+class _GuarantorSection extends ConsumerStatefulWidget {
+  final List<SellerOrderGuarantor> guarantors;
+  final String orderUuid;
 
-  const _GuarantorSection({required this.state, required this.onAdd});
+  const _GuarantorSection({
+    required this.guarantors,
+    required this.orderUuid,
+  });
+
+  @override
+  ConsumerState<_GuarantorSection> createState() => _GuarantorSectionState();
+}
+
+class _GuarantorSectionState extends ConsumerState<_GuarantorSection> {
+  bool _removing = false;
+
+  Future<void> _openSheet({SellerOrderGuarantor? initial}) async {
+    final dark = context.sellerIsDark;
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Theme(
+        data: dark ? SellerTheme.dark : SellerTheme.light,
+        child: _GuarantorSheet(
+          orderUuid: widget.orderUuid,
+          initial: initial,
+        ),
+      ),
+    );
+    if (changed == true && mounted) {
+      ref.invalidate(sellerCustomOrderDetailsProvider(widget.orderUuid));
+    }
+  }
+
+  Future<void> _confirmRemove(SellerOrderGuarantor g) async {
+    final c = context.sellerColors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.surface,
+        title: Text('Remove Guarantor', style: context.sellerText.titleSm),
+        content: Text(
+          'Remove ${g.name} from this order?',
+          style: context.sellerText.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: c.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Remove', style: TextStyle(color: c.dangerTone.fg)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _removing = true);
+    try {
+      await ref
+          .read(sellerCustomOrdersRepositoryProvider)
+          .removeCustomOrderGuarantor(
+            orderUuid: widget.orderUuid,
+            guarantorId: g.id,
+          );
+      if (mounted) {
+        ref.invalidate(sellerCustomOrderDetailsProvider(widget.orderUuid));
+        SnackbarService().showSuccessSnackBar('Guarantor removed.');
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarService().showErrorSnackBar(
+          e.toString().replaceFirst('Exception: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _removing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final c = context.sellerColors;
     final text = context.sellerText;
+    final firstPhone = widget.guarantors.isNotEmpty &&
+            _hasPhone(widget.guarantors.first.resTel)
+        ? widget.guarantors.first.resTel
+        : null;
+
     return _SectionCard(
       title: 'Order Guarantors',
       icon: Icons.assignment_ind_outlined,
-      child: state.when(
-        loading: () => Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
-          child: Row(
-            children: [
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const Gap.h(AppSpace.sm),
-              Text('Loading guarantor...', style: text.bodySm),
-            ],
-          ),
-        ),
-        error: (error, _) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _SheetError(
-              message: error.toString().replaceFirst('Exception: ', ''),
-            ),
-            const Gap.v(AppSpace.sm),
-            SellerButton.secondary(
-              label: 'Add Guarantor',
-              icon: Icons.add_rounded,
-              onPressed: onAdd,
-            ),
-          ],
-        ),
-        data: (guarantor) {
-          if (!guarantor.exists) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      action: firstPhone != null
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('No guarantor added for this order.', style: text.bodySm),
-                const Gap.v(AppSpace.sm),
-                SellerButton.secondary(
-                  label: 'Add Guarantor',
-                  icon: Icons.add_rounded,
-                  onPressed: onAdd,
+                _GuarantorContactBtn(
+                  icon: Icon(Icons.call_outlined, size: 15, color: c.accent),
+                  color: c.accent,
+                  onTap: () => _launchCall(firstPhone),
+                ),
+                const Gap.h(AppSpace.xs),
+                _GuarantorContactBtn(
+                  icon: SvgPicture.string(
+                    _kWhatsAppSvg,
+                    width: 15,
+                    height: 15,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF25D366),
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                  color: const Color(0xFF25D366),
+                  onTap: () => _launchWhatsApp(firstPhone),
                 ),
               ],
-            );
-          }
-          return Column(
-            children: [
-              _GridRow('Name', guarantor.name, 'Phone', guarantor.phone),
-              _GridRow('CNIC', guarantor.cnic, 'Added', guarantor.createdAt),
-              _GridRow('Address', guarantor.address, '', ''),
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.guarantors.isEmpty)
+            Text('No guarantors added yet.', style: text.bodySm)
+          else
+            for (final g in widget.guarantors) ...[
+              if (g != widget.guarantors.first) ...[
+                const Gap.v(AppSpace.sm),
+                Divider(height: 1, color: c.border),
+                const Gap.v(AppSpace.sm),
+              ],
+              _GridRow('Name', g.name, 'Relation', g.relation, c1: true),
+              if (g.fatherName.isNotEmpty || g.profession.isNotEmpty)
+                _GridRow('Father', g.fatherName, 'Profession', g.profession),
+              _GridRow('CNIC', g.cnic, 'House', g.houseType, c1: true),
+              _GridRow('Res. Phone', g.resTel, 'Office Phone', g.officeTel),
+              _GridRow('Res. Address', g.resAddress, 'Office Addr.', g.officeAddress),
               const Gap.v(AppSpace.xs),
-              SellerButton.secondary(
-                label: 'Update Guarantor',
-                icon: Icons.edit_outlined,
-                onPressed: onAdd,
+              Row(
+                children: [
+                  Expanded(
+                    child: SellerButton.secondary(
+                      label: 'Edit',
+                      icon: Icons.edit_outlined,
+                      size: SellerButtonSize.small,
+                      onPressed: _removing ? null : () => _openSheet(initial: g),
+                    ),
+                  ),
+                  const Gap.h(AppSpace.sm),
+                  Expanded(
+                    child: SellerButton.secondary(
+                      label: 'Remove',
+                      icon: Icons.delete_outline_rounded,
+                      size: SellerButtonSize.small,
+                      loading: _removing,
+                      onPressed: _removing ? null : () => _confirmRemove(g),
+                    ),
+                  ),
+                ],
               ),
             ],
-          );
-        },
+          const Gap.v(AppSpace.sm),
+          SellerButton.secondary(
+            label: 'Add Guarantor',
+            icon: Icons.add_rounded,
+            size: SellerButtonSize.small,
+            onPressed: _removing ? null : () => _openSheet(),
+          ),
+        ],
       ),
     );
   }
@@ -1247,6 +1457,113 @@ class _LoadingView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Contact helpers ───────────────────────────────────────────────────────────
+
+const _kWhatsAppSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">'
+    '<path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 '
+    '0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1'
+    'c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 '
+    '0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3'
+    '-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 '
+    '34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138'
+    '.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18'
+    '-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 '
+    '5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5'
+    '-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1'
+    ' 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8'
+    ' 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 '
+    '4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>';
+
+Future<void> _launchCall(String phone) async {
+  final uri = Uri(scheme: 'tel', path: phone);
+  if (await canLaunchUrl(uri)) launchUrl(uri);
+}
+
+Future<void> _launchWhatsApp(String phone) async {
+  final normalized = phone.startsWith('0') ? '92${phone.substring(1)}' : phone;
+  final uri = Uri.parse('https://wa.me/$normalized');
+  if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+Future<void> _shareOnWhatsApp(SellerCustomOrderDetails details) async {
+  final o = details.order;
+  final u = details.user;
+  final buf = StringBuffer();
+  buf.writeln('📦 *Custom Order #${o.id}*');
+  buf.writeln('');
+  buf.writeln('👤 *Customer:* ${u.name}');
+  buf.writeln('📞 *Phone:* ${u.phone}');
+  buf.writeln('');
+  buf.writeln('🛍 *Product:* ${o.product.title}');
+  buf.writeln('💰 *Total:* Rs ${o.formattedTotalDealPrice}');
+  buf.writeln('💵 *Advance:* Rs ${o.formattedAdvancePrice}');
+  buf.writeln('📋 *Status:* ${o.status}');
+  buf.writeln('🗓 *Date:* ${o.formattedCreatedAt}');
+  final text = Uri.encodeComponent(buf.toString());
+  final uri = Uri.parse('https://wa.me/?text=$text');
+  if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+class _DetailContactBtn extends StatelessWidget {
+  final Widget icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DetailContactBtn({required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Center(child: icon),
+      ),
+    );
+  }
+}
+
+bool _hasPhone(String v) {
+  const skip = {'', 'Not available', 'Not Available', 'N/A', '—'};
+  return !skip.contains(v.trim());
+}
+
+class _GuarantorContactBtn extends StatelessWidget {
+  final Widget icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _GuarantorContactBtn({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Center(child: icon),
+      ),
     );
   }
 }
@@ -1348,32 +1665,9 @@ Future<void> _showPayInstalmentSheet({
   }
 }
 
-Future<void> _showGuarantorSheet({
-  required BuildContext context,
-  required WidgetRef ref,
-  required String orderUuid,
-  required SellerCustomOrderGuarantor? initial,
-}) async {
-  final dark = context.sellerIsDark;
-  final changed = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => Theme(
-      data: dark ? SellerTheme.dark : SellerTheme.light,
-      child: _GuarantorSheet(orderUuid: orderUuid, initial: initial),
-    ),
-  );
-
-  if (changed == true) {
-    ref.invalidate(sellerCustomOrderGuarantorProvider(orderUuid));
-    ref.invalidate(sellerCustomOrderDetailsProvider(orderUuid));
-  }
-}
-
 class _GuarantorSheet extends ConsumerStatefulWidget {
   final String orderUuid;
-  final SellerCustomOrderGuarantor? initial;
+  final SellerOrderGuarantor? initial;
 
   const _GuarantorSheet({required this.orderUuid, this.initial});
 
@@ -1384,37 +1678,48 @@ class _GuarantorSheet extends ConsumerStatefulWidget {
 class _GuarantorSheetState extends ConsumerState<_GuarantorSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
-  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _fatherNameCtrl;
   late final TextEditingController _cnicCtrl;
-  late final TextEditingController _addressCtrl;
+  late final TextEditingController _professionCtrl;
+  late final TextEditingController _relationCtrl;
+  late final TextEditingController _resTelCtrl;
+  late final TextEditingController _officeTelCtrl;
+  late final TextEditingController _resAddressCtrl;
+  late final TextEditingController _officeAddressCtrl;
+  String? _houseType;
 
   bool _saving = false;
   String? _error;
 
+  static const _houseTypes = ['Owned', 'Rented', 'Family'];
+
   @override
   void initState() {
     super.initState();
-    final initial = widget.initial;
-    _nameCtrl = TextEditingController(
-      text: initial?.exists == true ? initial!.name : '',
-    );
-    _phoneCtrl = TextEditingController(
-      text: initial?.exists == true ? initial!.phone : '',
-    );
-    _cnicCtrl = TextEditingController(
-      text: initial?.exists == true ? initial!.cnic : '',
-    );
-    _addressCtrl = TextEditingController(
-      text: initial?.exists == true ? initial!.address : '',
-    );
+    final g = widget.initial;
+    _nameCtrl = TextEditingController(text: g?.name ?? '');
+    _fatherNameCtrl = TextEditingController(text: g?.fatherName ?? '');
+    _cnicCtrl = TextEditingController(text: g?.cnic ?? '');
+    _professionCtrl = TextEditingController(text: g?.profession ?? '');
+    _relationCtrl = TextEditingController(text: g?.relation ?? '');
+    _resTelCtrl = TextEditingController(text: g?.resTel ?? '');
+    _officeTelCtrl = TextEditingController(text: g?.officeTel ?? '');
+    _resAddressCtrl = TextEditingController(text: g?.resAddress ?? '');
+    _officeAddressCtrl = TextEditingController(text: g?.officeAddress ?? '');
+    _houseType = _houseTypes.contains(g?.houseType) ? g!.houseType : null;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _phoneCtrl.dispose();
+    _fatherNameCtrl.dispose();
     _cnicCtrl.dispose();
-    _addressCtrl.dispose();
+    _professionCtrl.dispose();
+    _relationCtrl.dispose();
+    _resTelCtrl.dispose();
+    _officeTelCtrl.dispose();
+    _resAddressCtrl.dispose();
+    _officeAddressCtrl.dispose();
     super.dispose();
   }
 
@@ -1426,16 +1731,38 @@ class _GuarantorSheetState extends ConsumerState<_GuarantorSheet> {
       _error = null;
     });
 
+    final repo = ref.read(sellerCustomOrdersRepositoryProvider);
     try {
-      await ref
-          .read(sellerCustomOrdersRepositoryProvider)
-          .storeCustomOrderGuarantor(
-            orderUuid: widget.orderUuid,
-            name: _nameCtrl.text.trim(),
-            phone: _phoneCtrl.text.trim(),
-            cnic: _cnicCtrl.text.trim(),
-            address: _addressCtrl.text.trim(),
-          );
+      if (widget.initial != null) {
+        await repo.updateCustomOrderGuarantor(
+          orderUuid: widget.orderUuid,
+          guarantorId: widget.initial!.id,
+          name: _nameCtrl.text.trim(),
+          fatherName: _fatherNameCtrl.text.trim(),
+          cnic: _cnicCtrl.text.trim(),
+          profession: _professionCtrl.text.trim(),
+          relation: _relationCtrl.text.trim(),
+          resTel: _resTelCtrl.text.trim(),
+          officeTel: _officeTelCtrl.text.trim(),
+          resAddress: _resAddressCtrl.text.trim(),
+          officeAddress: _officeAddressCtrl.text.trim(),
+          houseType: _houseType,
+        );
+      } else {
+        await repo.storeCustomOrderGuarantor(
+          orderUuid: widget.orderUuid,
+          name: _nameCtrl.text.trim(),
+          fatherName: _fatherNameCtrl.text.trim(),
+          cnic: _cnicCtrl.text.trim(),
+          profession: _professionCtrl.text.trim(),
+          relation: _relationCtrl.text.trim(),
+          resTel: _resTelCtrl.text.trim(),
+          officeTel: _officeTelCtrl.text.trim(),
+          resAddress: _resAddressCtrl.text.trim(),
+          officeAddress: _officeAddressCtrl.text.trim(),
+          houseType: _houseType,
+        );
+      }
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
@@ -1448,7 +1775,8 @@ class _GuarantorSheetState extends ConsumerState<_GuarantorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final editing = widget.initial?.exists == true;
+    final editing = widget.initial != null;
+    final c = context.sellerColors;
     return _SheetShell(
       title: editing ? 'Update Guarantor' : 'Add Guarantor',
       child: Form(
@@ -1458,53 +1786,105 @@ class _GuarantorSheetState extends ConsumerState<_GuarantorSheet> {
           children: [
             _SheetField(
               controller: _nameCtrl,
-              label: 'Name',
+              label: 'Full Name *',
               enabled: !_saving,
               textInputAction: TextInputAction.next,
-              validator: (value) {
-                if (value == null || value.trim().length < 3) {
-                  return 'Enter guarantor name.';
-                }
-                return null;
-              },
+              validator: (v) =>
+                  (v == null || v.trim().length < 3) ? 'Enter guarantor name.' : null,
             ),
             const Gap.v(AppSpace.sm),
             _SheetField(
-              controller: _phoneCtrl,
-              label: 'Phone',
+              controller: _fatherNameCtrl,
+              label: 'Father Name',
               enabled: !_saving,
-              keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
-              validator: (value) {
-                final digits = value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
-                if (digits.length < 10) return 'Enter a valid phone number.';
-                return null;
-              },
             ),
             const Gap.v(AppSpace.sm),
             _SheetField(
               controller: _cnicCtrl,
               label: 'CNIC',
               enabled: !_saving,
+              keyboardType: TextInputType.number,
               textInputAction: TextInputAction.next,
-              validator: (value) {
-                final digits = value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
-                if (digits.length < 13) return 'Enter a valid CNIC.';
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                final d = v.replaceAll(RegExp(r'[^0-9]'), '');
+                if (d.length < 13) return 'Enter a valid 13-digit CNIC.';
                 return null;
               },
             ),
             const Gap.v(AppSpace.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: _SheetField(
+                    controller: _professionCtrl,
+                    label: 'Profession',
+                    enabled: !_saving,
+                    textInputAction: TextInputAction.next,
+                  ),
+                ),
+                const Gap.h(AppSpace.sm),
+                Expanded(
+                  child: _SheetField(
+                    controller: _relationCtrl,
+                    label: 'Relation',
+                    enabled: !_saving,
+                    textInputAction: TextInputAction.next,
+                  ),
+                ),
+              ],
+            ),
+            const Gap.v(AppSpace.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: _SheetField(
+                    controller: _resTelCtrl,
+                    label: 'Res. Phone',
+                    enabled: !_saving,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                  ),
+                ),
+                const Gap.h(AppSpace.sm),
+                Expanded(
+                  child: _SheetField(
+                    controller: _officeTelCtrl,
+                    label: 'Office Phone',
+                    enabled: !_saving,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                  ),
+                ),
+              ],
+            ),
+            const Gap.v(AppSpace.sm),
             _SheetField(
-              controller: _addressCtrl,
-              label: 'Address',
+              controller: _resAddressCtrl,
+              label: 'Residential Address',
               enabled: !_saving,
-              maxLines: 3,
-              validator: (value) {
-                if (value == null || value.trim().length < 8) {
-                  return 'Enter guarantor address.';
-                }
-                return null;
-              },
+              maxLines: 2,
+              textInputAction: TextInputAction.next,
+            ),
+            const Gap.v(AppSpace.sm),
+            _SheetField(
+              controller: _officeAddressCtrl,
+              label: 'Office Address',
+              enabled: !_saving,
+              maxLines: 2,
+              textInputAction: TextInputAction.next,
+            ),
+            const Gap.v(AppSpace.sm),
+            DropdownButtonFormField<String>(
+              initialValue: _houseType,
+              decoration: _inputDecoration(context, 'House Type'),
+              dropdownColor: c.surface,
+              style: context.sellerText.body,
+              items: _houseTypes
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
+              onChanged: _saving ? null : (v) => setState(() => _houseType = v),
             ),
             if (_error != null) ...[
               const Gap.v(AppSpace.sm),

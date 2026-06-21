@@ -399,19 +399,86 @@ class SellerCustomOrdersRepository {
   Future<void> storeCustomOrderGuarantor({
     required String orderUuid,
     required String name,
-    required String phone,
-    required String cnic,
-    required String address,
+    String? fatherName,
+    String? profession,
+    String? relation,
+    String? resTel,
+    String? officeTel,
+    String? cnic,
+    String? resAddress,
+    String? officeAddress,
+    String? houseType,
   }) async {
     final token = await SellerSessionManager.getToken();
     final response = await _network.postRequest(
       ApiEndpoints.sellerCustomOrderGuarantor(orderUuid),
-      {'name': name, 'phone': phone, 'cnic': cnic, 'address': address},
+      {
+        'name': name,
+        if (_has(fatherName)) 'father_name': fatherName!,
+        if (_has(profession)) 'profession': profession!,
+        if (_has(relation)) 'relation': relation!,
+        if (_has(resTel)) 'res_tel': resTel!,
+        if (_has(officeTel)) 'office_tel': officeTel!,
+        if (_has(cnic)) 'cnic': cnic!,
+        if (_has(resAddress)) 'res_address': resAddress!,
+        if (_has(officeAddress)) 'office_address': officeAddress!,
+        if (_has(houseType)) 'house_type': houseType!,
+      },
       token: token,
     );
-
     if (response['success'] != true) {
       throw Exception(response['message'] ?? 'Failed to save guarantor.');
+    }
+  }
+
+  Future<void> updateCustomOrderGuarantor({
+    required String orderUuid,
+    required int guarantorId,
+    String? name,
+    String? fatherName,
+    String? profession,
+    String? relation,
+    String? resTel,
+    String? officeTel,
+    String? cnic,
+    String? resAddress,
+    String? officeAddress,
+    String? houseType,
+  }) async {
+    final token = await SellerSessionManager.getToken();
+    final response = await _network.postRequest(
+      ApiEndpoints.sellerCustomOrderGuarantorUpdate(orderUuid, guarantorId),
+      {
+        if (_has(name)) 'name': name!,
+        if (_has(fatherName)) 'father_name': fatherName!,
+        if (_has(profession)) 'profession': profession!,
+        if (_has(relation)) 'relation': relation!,
+        if (_has(resTel)) 'res_tel': resTel!,
+        if (_has(officeTel)) 'office_tel': officeTel!,
+        if (_has(cnic)) 'cnic': cnic!,
+        if (_has(resAddress)) 'res_address': resAddress!,
+        if (_has(officeAddress)) 'office_address': officeAddress!,
+        if (_has(houseType)) 'house_type': houseType!,
+      },
+      token: token,
+    );
+    if (response['success'] != true) {
+      throw Exception(response['message'] ?? 'Failed to update guarantor.');
+    }
+  }
+
+  Future<void> removeCustomOrderGuarantor({
+    required String orderUuid,
+    required int guarantorId,
+  }) async {
+    final token = await SellerSessionManager.getToken();
+    final response = await _network.postRequest(
+      ApiEndpoints.sellerCustomOrderGuarantorRemove(orderUuid, guarantorId),
+      {},
+      token: token,
+    );
+    if (response['success'] != true) {
+      throw Exception(response['message'] ?? 'Failed to remove guarantor.');
     }
   }
 }

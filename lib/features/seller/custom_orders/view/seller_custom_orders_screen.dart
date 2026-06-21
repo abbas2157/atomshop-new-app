@@ -22,7 +22,9 @@ import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_or
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ROOT SCREEN
@@ -139,10 +141,6 @@ class _SellerCustomOrdersScreenState
   Widget build(BuildContext context) {
     final c = context.sellerColors;
     final ordersState = ref.watch(sellerCustomOrdersProvider(_query));
-    final pendingCountState = ref.watch(sellerCustomOrdersPendingCountProvider);
-    final statusCountsState = ref.watch(sellerCustomOrdersStatusCountsProvider);
-    final pendingCount = pendingCountState.whenOrNull(data: (value) => value);
-    final statusCounts = statusCountsState.whenOrNull(data: (value) => value);
 
     return Scaffold(
       backgroundColor: c.canvas,
@@ -160,48 +158,6 @@ class _SellerCustomOrdersScreenState
       ),
       body: Column(
         children: [
-          // ── Hero header (totals) ─────────────────────────
-          ordersState.when(
-            loading: () => _Header(
-              hasFilters: _hasFilters,
-              onReset: _resetFilters,
-              totalOrders: null,
-              pendingCount: pendingCount,
-              completedCount: null,
-            ),
-            error: (_, _) => _Header(
-              hasFilters: _hasFilters,
-              onReset: _resetFilters,
-              totalOrders: null,
-              pendingCount: pendingCount,
-              completedCount: null,
-            ),
-            data: (data) {
-              final Map<String, int> counts = statusCounts?.isNotEmpty == true
-                  ? statusCounts!
-                  : Map<String, int>.from(data.statuses);
-              final pending =
-                  pendingCount ??
-                  counts.entries
-                      .where((e) => e.key.toLowerCase().contains('pending'))
-                      .fold<int>(0, (s, e) => s + e.value);
-              final completed = counts.entries
-                  .where(
-                    (e) =>
-                        e.key.toLowerCase().contains('complete') ||
-                        e.key.toLowerCase().contains('deliver'),
-                  )
-                  .fold<int>(0, (s, e) => s + e.value);
-              return _Header(
-                hasFilters: _hasFilters,
-                onReset: _resetFilters,
-                totalOrders: data.pagination.total,
-                pendingCount: pending,
-                completedCount: completed,
-              );
-            },
-          ),
-
           // ── Body ─────────────────────────────────────────
           Expanded(
             child: RefreshIndicator(
@@ -255,7 +211,6 @@ class _SellerCustomOrdersScreenState
                         ? SellerPlanGateState(exception: data.gate!)
                         : _OrdersContent(
                             data: data,
-                            statusCounts: statusCounts,
                             selectedStatus: _query.status,
                             onStatusSelect: _selectStatus,
                             onPage: _goToPage,
@@ -270,93 +225,6 @@ class _SellerCustomOrdersScreenState
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  HEADER  —  stat tiles on canvas (no gradient)
-// ─────────────────────────────────────────────────────────────────────────────
-class _Header extends StatelessWidget {
-  final bool hasFilters;
-  final VoidCallback onReset;
-  final int? totalOrders;
-  final int? pendingCount;
-  final int? completedCount;
-
-  const _Header({
-    required this.hasFilters,
-    required this.onReset,
-    required this.totalOrders,
-    required this.pendingCount,
-    required this.completedCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.sellerColors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.md,
-        AppSpace.sm,
-        AppSpace.md,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: SellerKpiCard(
-                  label: 'Total',
-                  value: totalOrders?.toString() ?? '—',
-                  icon: Icons.layers_rounded,
-                  tone: c.infoTone,
-                ),
-              ),
-              const Gap.h(AppSpace.sm),
-              Expanded(
-                child: SellerKpiCard(
-                  label: 'Pending',
-                  value: pendingCount?.toString() ?? '—',
-                  icon: Icons.pending_actions_rounded,
-                  tone: c.warningTone,
-                ),
-              ),
-              const Gap.h(AppSpace.sm),
-              Expanded(
-                child: SellerKpiCard(
-                  label: 'Completed',
-                  value: completedCount?.toString() ?? '—',
-                  icon: Icons.check_circle_outline_rounded,
-                  tone: c.successTone,
-                ),
-              ),
-            ],
-          ),
-          if (hasFilters) ...[
-            const Gap.v(AppSpace.xs),
-            GestureDetector(
-              onTap: onReset,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.filter_alt_off_outlined,
-                      size: 14, color: c.textSecondary),
-                  const Gap.h(AppSpace.xxs),
-                  Text(
-                    'Reset filters',
-                    style: context.sellerText.bodySm
-                        .copyWith(color: c.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  COLLAPSIBLE FILTER PANEL
@@ -720,14 +588,12 @@ class _ThemedField extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _OrdersContent extends StatelessWidget {
   final SellerCustomOrdersResponse data;
-  final Map<String, int>? statusCounts;
   final String? selectedStatus;
   final ValueChanged<String?> onStatusSelect;
   final ValueChanged<int> onPage;
 
   const _OrdersContent({
     required this.data,
-    required this.statusCounts,
     required this.selectedStatus,
     required this.onStatusSelect,
     required this.onPage,
@@ -736,9 +602,7 @@ class _OrdersContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orders = data.orders;
-    final statuses = statusCounts?.isNotEmpty == true
-        ? statusCounts!
-        : data.statuses;
+    final statuses = data.statuses;
     final pagination = data.pagination;
 
     // Build chip data: "All" + each status in the canonical workflow order.
@@ -780,10 +644,6 @@ class _OrdersContent extends StatelessWidget {
         ),
         const Gap.v(AppSpace.md),
 
-        // ── Pagination summary ──────────────────────────
-        _PaginationBar(pagination: pagination),
-        const Gap.v(AppSpace.sm),
-
         // ── Order cards ─────────────────────────────────
         if (orders.isEmpty)
           const SellerEmptyState(
@@ -802,51 +662,10 @@ class _OrdersContent extends StatelessWidget {
 
         const Gap.v(AppSpace.xs),
 
-        // ── Pagination controls ─────────────────────────
-        _PaginationControls(pagination: pagination, onPage: onPage),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  PAGINATION BAR
-// ─────────────────────────────────────────────────────────────────────────────
-class _PaginationBar extends StatelessWidget {
-  final SellerCustomOrdersPagination pagination;
-  const _PaginationBar({required this.pagination});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.sellerColors;
-    final text = context.sellerText;
-    final from = pagination.from;
-    final to = pagination.to;
-    final total = pagination.total;
-
-    final rangeText = from == null || to == null
-        ? 'No records found'
-        : '$from – $to of $total orders';
-
-    return Row(
-      children: [
-        Expanded(child: Text(rangeText, style: text.bodySm)),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpace.xs + 2,
-            vertical: AppSpace.xxs,
-          ),
-          decoration: BoxDecoration(
-            color: c.accentSurface,
-            borderRadius: AppRadius.brPill,
-          ),
-          child: Text(
-            'Page ${pagination.currentPage} / ${pagination.lastPage}',
-            style: text.caption.copyWith(
-              color: c.accent,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+        SellerPaginationBar(
+          currentPage: pagination.currentPage,
+          lastPage: pagination.lastPage,
+          onPage: onPage,
         ),
       ],
     );
@@ -915,6 +734,28 @@ class _OrderCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: text.caption,
                       ),
+                      if (order.cityTitle.isNotEmpty || order.areaTitle.isNotEmpty) ...[
+                        const Gap.v(2),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined,
+                                size: 11, color: c.textTertiary),
+                            const Gap.h(2),
+                            Flexible(
+                              child: Text(
+                                [
+                                  if (order.cityTitle.isNotEmpty) order.cityTitle,
+                                  if (order.areaTitle.isNotEmpty) order.areaTitle,
+                                ].join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: text.caption.copyWith(
+                                    color: c.textSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -996,6 +837,25 @@ class _OrderCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (order.user.phone.isNotEmpty) ...[
+                    const Gap.h(AppSpace.xs),
+                    _OrderContactBtn(
+                      icon: Icon(Icons.call_outlined, size: 15, color: c.accent),
+                      color: c.accent,
+                      onTap: () => _launchCall(order.user.phone),
+                    ),
+                    const Gap.h(6),
+                    _OrderContactBtn(
+                      icon: SvgPicture.string(
+                        _kWhatsAppSvg,
+                        width: 15,
+                        height: 15,
+                        colorFilter: const ColorFilter.mode(Color(0xFF25D366), BlendMode.srcIn),
+                      ),
+                      color: const Color(0xFF25D366),
+                      onTap: () => _launchWhatsApp(order.user.phone),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1069,38 +929,57 @@ class _StatCell extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  PAGINATION CONTROLS
+//  CONTACT HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-class _PaginationControls extends StatelessWidget {
-  final SellerCustomOrdersPagination pagination;
-  final ValueChanged<int> onPage;
 
-  const _PaginationControls({required this.pagination, required this.onPage});
+const _kWhatsAppSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">'
+    '<path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 '
+    '0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1'
+    'c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 '
+    '0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3'
+    '-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 '
+    '34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138'
+    '.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18'
+    '-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 '
+    '5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5'
+    '-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1'
+    ' 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8'
+    ' 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 '
+    '4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>';
+
+Future<void> _launchCall(String phone) async {
+  final uri = Uri(scheme: 'tel', path: phone);
+  if (await canLaunchUrl(uri)) launchUrl(uri);
+}
+
+Future<void> _launchWhatsApp(String phone) async {
+  final normalized = phone.startsWith('0') ? '92${phone.substring(1)}' : phone;
+  final uri = Uri.parse('https://wa.me/$normalized');
+  if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+class _OrderContactBtn extends StatelessWidget {
+  final Widget icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _OrderContactBtn({required this.icon, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: SellerButton.secondary(
-            label: 'Previous',
-            icon: Icons.chevron_left_rounded,
-            onPressed: pagination.hasPrevious
-                ? () => onPage(pagination.currentPage - 1)
-                : null,
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
-        const Gap.h(AppSpace.sm),
-        Expanded(
-          child: SellerButton(
-            label: 'Next',
-            trailingIcon: Icons.chevron_right_rounded,
-            onPressed: pagination.hasNext
-                ? () => onPage(pagination.currentPage + 1)
-                : null,
-          ),
-        ),
-      ],
+        child: Center(child: icon),
+      ),
     );
   }
 }
@@ -1112,8 +991,9 @@ class _PaginationControls extends StatelessWidget {
 /// "New custom order" creates in one tap instead of just navigating.
 Future<void> showSellerCreateCustomOrderSheet(
   BuildContext context,
-  WidgetRef ref,
-) async {
+  WidgetRef ref, {
+  SellerCustomer? initialCustomer,
+}) async {
   final dark = context.sellerIsDark;
   final created = await showModalBottomSheet<bool>(
     context: context,
@@ -1121,7 +1001,7 @@ Future<void> showSellerCreateCustomOrderSheet(
     backgroundColor: Colors.transparent,
     builder: (_) => Theme(
       data: dark ? SellerTheme.dark : SellerTheme.light,
-      child: const _CreateCustomOrderSheet(),
+      child: _CreateCustomOrderSheet(initialCustomer: initialCustomer),
     ),
   );
   if (created == true) {
@@ -1132,7 +1012,9 @@ Future<void> showSellerCreateCustomOrderSheet(
 }
 
 class _CreateCustomOrderSheet extends ConsumerStatefulWidget {
-  const _CreateCustomOrderSheet();
+  final SellerCustomer? initialCustomer;
+
+  const _CreateCustomOrderSheet({this.initialCustomer});
 
   @override
   ConsumerState<_CreateCustomOrderSheet> createState() =>
@@ -1182,6 +1064,7 @@ class _CreateCustomOrderSheetState
   @override
   void initState() {
     super.initState();
+    _selectedCustomer = widget.initialCustomer;
     _loadCustomers();
     // Recompute the total-deal preview as the user types.
     _productPrice.addListener(_onPlanChanged);
@@ -1247,23 +1130,12 @@ class _CreateCustomOrderSheetState
       _customerError = null;
     });
     try {
-      final repository = ref.read(sellerCustomersRepositoryProvider);
-      final loaded = <SellerCustomer>[];
-      var page = 1;
-      var lastPage = 1;
-
-      do {
-        final response = await repository.getCustomers(
-          SellerCustomersQuery(page: page),
-        );
-        loaded.addAll(response.customers);
-        lastPage = response.pagination.lastPage;
-        page++;
-      } while (page <= lastPage && page <= 10);
-
+      final customers = await ref
+          .read(sellerCustomersRepositoryProvider)
+          .getCustomersForOrder();
       if (!mounted) return;
       setState(() {
-        _customers = loaded;
+        _customers = customers;
         _loadingCustomers = false;
       });
     } catch (e) {
@@ -1300,7 +1172,12 @@ class _CreateCustomOrderSheetState
       SnackbarService().showErrorSnackBar('Please select a customer.');
       return;
     }
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      SnackbarService().showErrorSnackBar(
+        'Please fill all required fields before submitting.',
+      );
+      return;
+    }
 
     // Resolve category / brand: send the id string, or "other" + a title.
     final categoryId = _categoryValue;
@@ -1367,7 +1244,9 @@ class _CreateCustomOrderSheetState
       ref.invalidate(sellerCustomOrdersStatusCountsProvider);
       SnackbarService().showSuccessSnackBar('Custom order created successfully.');
       Navigator.pop(context, true);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[CreateCustomOrder] ERROR: $e');
+      debugPrint('[CreateCustomOrder] STACK: $st');
       SnackbarService().showErrorSnackBar(_cleanCreateError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1395,6 +1274,7 @@ class _CreateCustomOrderSheetState
               error: _customerError,
               count: _customers.length,
               enabled: !_saving,
+              locked: widget.initialCustomer != null,
               onTap: _pickCustomer,
               onRetry: _loadCustomers,
             ),
@@ -1895,6 +1775,7 @@ class _CustomerSelectCard extends StatelessWidget {
   final String? error;
   final int count;
   final bool enabled;
+  final bool locked;
   final VoidCallback onTap;
   final VoidCallback onRetry;
 
@@ -1904,6 +1785,7 @@ class _CustomerSelectCard extends StatelessWidget {
     required this.error,
     required this.count,
     required this.enabled,
+    this.locked = false,
     required this.onTap,
     required this.onRetry,
   });
@@ -1921,7 +1803,7 @@ class _CustomerSelectCard extends StatelessWidget {
           : c.accent.withValues(alpha: 0.4),
       elevated: false,
       padding: const EdgeInsets.all(AppSpace.sm + 2),
-      onTap: enabled && !loading && !hasError ? onTap : null,
+      onTap: enabled && !loading && !hasError && !locked ? onTap : null,
       child: Row(
         children: [
           SellerIconBadge(
@@ -1936,7 +1818,7 @@ class _CustomerSelectCard extends StatelessWidget {
               onPressed: enabled ? onRetry : null,
               icon: Icon(Icons.refresh_rounded, color: c.textSecondary),
             )
-          else
+          else if (!locked)
             Icon(Icons.keyboard_arrow_down_rounded, color: c.textSecondary),
         ],
       ),
@@ -2103,6 +1985,16 @@ class _CustomerPickerTile extends StatelessWidget {
     required this.onTap,
   });
 
+  String _customerLocation(SellerCustomer c) {
+    final city = c.profile.cityTitle.isNotEmpty
+        ? c.profile.cityTitle
+        : 'City ${c.profile.cityId}';
+    final area = c.profile.areaTitle.isNotEmpty
+        ? c.profile.areaTitle
+        : 'Area ${c.profile.areaId}';
+    return '$city · $area';
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.sellerColors;
@@ -2141,7 +2033,7 @@ class _CustomerPickerTile extends StatelessWidget {
                 ),
                 const Gap.v(2),
                 Text(
-                  'User ${customer.id} · City ${customer.profile.cityId} · Area ${customer.profile.areaId}',
+                  _customerLocation(customer),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: text.caption,
@@ -2207,9 +2099,20 @@ class _SheetShell extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _SheetHandle(),
-                const Gap.v(AppSpace.md),
-                Text(title, style: text.titleMd),
-                const Gap.v(AppSpace.md),
+                const Gap.v(AppSpace.sm),
+                Row(
+                  children: [
+                    Expanded(child: Text(title, style: text.titleMd)),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close_rounded, color: c.textSecondary),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Close',
+                    ),
+                  ],
+                ),
+                const Gap.v(AppSpace.sm),
                 child,
               ],
             ),

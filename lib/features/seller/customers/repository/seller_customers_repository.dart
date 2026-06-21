@@ -32,6 +32,21 @@ class SellerCustomersRepository {
     );
   }
 
+  /// Flat list of verified+active customers for the custom order picker.
+  /// Returns all matching customers in one call — no pagination.
+  Future<List<SellerCustomer>> getCustomersForOrder({String? q}) async {
+    final endpoint = (q != null && q.trim().isNotEmpty)
+        ? '${ApiEndpoints.sellerCustomersForOrder}?q=${Uri.encodeQueryComponent(q.trim())}'
+        : ApiEndpoints.sellerCustomersForOrder;
+    final response = await _get(endpoint);
+    final raw = response['data'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => SellerCustomer.fromJson(Map<String, dynamic>.from(e)))
+        .toList(growable: false);
+  }
+
   Future<int> getNotificationCount() async {
     final response = await _get(ApiEndpoints.sellerCustomersNotificationCount);
     final data = response['data'] is Map

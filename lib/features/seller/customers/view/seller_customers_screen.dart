@@ -1,4 +1,6 @@
+import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/seller_plan_upgrade_exception.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
@@ -9,6 +11,7 @@ import 'package:atompro/features/seller/subscription/viewmodel/seller_subscripti
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SellerCustomersScreen extends ConsumerStatefulWidget {
   const SellerCustomersScreen({super.key});
@@ -51,7 +54,6 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.sellerColors;
-    final text = context.sellerText;
     final state = ref.watch(sellerCustomersProvider(_query));
     final notificationState = ref.watch(
       sellerCustomersNotificationCountProvider,
@@ -59,6 +61,9 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
 
     final sub = ref.watch(sellerSubscriptionProvider).asData?.value;
     final hasFinancial = sub?.plan?.featureFinancial ?? false;
+
+    final myTotal = ref.watch(sellerMyCustomersTotalProvider).whenOrNull(data: (v) => v);
+    final otherTotal = ref.watch(sellerOtherCustomersTotalProvider).whenOrNull(data: (v) => v);
 
     final notifCount = notificationState.asData?.value;
     final subtitle = notifCount == null
@@ -102,11 +107,32 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                 const SellerHeaderProfileButton(),
               ],
             ),
-            // ── Search + scope ───────────────────────────────────────────
+            const SellerOfflineBanner(),
+            // ── Scope tabs ───────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpace.md,
                 AppSpace.md,
+                AppSpace.md,
+                AppSpace.xs,
+              ),
+              child: SellerSegmentedTabs(
+                labels: _visibleScopes.map((s) => s.shortLabel).toList(),
+                selectedIndex: scopeIndex < 0 ? 0 : scopeIndex,
+                counts: [myTotal, otherTotal],
+                onChanged: (i) => setState(() {
+                  _scope = _visibleScopes[i];
+                  _page = 1;
+                  _search = '';
+                  _searchCtrl.clear();
+                }),
+              ),
+            ),
+            // ── Search ───────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.md,
+                AppSpace.xs,
                 AppSpace.md,
                 AppSpace.xs,
               ),
@@ -116,24 +142,6 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                 onChanged: (v) => setState(() {
                   _search = v;
                   _page = 1;
-                }),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpace.md,
-                AppSpace.xs,
-                AppSpace.md,
-                AppSpace.xs,
-              ),
-              child: SellerSegmentedTabs(
-                labels: _visibleScopes.map((s) => s.shortLabel).toList(),
-                selectedIndex: scopeIndex < 0 ? 0 : scopeIndex,
-                onChanged: (i) => setState(() {
-                  _scope = _visibleScopes[i];
-                  _page = 1;
-                  _search = '';
-                  _searchCtrl.clear();
                 }),
               ),
             ),
@@ -205,17 +213,10 @@ class _SellerCustomersScreenState extends ConsumerState<SellerCustomersScreen> {
                               ),
                             ),
                           ),
-                        // Pagination
-                        _PaginationBar(
-                          pagination: data.pagination,
-                          text: text,
-                          c: c,
-                          onPrevious: data.pagination.hasPrevious
-                              ? () => setState(() => _page--)
-                              : null,
-                          onNext: data.pagination.hasNext
-                              ? () => setState(() => _page++)
-                              : null,
+                        SellerPaginationBar(
+                          currentPage: data.pagination.currentPage,
+                          lastPage: data.pagination.lastPage,
+                          onPage: (p) => setState(() => _page = p),
                         ),
                       ],
                     );
@@ -278,15 +279,14 @@ class _SummaryStrip extends StatelessWidget {
 // ── Customer avatar ───────────────────────────────────────────────────────────
 class _CustomerAvatar extends StatelessWidget {
   final String name;
-  final String? imageUrl;
+  final String imageUrl;
 
-  const _CustomerAvatar({required this.name, this.imageUrl});
+  const _CustomerAvatar({required this.name, required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
     final c = context.sellerColors;
     final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
 
     Widget fallback = Container(
       width: 40,
@@ -308,15 +308,16 @@ class _CustomerAvatar extends StatelessWidget {
       ),
     );
 
-    if (!hasImage) return fallback;
+    if (imageUrl.isEmpty) return fallback;
 
     return ClipOval(
-      child: Image.network(
-        imageUrl!,
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
         width: 40,
         height: 40,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => fallback,
+        placeholder: (_, _) => fallback,
+        errorWidget: (_, _, _) => fallback,
       ),
     );
   }
@@ -340,91 +341,172 @@ class _CustomerCard extends StatelessWidget {
       onTap: onTap,
       padding: EdgeInsets.zero,
       accentEdge: verified ? c.success : c.warning,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.sm,
-          AppSpace.sm,
-          AppSpace.md,
-          AppSpace.sm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Name + avatar + status pill ─────────────────────────────
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.sm,
+              AppSpace.sm,
+              AppSpace.md,
+              AppSpace.sm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _CustomerAvatar(
-                  name: customer.name,
-                  imageUrl: customer.profile.picture == 'Not available'
-                      ? null
-                      : customer.profile.picture,
+                // ── Name + avatar + status pill ───────────────────────
+                Row(
+                  children: [
+                    _CustomerAvatar(
+                      name: customer.name,
+                      imageUrl: ApiEndpoints.publicAsset(customer.profile.picture),
+                    ),
+                    const Gap.h(AppSpace.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            customer.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.titleSm,
+                          ),
+                          const Gap.v(AppSpace.xxs),
+                          Text(
+                            customer.phone,
+                            style: text.bodySm,
+                          ),
+                        ],
+                      ),
+                    ),
+                    SellerStatusPill(
+                      label: verified ? 'Verified' : 'Pending',
+                      tone: verified ? c.successTone : c.warningTone,
+                    ),
+                  ],
                 ),
-                const Gap.h(AppSpace.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        customer.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: text.titleSm,
+                const Gap.v(AppSpace.xs),
+                Divider(color: c.divider, height: 1),
+                const Gap.v(AppSpace.xs),
+                // ── Location & address ────────────────────────────────
+                if (location.isNotEmpty) ...[
+                  _InfoRow(
+                    icon: Icons.location_on_outlined,
+                    label: location,
+                  ),
+                  const Gap.v(AppSpace.xxs + 1),
+                ],
+                _InfoRow(
+                  icon: Icons.home_outlined,
+                  label: customer.profile.address,
+                ),
+                const Gap.v(AppSpace.xxs + 1),
+                // ── Joined + date + order count ───────────────────────
+                Row(
+                  children: [
+                    Icon(Icons.public_outlined, size: 13, color: c.textTertiary),
+                    const Gap.h(AppSpace.xxs),
+                    Text(customer.joinedThrough, style: text.caption),
+                    const Gap.h(AppSpace.xs),
+                    Icon(Icons.calendar_today_outlined, size: 13, color: c.textTertiary),
+                    const Gap.h(AppSpace.xxs),
+                    Text(customer.formattedCreatedAt, style: text.caption),
+                    const Spacer(),
+                    if (customer.customOrderCount > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: c.accentSurface,
+                          borderRadius: AppRadius.brPill,
+                          border: Border.all(color: c.accent.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.receipt_long_outlined, size: 10, color: c.accent),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${customer.customOrderCount} ${customer.customOrderCount == 1 ? 'Order' : 'Orders'}',
+                              style: text.caption.copyWith(
+                                color: c.accent,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const Gap.v(AppSpace.xxs),
-                      Text(
-                        customer.phone,
-                        style: text.bodySm,
-                      ),
+                      const Gap.h(AppSpace.xxs),
                     ],
+                    Icon(Icons.chevron_right_rounded, size: 16, color: c.textTertiary),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // ── Call / WhatsApp actions ───────────────────────────────────
+          Divider(color: c.divider, height: 1),
+          IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _CardActionBtn(
+                    icon: Icons.call_outlined,
+                    label: 'Call',
+                    color: c.accent,
+                    onTap: () => _launchCall(customer.phone),
                   ),
                 ),
-                SellerStatusPill(
-                  label: verified ? 'Verified' : 'Pending',
-                  tone: verified ? c.successTone : c.warningTone,
+                VerticalDivider(color: c.divider, width: 1, thickness: 1),
+                Expanded(
+                  child: _CardActionBtn(
+                    icon: Icons.chat_rounded,
+                    label: 'WhatsApp',
+                    color: const Color(0xFF25D366),
+                    onTap: () => _launchWhatsApp(customer.phone),
+                  ),
                 ),
               ],
             ),
-            const Gap.v(AppSpace.xs),
-            Divider(color: c.divider, height: 1),
-            const Gap.v(AppSpace.xs),
-            // ── Location & address ──────────────────────────────────────
-            _InfoRow(
-              icon: Icons.location_on_outlined,
-              label: location.isEmpty ? 'Location N/A' : location,
-            ),
-            const Gap.v(AppSpace.xxs + 1),
-            _InfoRow(
-              icon: Icons.home_outlined,
-              label: customer.profile.address,
-            ),
-            const Gap.v(AppSpace.xxs + 1),
-            // ── Joined + date ────────────────────────────────────────────
-            Row(
-              children: [
-                Icon(Icons.public_outlined, size: 13, color: c.textTertiary),
-                const Gap.h(AppSpace.xxs),
-                Text(
-                  customer.joinedThrough,
-                  style: text.caption,
-                ),
-                const Gap.h(AppSpace.xs),
-                Icon(
-                  Icons.calendar_today_outlined,
-                  size: 13,
-                  color: c.textTertiary,
-                ),
-                const Gap.h(AppSpace.xxs),
-                Text(
-                  customer.formattedCreatedAt,
-                  style: text.caption,
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: c.textTertiary,
-                ),
-              ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CardActionBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
             ),
           ],
         ),
@@ -459,57 +541,24 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-// ── Pagination bar ────────────────────────────────────────────────────────────
-class _PaginationBar extends StatelessWidget {
-  final SellerCustomersPagination pagination;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
-  final SellerTextTheme text;
-  final SellerColors c;
-
-  const _PaginationBar({
-    required this.pagination,
-    required this.onPrevious,
-    required this.onNext,
-    required this.text,
-    required this.c,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (pagination.lastPage <= 1) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpace.xs),
-      child: Row(
-        children: [
-          Expanded(
-            child: SellerButton.secondary(
-              label: 'Previous',
-              icon: Icons.chevron_left_rounded,
-              onPressed: onPrevious,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
-            child: Text(
-              '${pagination.currentPage} / ${pagination.lastPage}',
-              style: text.labelSm.copyWith(color: c.textSecondary),
-            ),
-          ),
-          Expanded(
-            child: SellerButton.secondary(
-              label: 'Next',
-              trailingIcon: Icons.chevron_right_rounded,
-              onPressed: onNext,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+// ── Contact launch helpers ────────────────────────────────────────────────────
+Future<void> _launchCall(String phone) async {
+  final uri = Uri(scheme: 'tel', path: phone.trim());
+  if (await canLaunchUrl(uri)) await launchUrl(uri);
 }
 
-// ── Pure business-logic helpers (unchanged) ───────────────────────────────────
+Future<void> _launchWhatsApp(String phone) async {
+  final digits = phone.replaceAll(RegExp(r'[^\d]'), '');
+  final wa = digits.startsWith('92')
+      ? digits
+      : digits.startsWith('0')
+          ? '92${digits.substring(1)}'
+          : digits;
+  final uri = Uri.parse('https://wa.me/$wa');
+  if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+// ── Pure business-logic helpers ───────────────────────────────────────────────
 List<SellerCustomer> _filter(List<SellerCustomer> customers, String query) {
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return customers;

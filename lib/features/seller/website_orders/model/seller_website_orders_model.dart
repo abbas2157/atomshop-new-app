@@ -30,6 +30,7 @@ class SellerWebsiteOrdersQuery {
 class SellerWebsiteOrdersResponse {
   final List<SellerWebsiteOrder> orders;
   final SellerWebsiteOrdersPagination pagination;
+  final Map<String, int> statuses;
 
   /// Non-null when the seller's plan doesn't include website orders. Carried as
   /// DATA (not a thrown error) so the provider settles into a stable AsyncData
@@ -40,6 +41,7 @@ class SellerWebsiteOrdersResponse {
   const SellerWebsiteOrdersResponse({
     required this.orders,
     required this.pagination,
+    this.statuses = const {},
     this.gate,
   });
 
@@ -62,12 +64,16 @@ class SellerWebsiteOrdersResponse {
     final data = response['data'] is Map
         ? Map<String, dynamic>.from(response['data'])
         : <String, dynamic>{};
+    final rawStatuses = data['statuses'] as Map? ?? const {};
     return SellerWebsiteOrdersResponse(
       orders: (data['data'] as List? ?? [])
           .whereType<Map>()
           .map((e) => SellerWebsiteOrder.fromJson(Map<String, dynamic>.from(e)))
           .toList(growable: false),
       pagination: SellerWebsiteOrdersPagination.fromJson(data),
+      statuses: rawStatuses.map(
+        (k, v) => MapEntry(k.toString(), _asInt(v)),
+      ),
     );
   }
 }
@@ -109,6 +115,9 @@ class SellerWebsiteOrder {
   final String brandTitle;
   final String customerName;
   final String customerPhone;
+  final String cityTitle;
+  final String areaTitle;
+  final String portal;
 
   const SellerWebsiteOrder({
     required this.id,
@@ -124,17 +133,23 @@ class SellerWebsiteOrder {
     required this.brandTitle,
     required this.customerName,
     required this.customerPhone,
+    required this.cityTitle,
+    required this.areaTitle,
+    this.portal = 'Web',
   });
 
-  String get formattedTotalDealPrice {
-    if (totalDealPrice == 0) return 'Rs 0';
-    final s = totalDealPrice.toString();
+  String get formattedTotalDealPrice => _formatRs(totalDealPrice);
+  String get formattedAdvancePrice => _formatRs(advancePrice);
+
+  static String _formatRs(int amount) {
+    if (amount == 0) return 'Rs 0';
+    final s = amount.toString();
     final buf = StringBuffer();
     for (var i = 0; i < s.length; i++) {
       if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
       buf.write(s[i]);
     }
-    return 'Rs ${buf.toString()}';
+    return 'Rs $buf';
   }
 
   String get formattedDate {
@@ -151,8 +166,9 @@ class SellerWebsiteOrder {
   }
 
   factory SellerWebsiteOrder.fromJson(Map<String, dynamic> json) {
-    final product = json['CustomOrderProduct'] is Map
-        ? Map<String, dynamic>.from(json['CustomOrderProduct'])
+    final product = (json['custom_order_product'] ?? json['CustomOrderProduct']) is Map
+        ? Map<String, dynamic>.from(
+            (json['custom_order_product'] ?? json['CustomOrderProduct']) as Map)
         : <String, dynamic>{};
     final category = product['category'] is Map
         ? Map<String, dynamic>.from(product['category'])
@@ -162,6 +178,12 @@ class SellerWebsiteOrder {
         : <String, dynamic>{};
     final user = json['user'] is Map
         ? Map<String, dynamic>.from(json['user'])
+        : <String, dynamic>{};
+    final city = json['city'] is Map
+        ? Map<String, dynamic>.from(json['city'])
+        : <String, dynamic>{};
+    final area = json['area'] is Map
+        ? Map<String, dynamic>.from(json['area'])
         : <String, dynamic>{};
 
     return SellerWebsiteOrder(
@@ -174,10 +196,13 @@ class SellerWebsiteOrder {
       createdAt: _text(json['created_at'], fallback: ''),
       productTitle: _text(product['title'], fallback: 'Product'),
       productPrNumber: _text(product['pr_number']),
-      categoryTitle: _text(category['title']),
-      brandTitle: _text(brand['title']),
+      categoryTitle: _text(category['title'], fallback: ''),
+      brandTitle: _text(brand['title'], fallback: ''),
       customerName: _text(user['name'], fallback: 'Customer'),
       customerPhone: _text(user['phone']),
+      cityTitle: _text(city['title'], fallback: ''),
+      areaTitle: _text(area['title'], fallback: ''),
+      portal: _text(json['portal'], fallback: 'Web'),
     );
   }
 }

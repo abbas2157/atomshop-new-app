@@ -1,18 +1,26 @@
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/custom_orders/view/seller_custom_orders_screen.dart';
+import 'package:atompro/features/seller/custom_orders/viewmodel/seller_custom_orders_viewmodel.dart';
 import 'package:atompro/features/seller/website_orders/view/seller_website_orders_screen.dart';
+import 'package:atompro/features/seller/website_orders/viewmodel/seller_website_orders_viewmodel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Orders hub — switches between Custom and Standard orders.
-/// Lives inside the shell IndexedStack, so it inherits [SellerThemeScope].
-class SellerOrdersHubScreen extends StatelessWidget {
+/// Orders hub — switches between Custom (My Area) and Website orders.
+/// Displays live order counts in each tab label.
+class SellerOrdersHubScreen extends ConsumerWidget {
   const SellerOrdersHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.sellerColors;
     final text = context.sellerText;
+
+    final myAreaTotal =
+        ref.watch(sellerMyAreaOrdersTotalProvider).whenOrNull(data: (v) => v);
+    final websiteTotal =
+        ref.watch(sellerWebsiteOrdersTotalProvider).whenOrNull(data: (v) => v);
 
     return DefaultTabController(
       length: 2,
@@ -69,9 +77,15 @@ class SellerOrdersHubScreen extends StatelessWidget {
                   labelStyle:
                       text.labelSm.copyWith(fontWeight: FontWeight.w700),
                   unselectedLabelStyle: text.labelSm,
-                  tabs: const [
-                    Tab(text: 'My Area'),
-                    Tab(text: 'Website Orders'),
+                  tabs: [
+                    _CountTab(
+                      label: 'My Area',
+                      count: myAreaTotal,
+                    ),
+                    _CountTab(
+                      label: 'Website Orders',
+                      count: websiteTotal,
+                    ),
                   ],
                 ),
               ),
@@ -87,6 +101,45 @@ class SellerOrdersHubScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CountTab extends StatelessWidget {
+  final String label;
+  final int? count;
+
+  const _CountTab({required this.label, this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label),
+          if (count != null && count! > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: c.accent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count!.toString(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: c.onAccent,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

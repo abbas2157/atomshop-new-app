@@ -312,14 +312,10 @@ class _SellerInstalmentsScreenState
                             ),
                             const Gap.v(AppSpace.sm),
                           ],
-                        _PaginationBar(
-                          pagination: data.pagination,
-                          onPrevious: data.pagination.hasPrevious
-                              ? () => setState(() => _page--)
-                              : null,
-                          onNext: data.pagination.hasNext
-                              ? () => setState(() => _page++)
-                              : null,
+                        SellerPaginationBar(
+                          currentPage: data.pagination.currentPage,
+                          lastPage: data.pagination.lastPage,
+                          onPage: (p) => setState(() => _page = p),
                         ),
                       ],
                     );
@@ -728,53 +724,6 @@ InputDecoration _filterFieldDecoration(SellerColors c, String label) {
 // ═══════════════════════════════════════════════════════════
 //  PAGINATION BAR
 // ═══════════════════════════════════════════════════════════
-class _PaginationBar extends StatelessWidget {
-  final SellerInstalmentsPagination pagination;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
-
-  const _PaginationBar({
-    required this.pagination,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (pagination.lastPage <= 1) return const SizedBox.shrink();
-
-    final text = context.sellerText;
-    final c = context.sellerColors;
-
-    return Row(
-      children: [
-        Expanded(
-          child: SellerButton.secondary(
-            label: 'Previous',
-            icon: Icons.chevron_left_rounded,
-            size: SellerButtonSize.small,
-            onPressed: onPrevious,
-          ),
-        ),
-        const Gap.h(AppSpace.sm),
-        Text(
-          '${pagination.currentPage}/${pagination.lastPage}',
-          style: text.labelSm.copyWith(color: c.textTertiary),
-        ),
-        const Gap.h(AppSpace.sm),
-        Expanded(
-          child: SellerButton.secondary(
-            label: 'Next',
-            trailingIcon: Icons.chevron_right_rounded,
-            size: SellerButtonSize.small,
-            onPressed: onNext,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // ═══════════════════════════════════════════════════════════
 //  SHARED HELPERS
 // ═══════════════════════════════════════════════════════════

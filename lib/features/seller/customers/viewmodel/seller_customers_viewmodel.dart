@@ -22,6 +22,22 @@ final sellerCustomersNotificationCountProvider =
       return ref.read(sellerCustomersRepositoryProvider).getNotificationCount();
     });
 
+final sellerMyCustomersTotalProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+      final res = await ref.read(sellerCustomersRepositoryProvider).getCustomers(
+            const SellerCustomersQuery(scope: SellerCustomerScope.mine, page: 1),
+          );
+      return res.pagination.total;
+    });
+
+final sellerOtherCustomersTotalProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+      final res = await ref.read(sellerCustomersRepositoryProvider).getCustomers(
+            const SellerCustomersQuery(scope: SellerCustomerScope.other, page: 1),
+          );
+      return res.pagination.total;
+    });
+
 final sellerCustomerProfileProvider = FutureProvider.autoDispose
     .family<SellerCustomerDetails, String>((ref, customerUuid) {
       return ref

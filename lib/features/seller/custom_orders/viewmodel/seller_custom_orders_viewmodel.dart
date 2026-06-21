@@ -39,6 +39,13 @@ final sellerCustomOrdersPendingCountProvider = FutureProvider.autoDispose<int>((
   return ref.read(sellerCustomOrdersRepositoryProvider).getPendingCount();
 });
 
+final sellerMyAreaOrdersTotalProvider = FutureProvider.autoDispose<int>((ref) async {
+  final res = await ref
+      .read(sellerCustomOrdersRepositoryProvider)
+      .getCustomOrders(const SellerCustomOrdersQuery(page: 1));
+  return res.pagination.total;
+});
+
 final sellerCustomOrdersStatusCountsProvider =
     FutureProvider.autoDispose<Map<String, int>>((ref) {
       return ref.read(sellerCustomOrdersRepositoryProvider).getStatusCounts();

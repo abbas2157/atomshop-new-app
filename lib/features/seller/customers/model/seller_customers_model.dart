@@ -127,6 +127,7 @@ class SellerCustomer {
   final String createdAt;
   final String lastLoginAt;
   final SellerCustomerProfile profile;
+  final int customOrderCount;
 
   const SellerCustomer({
     required this.id,
@@ -140,6 +141,7 @@ class SellerCustomer {
     required this.createdAt,
     required this.lastLoginAt,
     required this.profile,
+    this.customOrderCount = 0,
   });
 
   bool get verified => profile.verified;
@@ -157,6 +159,7 @@ class SellerCustomer {
       joinedThrough: _text(json['joined_through']),
       createdAt: _text(json['created_at']),
       lastLoginAt: _date(json['last_login_at']),
+      customOrderCount: _asInt(json['custom_order_count']),
       profile: SellerCustomerProfile.fromJson(
         json['customer'] is Map
             ? Map<String, dynamic>.from(json['customer'])
@@ -205,17 +208,40 @@ class SellerCustomerProfile {
     required this.notVerifiedReason,
   });
 
-  /// "Sant Nagar, Lahore" — omits either part when unavailable.
+  int get completeness {
+    final fields = [
+      picture,
+      address,
+      cnicNo,
+      fatherName,
+      residencePhone,
+    ];
+    const skip = {'', 'Not available', 'Not Available', 'N/A'};
+    final hasLocation = cityId > 0 && areaId > 0;
+    final filled = fields.where((f) => !skip.contains(f)).length;
+    return ((filled + (hasLocation ? 1 : 0)) * 100 ~/ (fields.length + 1));
+  }
+
+  List<String> get missingFields {
+    final missing = <String>[];
+    const skip = {'', 'Not available', 'Not Available', 'N/A'};
+    if (skip.contains(picture)) missing.add('Profile photo');
+    if (skip.contains(cnicNo)) missing.add('CNIC');
+    if (skip.contains(fatherName)) missing.add('Father name');
+    if (skip.contains(address)) missing.add('Address');
+    if (skip.contains(residencePhone)) missing.add('Residence phone');
+    if (cityId == 0 || areaId == 0) missing.add('City / Area');
+    return missing;
+  }
+
+  /// "Ali Town, Lahore" — omits either part when empty.
   String get location {
-    final a = areaTitle == 'Not available' ? '' : areaTitle;
-    final c = cityTitle == 'Not available' ? '' : cityTitle;
-    if (a.isNotEmpty && c.isNotEmpty) return '$a, $c';
-    return a.isNotEmpty ? a : c;
+    if (areaTitle.isNotEmpty && cityTitle.isNotEmpty) return '$areaTitle, $cityTitle';
+    if (areaTitle.isNotEmpty) return areaTitle;
+    return cityTitle;
   }
 
   factory SellerCustomerProfile.fromJson(Map<String, dynamic> json) {
-    final cityObj = json['city'];
-    final areaObj = json['area'];
     return SellerCustomerProfile(
       id: _asInt(json['id']),
       identifier: _text(json['identifier']),
@@ -223,8 +249,8 @@ class SellerCustomerProfile {
       address: _text(json['address']),
       cityId: _asInt(json['city_id']),
       areaId: _asInt(json['area_id']),
-      cityTitle: cityObj is Map ? _text(cityObj['title']) : _text(cityObj),
-      areaTitle: areaObj is Map ? _text(areaObj['title']) : _text(areaObj),
+      cityTitle: _nestedTitle(json['city']),
+      areaTitle: _nestedTitle(json['area']),
       cnicNo: _text(json['cnic_no']),
       fatherName: _text(json['father_name']),
       residencePhone: _text(json['residence_phone']),
@@ -510,6 +536,14 @@ class SellerCustomerArea {
       cityId: _asInt(json['city_id']),
     );
   }
+}
+
+String _nestedTitle(dynamic obj) {
+  if (obj is Map) {
+    final t = obj['title']?.toString().trim() ?? '';
+    return (t.isEmpty || t == 'null') ? '' : t;
+  }
+  return '';
 }
 
 int _asInt(dynamic value, {int fallback = 0}) {

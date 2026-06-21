@@ -209,6 +209,8 @@ class SellerCustomOrder {
   final String createdAt;
   final SellerCustomOrderProduct product;
   final SellerCustomOrderListUser user;
+  final String cityTitle;
+  final String areaTitle;
 
   const SellerCustomOrder({
     required this.id,
@@ -223,6 +225,8 @@ class SellerCustomOrder {
     required this.createdAt,
     required this.product,
     required this.user,
+    this.cityTitle = '',
+    this.areaTitle = '',
   });
 
   String get formattedTotalDealPrice => _money(totalDealPrice);
@@ -231,6 +235,8 @@ class SellerCustomOrder {
 
   factory SellerCustomOrder.fromJson(Map<String, dynamic> json) {
     final rawUser = json['user'];
+    final cityObj = json['city'];
+    final areaObj = json['area'];
     return SellerCustomOrder(
       id: _asInt(json['id']),
       uuid: _text(json['uuid']),
@@ -250,6 +256,8 @@ class SellerCustomOrder {
               Map<String, dynamic>.from(rawUser),
             )
           : SellerCustomOrderListUser.empty,
+      cityTitle: cityObj is Map ? _text(cityObj['title'], fallback: '') : '',
+      areaTitle: areaObj is Map ? _text(areaObj['title'], fallback: '') : '',
     );
   }
 }
@@ -334,6 +342,7 @@ class SellerCustomOrderDetails {
   final SellerCustomOrderUser user;
   final List<SellerRecoveryMember> recoveryMembers;
   final int outstandingPrincipal;
+  final List<SellerOrderGuarantor> guarantors;
 
   const SellerCustomOrderDetails({
     required this.order,
@@ -342,6 +351,7 @@ class SellerCustomOrderDetails {
     required this.user,
     required this.recoveryMembers,
     required this.outstandingPrincipal,
+    required this.guarantors,
   });
 
   factory SellerCustomOrderDetails.fromJson(Map<String, dynamic> json) {
@@ -378,6 +388,13 @@ class SellerCustomOrderDetails {
           )
           .toList(growable: false),
       outstandingPrincipal: _asInt(data['outstanding_principal']),
+      guarantors: (data['guarantors'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (item) =>
+                SellerOrderGuarantor.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList(growable: false),
     );
   }
 }
@@ -610,6 +627,7 @@ class SellerCustomOrderCustomer {
   final bool verified;
   final String type;
   final String portal;
+  final String picture;
 
   const SellerCustomOrderCustomer({
     required this.id,
@@ -627,6 +645,7 @@ class SellerCustomOrderCustomer {
     required this.verified,
     required this.type,
     required this.portal,
+    this.picture = '',
   });
 
   /// Returns true when the API returned a real customer record (id > 0).
@@ -651,6 +670,7 @@ class SellerCustomOrderCustomer {
       verified: json['verified']?.toString() == '1',
       type: _text(json['type']),
       portal: _text(json['portal']),
+      picture: _text(json['picture']),
     );
   }
 }
@@ -789,6 +809,66 @@ class SellerCustomOrderGuarantor {
       cnic: _text(map['cnic']),
       address: _text(map['address']),
       createdAt: _text(map['created_at']),
+      exists: true,
+    );
+  }
+}
+
+/// Guarantor entry as returned inside `GET /custom-orders/show/{uuid}`.
+/// Field names differ from the legacy [SellerCustomOrderGuarantor] model
+/// (e.g. `res_tel` vs `phone`, `res_address` vs `address`).
+class SellerOrderGuarantor {
+  final int id;
+  final String name;
+  final String fatherName;
+  final String profession;
+  final String relation;
+  final String resAddress;
+  final String officeAddress;
+  final String resTel;
+  final String officeTel;
+  final String cnic;
+  final String houseType;
+
+  const SellerOrderGuarantor({
+    required this.id,
+    required this.name,
+    required this.fatherName,
+    required this.profession,
+    required this.relation,
+    required this.resAddress,
+    required this.officeAddress,
+    required this.resTel,
+    required this.officeTel,
+    required this.cnic,
+    required this.houseType,
+  });
+
+  factory SellerOrderGuarantor.fromJson(Map<String, dynamic> json) {
+    return SellerOrderGuarantor(
+      id: _asInt(json['id']),
+      name: _text(json['name'], fallback: 'Guarantor'),
+      fatherName: _text(json['father_name']),
+      profession: _text(json['profession']),
+      relation: _text(json['relation']),
+      resAddress: _text(json['res_address']),
+      officeAddress: _text(json['office_address']),
+      resTel: _text(json['res_tel']),
+      officeTel: _text(json['office_tel']),
+      cnic: _text(json['cnic']),
+      houseType: _text(json['house_type']),
+    );
+  }
+
+  /// Maps to [SellerCustomOrderGuarantor] for pre-filling the add/update form.
+  SellerCustomOrderGuarantor toFormGuarantor() {
+    return SellerCustomOrderGuarantor(
+      id: id,
+      name: name,
+      phone: resTel,
+      cnic: cnic,
+      address: resAddress,
+      createdAt: '',
       exists: true,
     );
   }

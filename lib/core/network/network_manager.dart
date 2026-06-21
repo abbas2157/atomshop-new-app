@@ -62,8 +62,19 @@ class NetworkManager {
     try {
       _updateAuthorizationHeader(token);
 
-      // Create FormData for multipart request
-      final formData = FormData.fromMap(data);
+      // Build FormData manually so List<String> values (e.g. detail_titles[])
+      // are sent as repeated fields instead of relying on fromMap inference.
+      final formData = FormData();
+      for (final entry in data.entries) {
+        final value = entry.value;
+        if (value is List) {
+          for (final item in value) {
+            formData.fields.add(MapEntry(entry.key, item.toString()));
+          }
+        } else if (value != null) {
+          formData.fields.add(MapEntry(entry.key, value.toString()));
+        }
+      }
 
       // Add files to FormData
       for (final entry in files.entries) {
@@ -102,8 +113,17 @@ class NetworkManager {
     try {
       _updateAuthorizationHeader(token);
 
-      // Create FormData for multipart request
-      final formData = FormData.fromMap(data);
+      final formData = FormData();
+      for (final entry in data.entries) {
+        final value = entry.value;
+        if (value is List) {
+          for (final item in value) {
+            formData.fields.add(MapEntry(entry.key, item.toString()));
+          }
+        } else if (value != null) {
+          formData.fields.add(MapEntry(entry.key, value.toString()));
+        }
+      }
 
       // Add files to FormData
       for (final entry in files.entries) {

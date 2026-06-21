@@ -177,14 +177,10 @@ class _SellerInvestmentsScreenState
                           ),
                         ),
                       ),
-                    _PaginationBar(
-                      pagination: data.pagination,
-                      onPrevious: data.pagination.hasPrevious
-                          ? () => setState(() => _page--)
-                          : null,
-                      onNext: data.pagination.hasNext
-                          ? () => setState(() => _page++)
-                          : null,
+                    SellerPaginationBar(
+                      currentPage: data.pagination.currentPage,
+                      lastPage: data.pagination.lastPage,
+                      onPage: (p) => setState(() => _page = p),
                     ),
                   ],
                 ),
@@ -824,58 +820,6 @@ class _RangeStrip extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════
 //  PAGINATION BAR
 // ═══════════════════════════════════════════════════════════
-
-class _PaginationBar extends StatelessWidget {
-  final SellerInvestmentsPagination pagination;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
-
-  const _PaginationBar({
-    required this.pagination,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (pagination.lastPage <= 1) return const SizedBox.shrink();
-
-    final text = context.sellerText;
-    final c = context.sellerColors;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpace.sm),
-      child: Row(
-        children: [
-          Expanded(
-            child: SellerButton.secondary(
-              label: 'Previous',
-              icon: Icons.chevron_left_rounded,
-              size: SellerButtonSize.small,
-              onPressed: onPrevious,
-            ),
-          ),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: AppSpace.md),
-            child: Text(
-              '${pagination.currentPage} / ${pagination.lastPage}',
-              style: text.labelSm.copyWith(color: c.textSecondary),
-            ),
-          ),
-          Expanded(
-            child: SellerButton.secondary(
-              label: 'Next',
-              trailingIcon: Icons.chevron_right_rounded,
-              size: SellerButtonSize.small,
-              onPressed: onNext,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ═══════════════════════════════════════════════════════════
 //  STATUS-CHANGE CONFIRM DIALOG

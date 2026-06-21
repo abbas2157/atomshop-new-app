@@ -55,6 +55,7 @@ class ApiEndpoints {
   static const String sellerStoreCustomer = "seller-app/customers/store";
   static const String sellerCustomersNotificationCount =
       "seller-app/customers/notification-count";
+  static const String sellerCustomersForOrder = "seller-app/customers/for-order";
   static const String sellerOrders = "seller-app/orders";
   static const String sellerStoreOrder = "seller-app/orders/store";
   static const String sellerCustomOrders = "seller-app/custom-orders";
@@ -147,6 +148,12 @@ class ApiEndpoints {
 
   static String sellerCustomOrderGuarantor(String orderUuid) =>
       "seller-app/custom-orders/guarantor/$orderUuid";
+  static String sellerCustomOrderGuarantorUpdate(
+          String orderUuid, int guarantorId) =>
+      "seller-app/custom-orders/guarantor/$orderUuid/update/$guarantorId";
+  static String sellerCustomOrderGuarantorRemove(
+          String orderUuid, int guarantorId) =>
+      "seller-app/custom-orders/guarantor/$orderUuid/remove/$guarantorId";
 
   static const String sellerWebsiteOrders = "seller-app/website-orders";
 

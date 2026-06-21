@@ -174,16 +174,7 @@ class _SellerNotificationsScreenState
           ),
           Expanded(
             child: state.isLoading
-                ? Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: c.accent,
-                      ),
-                    ),
-                  )
+                ? const SellerListSkeleton()
                 : state.error != null && state.items.isEmpty
                     ? _ErrorState(
                         message: state.error!,

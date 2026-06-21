@@ -189,18 +189,11 @@ class _SellerFeeChargeScreenState extends ConsumerState<SellerFeeChargeScreen> {
                           child: _FeeChargeCard(charge: charge),
                         ),
                       ),
-                    if (data.pagination.lastPage > 1) ...[
-                      const Gap.v(AppSpace.xs),
-                      _PaginationBar(
-                        pagination: data.pagination,
-                        onPrevious: data.pagination.hasPrevious
-                            ? () => setState(() => _page--)
-                            : null,
-                        onNext: data.pagination.hasNext
-                            ? () => setState(() => _page++)
-                            : null,
-                      ),
-                    ],
+                    SellerPaginationBar(
+                      currentPage: data.pagination.currentPage,
+                      lastPage: data.pagination.lastPage,
+                      onPage: (p) => setState(() => _page = p),
+                    ),
                   ],
                 ),
               ),
@@ -536,52 +529,6 @@ class _MiniMetric extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════
 //  PAGINATION BAR
 // ═══════════════════════════════════════════════════════════
-class _PaginationBar extends StatelessWidget {
-  final SellerFeeChargePagination pagination;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
-
-  const _PaginationBar({
-    required this.pagination,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final text = context.sellerText;
-
-    return Row(
-      children: [
-        Expanded(
-          child: SellerButton.secondary(
-            label: 'Previous',
-            icon: Icons.chevron_left_rounded,
-            onPressed: onPrevious,
-            size: SellerButtonSize.small,
-          ),
-        ),
-        Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: AppSpace.sm),
-          child: Text(
-            '${pagination.currentPage} / ${pagination.lastPage}',
-            style: text.labelSm,
-          ),
-        ),
-        Expanded(
-          child: SellerButton.secondary(
-            label: 'Next',
-            trailingIcon: Icons.chevron_right_rounded,
-            onPressed: onNext,
-            size: SellerButtonSize.small,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // ═══════════════════════════════════════════════════════════
 //  LOADING SKELETON
 // ═══════════════════════════════════════════════════════════

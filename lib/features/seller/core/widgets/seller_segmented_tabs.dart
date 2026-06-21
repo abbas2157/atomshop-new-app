@@ -9,11 +9,15 @@ class SellerSegmentedTabs extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onChanged;
 
+  /// Optional count badge per tab. Must be same length as [labels] when provided.
+  final List<int?>? counts;
+
   const SellerSegmentedTabs({
     super.key,
     required this.labels,
     required this.selectedIndex,
     required this.onChanged,
+    this.counts,
   });
 
   @override
@@ -55,23 +59,55 @@ class SellerSegmentedTabs extends StatelessWidget {
               Row(
                 children: List.generate(labels.length, (i) {
                   final selected = i == selectedIndex;
+                  final count = counts != null && i < counts!.length
+                      ? counts![i]
+                      : null;
                   return Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => onChanged(i),
                       child: Center(
-                        child: AnimatedDefaultTextStyle(
-                          duration: AppMotion.fast,
-                          style: text.labelSm.copyWith(
-                            color: selected ? c.accent : c.textSecondary,
-                            fontWeight:
-                                selected ? FontWeight.w700 : FontWeight.w600,
-                          ),
-                          child: Text(
-                            labels[i],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedDefaultTextStyle(
+                              duration: AppMotion.fast,
+                              style: text.labelSm.copyWith(
+                                color: selected ? c.accent : c.textSecondary,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
+                              ),
+                              child: Text(
+                                labels[i],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (count != null && count > 0) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? c.accent
+                                      : c.borderStrong,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  count.toString(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: selected
+                                        ? c.onAccent
+                                        : c.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),

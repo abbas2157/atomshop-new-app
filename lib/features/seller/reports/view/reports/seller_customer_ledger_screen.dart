@@ -16,19 +16,12 @@ class SellerCustomerLedgerScreen extends ConsumerStatefulWidget {
 class _SellerCustomerLedgerScreenState
     extends ConsumerState<SellerCustomerLedgerScreen> {
   int? _customerId;
-  int _month = DateTime.now().month;
-  int _year = DateTime.now().year;
   bool _generated = false;
-
-  static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
 
   CustomerLedgerQuery get _query => CustomerLedgerQuery(
         customerId: _customerId ?? 0,
-        month: _month,
-        year: _year,
+        month: DateTime.now().month,
+        year: DateTime.now().year,
       );
 
   @override
@@ -68,48 +61,6 @@ class _SellerCustomerLedgerScreenState
                           onSelect: (cu) =>
                               setState(() => _customerId = cu.id),
                         ),
-                      ),
-                      const Gap.v(AppSpace.sm),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Month', style: text.caption),
-                                const Gap.v(AppSpace.xs),
-                                _DropdownField<int>(
-                                  value: _month,
-                                  items: List.generate(12, (i) =>
-                                      DropdownMenuItem(value: i + 1,
-                                          child: Text(_months[i]))),
-                                  onChanged: (v) =>
-                                      setState(() => _month = v ?? _month),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Gap.h(AppSpace.sm),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Year', style: text.caption),
-                                const Gap.v(AppSpace.xs),
-                                _DropdownField<int>(
-                                  value: _year,
-                                  items: List.generate(5, (i) {
-                                    final y = DateTime.now().year - 2 + i;
-                                    return DropdownMenuItem(
-                                        value: y, child: Text('$y'));
-                                  }),
-                                  onChanged: (v) =>
-                                      setState(() => _year = v ?? _year),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
                       const Gap.v(AppSpace.sm),
                       SellerButton(
@@ -593,49 +544,6 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
   }
 }
 
-class _DropdownField<T> extends StatelessWidget {
-  final T? value;
-  final String? hint;
-  final Iterable<DropdownMenuItem<T>> items;
-  final ValueChanged<T?> onChanged;
-
-  const _DropdownField({
-    required this.items,
-    required this.onChanged,
-    this.value,
-    this.hint,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.sellerColors;
-    final text = context.sellerText;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.sm, vertical: AppSpace.xs),
-      decoration: BoxDecoration(
-        color: c.canvas,
-        borderRadius: AppRadius.brMd,
-        border: Border.all(color: c.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          hint: hint != null
-              ? Text(hint!, style: text.bodySm.copyWith(color: c.textTertiary))
-              : null,
-          isExpanded: true,
-          dropdownColor: c.surface,
-          style: text.bodySm.copyWith(color: c.textPrimary),
-          icon: Icon(Icons.keyboard_arrow_down_rounded,
-              size: 18, color: c.textTertiary),
-          items: items.toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-}
 
 class _Glyph extends StatelessWidget {
   final IconData icon;

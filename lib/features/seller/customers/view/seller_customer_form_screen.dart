@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:atompro/features/seller/core/widgets/widgets.dart';
 import 'package:atompro/features/seller/customers/model/seller_customers_model.dart';
@@ -318,6 +320,7 @@ class _SellerCustomerFormScreenState
                 Center(child: _AvatarPicker(
                   file: _picture,
                   name: _name.text,
+                  existingUrl: ApiEndpoints.publicAsset(widget.existing?.profile.picture ?? ''),
                   onTap: _saving
                       ? null
                       : () => _pickImage((f) => setState(() => _picture = f)),
@@ -403,24 +406,27 @@ class _SellerCustomerFormScreenState
                       style: text.bodySm.copyWith(color: c.danger),
                     ),
                   ),
-                  data: (cities) => _FormDropdown<int>(
-                    label: 'City',
-                    value: cities.any((city) => city.id == _cityId)
-                        ? _cityId
-                        : null,
-                    enabled: !_saving,
-                    items: cities
-                        .map((city) => DropdownMenuItem(
-                              value: city.id,
-                              child: Text(city.title),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() {
-                      _cityId = v;
-                      _areaId = null;
-                    }),
-                    validator: (v) => v == null ? 'Required' : null,
-                  ),
+                  data: (cities) {
+                    final sel = cities.where((c) => c.id == _cityId).firstOrNull;
+                    return _SearchPickerField(
+                      label: 'City',
+                      selectedTitle: sel?.title,
+                      enabled: !_saving,
+                      onTap: () async {
+                        final dark = context.sellerIsDark;
+                        final result = await showModalBottomSheet<SellerCustomerArea>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => Theme(
+                            data: dark ? SellerTheme.dark : SellerTheme.light,
+                            child: _SearchPickerSheet(title: 'Select City', items: cities, selectedId: _cityId),
+                          ),
+                        );
+                        if (result != null) setState(() { _cityId = result.id; _areaId = null; });
+                      },
+                    );
+                  },
                 ),
                 if (_cityId != null) _buildAreaDropdown(c, text),
                 _FormTextField(
@@ -530,19 +536,27 @@ class _SellerCustomerFormScreenState
           style: text.bodySm.copyWith(color: c.danger),
         ),
       ),
-      data: (areas) => _FormDropdown<int>(
-        label: 'Area',
-        value: areas.any((a) => a.id == _areaId) ? _areaId : null,
-        enabled: !_saving,
-        items: areas
-            .map((area) => DropdownMenuItem(
-                  value: area.id,
-                  child: Text(area.title),
-                ))
-            .toList(),
-        onChanged: (v) => setState(() => _areaId = v),
-        validator: (v) => v == null ? 'Required' : null,
-      ),
+      data: (areas) {
+        final sel = areas.where((a) => a.id == _areaId).firstOrNull;
+        return _SearchPickerField(
+          label: 'Area',
+          selectedTitle: sel?.title,
+          enabled: !_saving,
+          onTap: () async {
+            final dark = context.sellerIsDark;
+            final result = await showModalBottomSheet<SellerCustomerArea>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => Theme(
+                data: dark ? SellerTheme.dark : SellerTheme.light,
+                child: _SearchPickerSheet(title: 'Select Area', items: areas, selectedId: _areaId),
+              ),
+            );
+            if (result != null) setState(() => _areaId = result.id);
+          },
+        );
+      },
     );
   }
 
@@ -623,11 +637,13 @@ class _AvatarPicker extends StatelessWidget {
   final File? file;
   final String name;
   final VoidCallback? onTap;
+  final String existingUrl;
 
   const _AvatarPicker({
     required this.file,
     required this.name,
     required this.onTap,
+    this.existingUrl = '',
   });
 
   @override
@@ -635,6 +651,22 @@ class _AvatarPicker extends StatelessWidget {
     final c = context.sellerColors;
     final text = context.sellerText;
     const size = 96.0;
+
+    Widget avatar;
+    if (file != null) {
+      avatar = Image.file(file!, fit: BoxFit.cover, width: size, height: size);
+    } else if (existingUrl.isNotEmpty) {
+      avatar = CachedNetworkImage(
+        imageUrl: existingUrl,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        errorWidget: (_, _, _) => Icon(Icons.person_outline_rounded, size: 44, color: c.accent),
+        placeholder: (_, _) => Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent))),
+      );
+    } else {
+      avatar = Icon(Icons.person_outline_rounded, size: 44, color: c.accent);
+    }
 
     return GestureDetector(
       onTap: onTap,
@@ -652,13 +684,7 @@ class _AvatarPicker extends StatelessWidget {
                   border: Border.all(color: c.accent, width: 1.6),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: file != null
-                    ? Image.file(file!, fit: BoxFit.cover)
-                    : Icon(
-                        Icons.person_outline_rounded,
-                        size: 44,
-                        color: c.accent,
-                      ),
+                child: avatar,
               ),
               Positioned(
                 right: 0,
@@ -1080,6 +1106,185 @@ InputDecoration _inputDecoration(SellerColors c, String label) {
       borderSide: BorderSide(color: c.danger, width: 1.6),
     ),
   );
+}
+
+// ── Searchable picker field ──────────────────────────────────────────────────
+
+class _SearchPickerField extends StatelessWidget {
+  final String label;
+  final String? selectedTitle;
+  final bool enabled;
+  final bool isLast;
+  final VoidCallback onTap;
+
+  const _SearchPickerField({
+    required this.label,
+    required this.enabled,
+    required this.onTap,
+    this.selectedTitle,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final hasValue = selectedTitle != null;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpace.sm),
+      child: GestureDetector(
+        onTap: enabled ? onTap : null,
+        child: InputDecorator(
+          decoration: _inputDecoration(c, label),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  hasValue ? selectedTitle! : '',
+                  style: text.body.copyWith(
+                    color: hasValue ? c.textPrimary : c.textTertiary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: c.textTertiary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchPickerSheet extends StatefulWidget {
+  final String title;
+  final List<SellerCustomerArea> items;
+  final int? selectedId;
+
+  const _SearchPickerSheet({
+    required this.title,
+    required this.items,
+    this.selectedId,
+  });
+
+  @override
+  State<_SearchPickerSheet> createState() => _SearchPickerSheetState();
+}
+
+class _SearchPickerSheetState extends State<_SearchPickerSheet> {
+  final _ctrl = TextEditingController();
+  String _q = '';
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  List<SellerCustomerArea> get _filtered {
+    if (_q.isEmpty) return widget.items;
+    final q = _q.toLowerCase();
+    return widget.items.where((i) => i.title.toLowerCase().contains(q)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final filtered = _filtered;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+      ),
+      child: Column(
+        children: [
+          const Gap.v(AppSpace.sm),
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: c.borderStrong, borderRadius: AppRadius.brPill),
+            ),
+          ),
+          const Gap.v(AppSpace.md),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(widget.title, style: text.titleMd),
+            ),
+          ),
+          const Gap.v(AppSpace.sm),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+            child: TextField(
+              controller: _ctrl,
+              autofocus: true,
+              onChanged: (v) => setState(() => _q = v),
+              style: text.bodySm.copyWith(color: c.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search…',
+                hintStyle: text.bodySm.copyWith(color: c.textTertiary),
+                prefixIcon: Icon(Icons.search_rounded, size: 20, color: c.textTertiary),
+                suffixIcon: _q.isNotEmpty
+                    ? GestureDetector(
+                        onTap: () { _ctrl.clear(); setState(() => _q = ''); },
+                        child: Icon(Icons.clear_rounded, size: 18, color: c.textTertiary),
+                      )
+                    : null,
+                filled: true,
+                fillColor: c.canvas,
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: AppSpace.xs),
+                border: OutlineInputBorder(borderRadius: AppRadius.brMd, borderSide: BorderSide(color: c.border)),
+                enabledBorder: OutlineInputBorder(borderRadius: AppRadius.brMd, borderSide: BorderSide(color: c.border)),
+                focusedBorder: OutlineInputBorder(borderRadius: AppRadius.brMd, borderSide: BorderSide(color: c.accent, width: 1.5)),
+              ),
+            ),
+          ),
+          const Gap.v(AppSpace.sm),
+          Divider(height: 1, color: c.divider),
+          Expanded(
+            child: filtered.isEmpty
+                ? Center(child: Text('No results', style: text.bodySm.copyWith(color: c.textSecondary)))
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) => Divider(height: 1, color: c.divider, indent: AppSpace.md),
+                    itemBuilder: (_, i) {
+                      final item = filtered[i];
+                      final active = item.id == widget.selectedId;
+                      return InkWell(
+                        onTap: () => Navigator.pop(context, item),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: AppSpace.sm + 2),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.title,
+                                  style: text.bodySm.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: active ? c.accent : c.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              if (active) Icon(Icons.check_rounded, size: 18, color: c.accent),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + AppSpace.sm),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Validators ──────────────────────────────────────────────────────────────

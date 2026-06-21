@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ── Root screen — wrapped in SellerThemeScope so the pushed route inherits the
 //    correct theme even when the shell's theme differs from system theme.
@@ -39,8 +40,6 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
               ref.watch(sellerCustomerProfileProvider(customerUuid));
           final instalmentsState =
               ref.watch(sellerCustomerInstalmentsProvider(customerUuid));
-          final ordersState =
-              ref.watch(sellerCustomerCustomOrdersProvider(customerUuid));
 
           return AnnotatedRegion<SystemUiOverlayStyle>(
             value: c.isDark
@@ -48,6 +47,46 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
                 : SystemUiOverlayStyle.dark,
             child: Scaffold(
               backgroundColor: c.canvas,
+              bottomNavigationBar: () {
+                final phone = profileState.asData?.value.user.phone
+                    ?? initialCustomer?.phone
+                    ?? '';
+                if (phone.isEmpty) return null;
+                return SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpace.md,
+                      vertical: AppSpace.xs + 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      border: Border(top: BorderSide(color: c.border)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _HeroActionBtn(
+                            icon: Icons.call_outlined,
+                            label: 'Call',
+                            color: c.accent,
+                            outlined: true,
+                            onTap: () => _launchCall(phone),
+                          ),
+                        ),
+                        const Gap.h(AppSpace.xs),
+                        Expanded(
+                          child: _HeroActionBtn(
+                            icon: Icons.chat_rounded,
+                            label: 'WhatsApp',
+                            color: const Color(0xFF25D366),
+                            onTap: () => _launchWhatsApp(phone),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }(),
               appBar: AppBar(
                 backgroundColor: c.canvas,
                 surfaceTintColor: Colors.transparent,
@@ -71,18 +110,6 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
                               ),
                             ),
                   ),
-                  IconButton(
-                    tooltip: 'Refresh',
-                    icon: Icon(Icons.refresh_rounded, color: c.textPrimary),
-                    onPressed: () {
-                      ref.invalidate(
-                          sellerCustomerProfileProvider(customerUuid));
-                      ref.invalidate(
-                          sellerCustomerInstalmentsProvider(customerUuid));
-                      ref.invalidate(
-                          sellerCustomerCustomOrdersProvider(customerUuid));
-                    },
-                  ),
                 ],
               ),
               body: profileState.when(
@@ -103,14 +130,10 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
                         sellerCustomerProfileProvider(customerUuid));
                     ref.invalidate(
                         sellerCustomerInstalmentsProvider(customerUuid));
-                    ref.invalidate(
-                        sellerCustomerCustomOrdersProvider(customerUuid));
                     await Future.wait([
                       ref.read(
                           sellerCustomerProfileProvider(customerUuid).future),
                       ref.read(sellerCustomerInstalmentsProvider(customerUuid)
-                          .future),
-                      ref.read(sellerCustomerCustomOrdersProvider(customerUuid)
                           .future),
                     ]);
                   },
@@ -123,11 +146,16 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
                       // ── Hero ──────────────────────────────────────────
                       _HeroCard(details: details),
                       const Gap.v(AppSpace.md),
+                      _ProfileCompletenessBar(profile: details.user.profile),
+                      const Gap.v(AppSpace.md),
 
                       // ── Customer Information ──────────────────────────
                       _SectionCard(
                         title: 'Customer Information',
                         icon: Icons.person_outline_rounded,
+                        action: _CopyAllBtn(
+                          onTap: () => _copyAllDetails(context, details.user),
+                        ),
                         child: Column(
                           children: [
                             _GRow(
@@ -135,18 +163,21 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
                               details.user.profile.identifier,
                               'Name',
                               details.user.name,
+                              c1: true, c2: true,
                             ),
                             _GRow(
                               'Phone',
                               details.user.phone,
                               'Email',
                               details.user.email,
+                              c1: true,
                             ),
                             _GRow(
                               'Father Name',
                               details.user.profile.fatherName,
                               'CNIC',
                               details.user.profile.cnicNo,
+                              c2: true,
                             ),
                             _GRow(
                               'Address',
@@ -216,33 +247,36 @@ class SellerCustomerDetailsScreen extends ConsumerWidget {
                       _SectionCard(
                         title: 'Custom Orders',
                         icon: Icons.receipt_long_outlined,
-                        child: ordersState.when(
-                          loading: () => const _InlineLoading(
-                              label: 'Loading orders…'),
-                          error: (e, _) =>
-                              _InlineError(message: _cleanError(e)),
-                          data: (data) => data.orders.isEmpty
-                              ? const _EmptyInline(
-                                  label: 'No custom orders yet.')
-                              : Column(
-                                  children: data.orders
-                                      .map(
-                                        (o) => _OrderTile(
-                                          order: o,
-                                          onTap: () => Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  SellerCustomOrderDetailsScreen(
-                                                orderUuid: o.uuid,
-                                              ),
+                        child: details.customOrders.isEmpty
+                            ? const _EmptyInline(
+                                label: 'No custom orders yet.')
+                            : Column(
+                                children: details.customOrders
+                                    .map(
+                                      (o) => _OrderTile(
+                                        order: o,
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                SellerCustomOrderDetailsScreen(
+                                              orderUuid: o.uuid,
                                             ),
                                           ),
                                         ),
-                                      )
-                                      .toList(growable: false),
-                                ),
-                        ),
+                                        onEditGuarantor: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                SellerCustomOrderDetailsScreen(
+                                              orderUuid: o.uuid,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(growable: false),
+                              ),
                       ),
 
                       // ── Instalments ───────────────────────────────────
@@ -450,6 +484,127 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
+class _ProfileCompletenessBar extends StatelessWidget {
+  final SellerCustomerProfile profile;
+  const _ProfileCompletenessBar({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = profile.completeness;
+    final missing = profile.missingFields;
+    if (pct >= 100) return const SizedBox.shrink();
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    final color = pct < 40
+        ? const Color(0xFFD32F2F)
+        : pct < 70
+            ? const Color(0xFFF57C00)
+            : const Color(0xFF388E3C);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.sm,
+      ),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: AppRadius.brLg,
+        border: Border.all(color: c.border),
+      ),
+      child: Row(
+        children: [
+          // Circular progress dial
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CircularProgressIndicator(
+                  value: pct / 100,
+                  strokeWidth: 3.5,
+                  strokeCap: StrokeCap.round,
+                  backgroundColor: color.withValues(alpha: 0.12),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+                Center(
+                  child: Text(
+                    '$pct%',
+                    style: TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Gap.h(AppSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Profile completeness',
+                        style: text.labelSm.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (missing.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpace.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.10),
+                          borderRadius: AppRadius.brPill,
+                        ),
+                        child: Text(
+                          '${missing.length} missing',
+                          style: text.caption.copyWith(
+                            color: color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const Gap.v(AppSpace.xxs + 1),
+                ClipRRect(
+                  borderRadius: AppRadius.brPill,
+                  child: LinearProgressIndicator(
+                    value: pct / 100,
+                    backgroundColor: c.border,
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                    minHeight: 3,
+                  ),
+                ),
+                if (missing.isNotEmpty) ...[
+                  const Gap.v(AppSpace.xxs + 1),
+                  Text(
+                    missing.join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.caption.copyWith(color: c.textTertiary),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // Hero metric tile (lives on the gradient, so uses white text)
 class _HeroMetric extends StatelessWidget {
   final String label;
@@ -497,16 +652,83 @@ class _HeroMetric extends StatelessWidget {
   }
 }
 
+// ── Footer action button ──────────────────────────────────────────────────────
+class _HeroActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final bool outlined;
+
+  const _HeroActionBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.outlined = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.xs + 3),
+        decoration: BoxDecoration(
+          color: outlined ? Colors.transparent : color,
+          borderRadius: AppRadius.brPill,
+          border: Border.all(color: color, width: outlined ? 1.5 : 0),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 15, color: outlined ? color : Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Roboto',
+                color: outlined ? color : Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Contact launch helpers ────────────────────────────────────────────────────
+Future<void> _launchCall(String phone) async {
+  final uri = Uri(scheme: 'tel', path: phone.trim());
+  if (await canLaunchUrl(uri)) await launchUrl(uri);
+}
+
+Future<void> _launchWhatsApp(String phone) async {
+  final digits = phone.replaceAll(RegExp(r'[^\d]'), '');
+  final wa = digits.startsWith('92')
+      ? digits
+      : digits.startsWith('0')
+          ? '92${digits.substring(1)}'
+          : digits;
+  final uri = Uri.parse('https://wa.me/$wa');
+  if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
 // ── Section card ──────────────────────────────────────────────────────────────
 class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget child;
+  final Widget? action;
 
   const _SectionCard({
     required this.title,
     required this.icon,
     required this.child,
+    this.action,
   });
 
   @override
@@ -523,9 +745,9 @@ class _SectionCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(
               AppSpace.md,
-              AppSpace.sm,
-              AppSpace.md,
-              AppSpace.sm,
+              AppSpace.xs,
+              AppSpace.xs,
+              AppSpace.xs,
             ),
             decoration: BoxDecoration(
               color: c.accentSurface,
@@ -538,10 +760,13 @@ class _SectionCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 15, color: c.accent),
                 const Gap.h(AppSpace.xs - 2),
-                Text(
-                  title.toUpperCase(),
-                  style: text.overline.copyWith(color: c.accent),
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    style: text.overline.copyWith(color: c.accent),
+                  ),
                 ),
+                if (action case final w?) w,
               ],
             ),
           ),
@@ -747,7 +972,8 @@ void _openImageViewer(BuildContext context, String url, String label) {
 
 class _GRow extends StatelessWidget {
   final String l1, v1, l2, v2;
-  const _GRow(this.l1, this.v1, this.l2, this.v2);
+  final bool c1, c2;
+  const _GRow(this.l1, this.v1, this.l2, this.v2, {this.c1 = false, this.c2 = false});
 
   @override
   Widget build(BuildContext context) {
@@ -756,10 +982,10 @@ class _GRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: _GCell(label: l1, value: v1)),
+          Expanded(child: _GCell(label: l1, value: v1, copyable: c1)),
           if (l2.isNotEmpty) ...[
             const Gap.h(AppSpace.sm),
-            Expanded(child: _GCell(label: l2, value: v2)),
+            Expanded(child: _GCell(label: l2, value: v2, copyable: c2)),
           ],
         ],
       ),
@@ -770,26 +996,127 @@ class _GRow extends StatelessWidget {
 class _GCell extends StatelessWidget {
   final String label;
   final String value;
-  const _GCell({required this.label, required this.value});
+  final bool copyable;
+  const _GCell({required this.label, required this.value, this.copyable = false});
+
+  static const _skip = {'—', 'Not available', 'Not Available', 'N/A', ''};
+  bool get _canCopy => copyable && !_skip.contains(value);
+
+  void _copy(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label copied'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final text = context.sellerText;
+    final c = context.sellerColors;
+    final display = value.isEmpty || value == 'Not available' ? '—' : value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: text.caption),
         const Gap.v(AppSpace.xxs),
-        Text(
-          value.isEmpty || value == 'Not available' ? '—' : value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: text.bodySm.copyWith(
-            color: context.sellerColors.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                display,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: text.bodySm.copyWith(
+                  color: c.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (_canCopy)
+              GestureDetector(
+                onTap: () => _copy(context),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4, top: 1, bottom: 1, right: 2),
+                  child: Icon(Icons.copy_rounded, size: 12, color: c.textTertiary),
+                ),
+              ),
+          ],
         ),
       ],
+    );
+  }
+}
+
+// ── Copy-all helpers ──────────────────────────────────────────────────────────
+void _copyAllDetails(BuildContext context, SellerCustomer user) {
+  final p = user.profile;
+  const skip = {'', 'Not available', 'Not Available', 'N/A'};
+  bool hasVal(String v) => !skip.contains(v);
+
+  final lines = <String>[
+    'Name: ${user.name}',
+    if (hasVal(user.phone)) 'Phone: ${user.phone}',
+    if (hasVal(user.email)) 'Email: ${user.email}',
+    if (hasVal(p.cnicNo)) 'CNIC: ${p.cnicNo}',
+    if (hasVal(p.fatherName)) 'Father Name: ${p.fatherName}',
+    if (hasVal(p.address)) 'Address: ${p.address}',
+    if (hasVal(p.residencePhone)) 'Res. Phone: ${p.residencePhone}',
+    if (hasVal(p.officeAddress)) 'Office Address: ${p.officeAddress}',
+    if (hasVal(p.officePhone)) 'Office Phone: ${p.officePhone}',
+    'Status: ${user.status}',
+  ];
+  Clipboard.setData(ClipboardData(text: lines.join('\n')));
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Customer details copied'),
+      duration: Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
+
+class _CopyAllBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  const _CopyAllBtn({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.sellerColors;
+    final text = context.sellerText;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.xs + 2,
+          vertical: 4,
+        ),
+        decoration: BoxDecoration(
+          color: c.accentSurface,
+          borderRadius: AppRadius.brPill,
+          border: Border.all(color: c.accent.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.copy_all_rounded, size: 12, color: c.accent),
+            const Gap.h(4),
+            Text(
+              'Copy All',
+              style: text.caption.copyWith(
+                color: c.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -798,7 +1125,12 @@ class _GCell extends StatelessWidget {
 class _OrderTile extends StatelessWidget {
   final SellerCustomerOrderSummary order;
   final VoidCallback onTap;
-  const _OrderTile({required this.order, required this.onTap});
+  final VoidCallback onEditGuarantor;
+  const _OrderTile({
+    required this.order,
+    required this.onTap,
+    required this.onEditGuarantor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -810,9 +1142,8 @@ class _OrderTile extends StatelessWidget {
         onTap: onTap,
         color: c.surfaceAlt,
         elevated: false,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.sm,
-          vertical: AppSpace.xs + 2,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.sm, AppSpace.xs + 2, AppSpace.xs, AppSpace.xs + 2,
         ),
         child: Row(
           children: [
@@ -820,10 +1151,7 @@ class _OrderTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Order #${order.id}',
-                    style: text.titleSm,
-                  ),
+                  Text('Order #${order.id}', style: text.titleSm),
                   const Gap.v(AppSpace.xxs),
                   Text(
                     '${order.formattedTotalDealPrice} · ${order.formattedCreatedAt}',
@@ -833,11 +1161,54 @@ class _OrderTile extends StatelessWidget {
               ),
             ),
             SellerStatusPill(label: order.status, dense: true),
-            const Gap.h(AppSpace.xxs),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: c.textTertiary,
-              size: 16,
+            const Gap.h(AppSpace.xs),
+            _OrderTileAction(
+              icon: Icons.assignment_ind_outlined,
+              label: 'Guarantor',
+              color: c.accent,
+              onTap: onEditGuarantor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderTileAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _OrderTileAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = context.sellerText;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.xs, vertical: AppSpace.xs,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const Gap.v(2),
+            Text(
+              label,
+              style: text.caption.copyWith(
+                color: color,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -1080,7 +1451,7 @@ Future<void> _showPayInstalmentSheet({
 
   if (paid == true) {
     ref.invalidate(sellerCustomerInstalmentsProvider(customerUuid));
-    ref.invalidate(sellerCustomerCustomOrdersProvider(customerUuid));
+    ref.invalidate(sellerCustomerProfileProvider(customerUuid));
   }
 }
 

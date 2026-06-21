@@ -195,6 +195,20 @@ class SellerLead {
 
   String get formattedCreatedAt => _date(createdAt);
 
+  /// "just now" / "5 min ago" / "3 days ago" / "2 weeks ago"
+  String get lastSeenLabel {
+    final dt = DateTime.tryParse(updatedAt);
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
+    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo ago';
+    return '${(diff.inDays / 365).floor()}y ago';
+  }
+
   factory SellerLead.fromJson(Map<String, dynamic> json) {
     // city and area come as nested objects: {"id": 1, "title": "Lahore"}
     final cityObj = json['city'];

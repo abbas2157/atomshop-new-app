@@ -3,6 +3,13 @@ import 'package:atompro/features/seller/website_orders/model/seller_website_orde
 import 'package:atompro/features/seller/website_orders/repository/seller_website_orders_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+final sellerWebsiteOrdersTotalProvider = FutureProvider.autoDispose<int>((ref) async {
+  final res = await ref
+      .read(sellerWebsiteOrdersRepositoryProvider)
+      .getWebsiteOrders(page: 1);
+  return res.pagination.total;
+});
+
 final sellerWebsiteOrdersProvider = FutureProvider.autoDispose
     .family<SellerWebsiteOrdersResponse, SellerWebsiteOrdersQuery>(
         (ref, query) async {
