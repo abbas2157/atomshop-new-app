@@ -622,14 +622,19 @@ Future<void> _shareLeadOnWhatsApp(SellerLead lead) async {
     buf.writeln('📝 *Reason:* ${lead.reason}');
   }
   final text = Uri.encodeComponent(buf.toString());
-  final uri = Uri.parse('https://wa.me/?text=$text');
-  if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+  try {
+    await launchUrl(
+      Uri.parse('https://wa.me/?text=$text'),
+      mode: LaunchMode.externalApplication,
+    );
+  } catch (_) {}
 }
 
 // ── Contact launch helpers ────────────────────────────────────────────────────
 Future<void> _launchCall(String phone) async {
-  final uri = Uri(scheme: 'tel', path: phone.trim());
-  if (await canLaunchUrl(uri)) await launchUrl(uri);
+  try {
+    await launchUrl(Uri(scheme: 'tel', path: phone.trim()));
+  } catch (_) {}
 }
 
 Future<void> _launchWhatsApp(String phone) async {
@@ -639,8 +644,19 @@ Future<void> _launchWhatsApp(String phone) async {
       : digits.startsWith('0')
           ? '92${digits.substring(1)}'
           : digits;
-  final uri = Uri.parse('https://wa.me/$wa');
-  if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  try {
+    await launchUrl(
+      Uri.parse('whatsapp://send?phone=$wa'),
+      mode: LaunchMode.externalApplication,
+    );
+  } catch (_) {
+    try {
+      await launchUrl(
+        Uri.parse('https://wa.me/$wa'),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {}
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
