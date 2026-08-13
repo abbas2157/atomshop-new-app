@@ -1,6 +1,7 @@
 import 'package:atompro/core/cache/reference_data_provider.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_generator.dart';
+import 'package:atompro/core/services/facebook_events_service.dart';
 import 'package:atompro/core/services/fcm_service.dart';
 import 'package:atompro/core/services/snackbar_services.dart';
 import 'package:atompro/core/style/color_palette.dart';
@@ -22,6 +23,7 @@ void main() async {
   // Enable edge-to-edge mode
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await _initializeFirebase();
+  await FacebookEventsService.initialize();
 
   // Optional: Customize status & navigation bar appearance
   SystemChrome.setSystemUIOverlayStyle(

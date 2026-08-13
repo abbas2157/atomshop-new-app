@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Atomshop</string>
+    <string name="facebook_app_id">2249660285429838</string>
+    <string name="facebook_client_token">0883216a73f1a4a5bf18590ce6e22a8b</string>
+    <string name="fb_login_protocol_scheme">fb2249660285429838</string>
+</resources>

@@ -6,6 +6,21 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fb2249660285429838</string>
+			</array>
+		</dict>
+	</array>
+	<key>FacebookAppID</key>
+	<string>2249660285429838</string>
+	<key>FacebookClientToken</key>
+	<string>0883216a73f1a4a5bf18590ce6e22a8b</string>
+	<key>FacebookDisplayName</key>
+	<string>Atomshop</string>
 	<key>CFBundleDisplayName</key>
 	<string>Atomshop</string>
 	<key>CFBundleExecutable</key>
