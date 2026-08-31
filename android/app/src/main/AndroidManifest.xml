@@ -5,13 +5,24 @@
  <uses-permission android:name="android.permission.CAMERA"/>
  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
-    <!-- Force remove AD_ID permissions injected by dependencies -->
-    <uses-permission
-        android:name="com.google.android.gms.permission.AD_ID"
-        tools:node="remove"/>
-    <uses-permission
-        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
-        tools:node="remove"/>
+    <!-- AD_ID is required for the Meta SDK (facebook_events_service.dart)
+         to collect the Google Advertising ID via
+         setAdvertiserIdCollectionEnabled(true). Removing it (as this file
+         previously did) silently breaks Android 13+ attribution while the
+         SDK is still told to collect the ID. Must also be declared in the
+         Play Console Data Safety form before release — that's a console
+         action, not something in this repo.
+
+         ACCESS_ADSERVICES_AD_ID is the same permission for Android's newer
+         Privacy Sandbox AdServices AdId API (auto-added to the merged
+         manifest by a dependency, alongside ACCESS_ADSERVICES_ATTRIBUTION/
+         CUSTOM_AUDIENCE/TOPICS which are left alone). Blocking it while
+         granting the classic AD_ID above would repeat the exact bug this
+         permission's sibling was restored to fix, just on Google's newer
+         attribution path instead of the older one — so it is granted too,
+         not stripped. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID"/>
      <!-- EXPLICITLY REMOVE these permissions added by dependencies -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" 
         tools:node="remove" />

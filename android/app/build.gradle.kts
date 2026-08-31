@@ -77,6 +77,10 @@ flutter {
 
 
 dependencies {
-    implementation("com.facebook.android:facebook-android-sdk:latest.release")
+    // The Facebook SDK is supplied transitively by the facebook_app_events
+    // plugin, which pins it to [18.0,19.0). Do not declare it here: Gradle
+    // resolves to the highest requested version, so an unbounded coordinate
+    // (e.g. "latest.release") silently pulls a version outside the range the
+    // plugin was compiled against.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

@@ -970,7 +970,9 @@ CustomButton(
 ### Features
 - ✅ Tab switching between Login & Signup
 - ✅ Form validation
-- ✅ Social login buttons (Google, Facebook)
+- ✅ Social login buttons (Google — Facebook button shown below is example code
+  only; `flutter_facebook_auth` is not a project dependency, so it isn't wired
+  to anything)
 - ✅ Forgot password link
 - ✅ Loading states
 - ✅ Success notifications
@@ -1050,7 +1052,9 @@ _buildSocialButton(
   },
 )
 
-// Facebook Login
+// Facebook Login — NOT functional in this project. `flutter_facebook_auth`
+// is not a dependency (only `facebook_app_events`, used for ad-attribution
+// events, is). Add the package and its native setup before wiring this up.
 _buildSocialButton(
   icon: Icons.facebook,
   label: 'Continue with Facebook',
@@ -1093,7 +1097,7 @@ Navigator.push(
 | Animation | None | Fade + Slide |
 | Background | Solid | Gradient |
 | Design | Clean | Modern with shadows |
-| Social Login | Multiple | Google only (customizable) |
+| Social Login | Google (Facebook example code, not wired — see above) | Google only (customizable) |
 
 ---
 

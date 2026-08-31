@@ -2,6 +2,7 @@ import 'package:atompro/core/auth/session_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/features/customer/profile/view/repo/profile_repo.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
+import 'package:atompro/core/services/facebook_events_service.dart';
 import 'package:atompro/core/services/fcm_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -84,6 +85,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
       HapticFeedback.mediumImpact();
       await _entryCtrl.reverse().orCancel.catchError((_) {});
       await FcmService.unlinkUser();
+      FacebookEventsService.clearUser();
       await SessionManager.logout();
       if (mounted) {
         setState(() {

@@ -6,6 +6,7 @@ import 'package:atompro/core/auth/seller_session_manager.dart';
 import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/network/network_manager.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
+import 'package:atompro/core/services/facebook_events_service.dart';
 import 'package:atompro/firebase_options.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -70,6 +71,9 @@ class FcmService {
     if (token != null && token.isNotEmpty) {
       await _storage.write(key: _keyFcmToken, value: token);
       await syncToken(token);
+      // Lets Meta attribute app opens driven by its own push campaigns —
+      // independent of, and in addition to, the sync above.
+      FacebookEventsService.setPushNotificationsDeviceToken(token);
     } else {
       debugPrint('[FCM] No token obtained — skipping initial sync.');
     }
@@ -79,6 +83,7 @@ class FcmService {
       debugPrint('[FCM] Token refreshed: $newToken');
       await _storage.write(key: _keyFcmToken, value: newToken);
       await syncToken(newToken);
+      FacebookEventsService.setPushNotificationsDeviceToken(newToken);
     });
   }
 

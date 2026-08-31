@@ -5,6 +5,7 @@ import 'package:atompro/core/common/widgets/custom_drop_down.dart';
 import 'package:atompro/core/common/widgets/custom_text_field.dart';
 import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/routes/app_route_constants.dart';
+import 'package:atompro/core/services/facebook_events_service.dart';
 import 'package:atompro/core/style/app_text_styles.dart';
 import 'package:atompro/core/style/color_palette.dart';
 import 'package:atompro/core/style/extensions.dart';
@@ -115,10 +116,24 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
         ref.read(customOrderViewModelProvider).address ?? _addressCtrl.text;
   }
 
+  /// Falls back to a generic id/name so events are never dropped just
+  /// because the free-text product title field was left blank.
+  String _contentIdFor(String productTitle) {
+    final trimmed = productTitle.trim();
+    return trimmed.isEmpty ? 'custom_product' : trimmed;
+  }
+
   void _calculatePlan() {
     ref.read(customOrderViewModelProvider.notifier).calculatePlan();
     final state = ref.read(customOrderViewModelProvider);
     if (state.plans.isNotEmpty && state.errorMessage == null) {
+      FacebookEventsService.logViewContent(
+        contentId: _contentIdFor(state.productTitle),
+        contentName: state.productTitle.trim().isEmpty
+            ? null
+            : state.productTitle.trim(),
+        price: state.productPrice,
+      );
       _goToPhase(_Phase.planReview);
     } else if (state.errorMessage != null) {
       _showErrorSnack(state.errorMessage!);
@@ -126,9 +141,17 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
   }
 
   Future<void> _submitOrder() async {
+    final preSubmitState = ref.read(customOrderViewModelProvider);
+    FacebookEventsService.logInitiatedCheckout(
+      totalPrice: preSubmitState.totalPayable,
+      numItems: 1,
+    );
+
     await ref.read(customOrderViewModelProvider.notifier).submit();
     final state = ref.read(customOrderViewModelProvider);
-    if (state.errorMessage != null && !state.isSuccess) {
+    if (state.isSuccess) {
+      FacebookEventsService.logPurchase(amount: state.totalPayable);
+    } else if (state.errorMessage != null) {
       _showErrorSnack(state.errorMessage!);
     }
   }
@@ -255,7 +278,13 @@ class _CustomOrderViewState extends ConsumerState<CustomOrderView>
             return _PlanReviewPhase(
               state: state,
               onBack: () => _goToPhase(_Phase.calculator),
-              onProceed: () => _goToPhase(_Phase.personalDetails),
+              onProceed: () {
+                FacebookEventsService.logAddToCart(
+                  contentId: _contentIdFor(state.productTitle),
+                  price: state.productPrice,
+                );
+                _goToPhase(_Phase.personalDetails);
+              },
             );
           },
         );

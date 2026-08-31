@@ -1,4 +1,5 @@
 import 'package:atompro/core/services/snackbar_services.dart';
+import 'package:atompro/core/services/facebook_events_service.dart';
 import 'package:atompro/core/services/fcm_service.dart';
 import 'package:atompro/features/customer/auth/repository/auth_repo.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -41,6 +42,12 @@ class AuthViewModel extends _$AuthViewModel {
             address: user['address']?.toString(),
           );
           await FcmService.attachUser(userId: user['id'].toString());
+          FacebookEventsService.setUserId(user['id'].toString());
+          FacebookEventsService.setUserData(
+            email: user['email']?.toString(),
+            phone: user['phone']?.toString(),
+            externalId: user['id'].toString(),
+          );
 
           state = const AsyncValue.data(null);
           bool isAgent = await SessionManager.isAgent();
@@ -117,6 +124,12 @@ class AuthViewModel extends _$AuthViewModel {
           .verifyOtp(userId, code);
       if (response['success'] == true) {
         state = const AsyncValue.data(null);
+        // Fired here, not on signup() submission: the account isn't usable
+        // (can't log in) until OTP/email verification succeeds, so this is
+        // the actual completion of registration, not the form submit.
+        FacebookEventsService.logCompletedRegistration(
+          registrationMethod: 'email',
+        );
         SnackbarService().showSuccessSnackBar(
           'Email verified! You can now log in.',
         );
