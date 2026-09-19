@@ -472,9 +472,10 @@ class _LedgerRow extends StatelessWidget {
 //  RECORD PAYMENT SHEET
 // ═══════════════════════════════════════════════════════════
 
-/// Client-only fields the spec requires on the invoice but that the server
-/// does not accept on `POST /seller-app/instalment/pay` — captured locally
-/// and threaded through to the Invoice screen after a successful payment.
+/// Values threaded through to the Invoice screen after a successful payment.
+/// [paymentDate] is also sent to the server as `payment_date`, so what the
+/// invoice shows matches what the ledger stored; reference/notes stay
+/// client-only.
 class _RecordPaymentResult {
   final DateTime paymentDate;
   final String referenceNo;
@@ -536,28 +537,6 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     setState(() => _receipt = File(picked.path));
   }
 
-  Future<void> _pickDate() async {
-    final c = context.sellerColors;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _paymentDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now(),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: Theme.of(ctx).colorScheme.copyWith(
-                primary: c.accent,
-                onPrimary: c.onAccent,
-                surface: c.surface,
-                onSurface: c.textPrimary,
-              ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) setState(() => _paymentDate = picked);
-  }
-
   Future<void> _submit() async {
     final amount = int.tryParse(_amountCtrl.text.trim()) ?? 0;
     if (amount <= 0) {
@@ -574,6 +553,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
             orderId: widget.orderId,
             instalmentPrice: amount.toString(),
             paymentMethod: _method!,
+            paymentDate: formatYmd(_paymentDate),
             receipt: _receipt,
           );
       if (!mounted) return;
@@ -657,30 +637,13 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
             onChanged: (m) => setState(() => _method = m),
           ),
           const Gap.v(AppSpace.md),
-          Text('Payment date', style: text.label),
-          const Gap.v(AppSpace.xs),
-          InkWell(
-            onTap: _saving ? null : _pickDate,
-            borderRadius: AppRadius.brMd,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpace.md,
-                vertical: AppSpace.sm + 2,
-              ),
-              decoration: BoxDecoration(
-                color: c.surfaceAlt,
-                borderRadius: AppRadius.brMd,
-                border: Border.all(color: c.border),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today_outlined, size: 16, color: c.accent),
-                  const Gap.h(AppSpace.xs),
-                  Text(_formatDate(_paymentDate), style: text.bodySm),
-                ],
-              ),
-            ),
+          SellerDateField(
+            label: 'Payment Date',
+            helperText: 'Set the date the payment was actually collected — '
+                'use a past date when recording an earlier instalment.',
+            value: _paymentDate,
+            enabled: !_saving,
+            onChanged: (d) => setState(() => _paymentDate = d),
           ),
           const Gap.v(AppSpace.md),
           Text('Reference no. (optional)', style: text.label),
@@ -722,14 +685,6 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
       ),
     );
   }
-}
-
-String _formatDate(DateTime date) {
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-  return '${date.day} ${months[date.month - 1]} ${date.year}';
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -216,6 +216,7 @@ class SellerCustomOrdersRepository {
     required String installmentTenure,
     required String paymentMethod,
     String? dayOfMonth,
+    String? advanceDate,
     String? recoveryMemberId,
     File? receipt,
   }) {
@@ -230,6 +231,10 @@ class SellerCustomOrdersRepository {
         'payment_method': paymentMethod,
         if (dayOfMonth != null && dayOfMonth.isNotEmpty)
           'day_of_month': dayOfMonth,
+        // `Y-m-d` date the advance was taken. The server builds the whole
+        // monthly schedule from it; omitted → today.
+        if (advanceDate != null && advanceDate.isNotEmpty)
+          'advance_date': advanceDate,
         if (recoveryMemberId != null && recoveryMemberId.isNotEmpty)
           'recovery_member_id': recoveryMemberId,
       },
@@ -311,6 +316,7 @@ class SellerCustomOrdersRepository {
     String? outstandingAmount,
     String settlementAmount = '0',
     required String paymentMethod,
+    String? paymentDate,
     String? recoveryMemberId,
     File? receipt,
   }) async {
@@ -321,6 +327,10 @@ class SellerCustomOrdersRepository {
         'outstanding_amount': outstandingAmount,
       'settlement_amount': settlementAmount,
       'payment_method': paymentMethod,
+      // `Y-m-d` date the settlement was collected; stamps both the
+      // `Deal Closed` and `Settlement Amount` records. Omitted → today.
+      if (paymentDate != null && paymentDate.isNotEmpty)
+        'payment_date': paymentDate,
       if (recoveryMemberId != null && recoveryMemberId.isNotEmpty)
         'recovery_member_id': recoveryMemberId,
     };
@@ -348,6 +358,7 @@ class SellerCustomOrdersRepository {
     required int orderId,
     required String instalmentPrice,
     required String paymentMethod,
+    String? paymentDate,
     String? recoveryMemberId,
     File? receipt,
   }) async {
@@ -356,6 +367,9 @@ class SellerCustomOrdersRepository {
       'order_id': orderId.toString(),
       'instalment_price': instalmentPrice,
       'payment_method': paymentMethod,
+      // `Y-m-d` date the payment was collected; server defaults to today.
+      if (paymentDate != null && paymentDate.isNotEmpty)
+        'payment_date': paymentDate,
       if (recoveryMemberId != null && recoveryMemberId.isNotEmpty)
         'recovery_member_id': recoveryMemberId,
     };

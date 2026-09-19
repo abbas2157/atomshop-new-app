@@ -2623,6 +2623,7 @@ class _InstalmentsSheetState extends ConsumerState<_InstalmentsSheet> {
   String _method = _methods.first;
   int? _recoveryMemberId;
   File? _receipt;
+  DateTime _advanceDate = DateTime.now();
   bool _saving = false;
 
   SellerCustomOrderDetailOrder get _order => widget.details.order;
@@ -2722,6 +2723,7 @@ class _InstalmentsSheetState extends ConsumerState<_InstalmentsSheet> {
             installmentTenure: _tenureCtrl.text.trim(),
             paymentMethod: _method,
             dayOfMonth: _dayCtrl.text.trim(),
+            advanceDate: formatYmd(_advanceDate),
             recoveryMemberId: _recoveryMemberId?.toString(),
             receipt: _receipt,
           );
@@ -2782,6 +2784,16 @@ class _InstalmentsSheetState extends ConsumerState<_InstalmentsSheet> {
             label: 'Day of month (1 – 31)',
             enabled: !_saving,
             decimal: false,
+          ),
+          const Gap.v(AppSpace.md),
+          SellerDateField(
+            label: 'Advance Date',
+            helperText: 'When the advance was taken. The whole instalment '
+                'schedule is built from this date — set it back for an order '
+                'you already had running.',
+            value: _advanceDate,
+            enabled: !_saving,
+            onChanged: (d) => setState(() => _advanceDate = d),
           ),
           const Gap.v(AppSpace.md),
           Text('Payment method', style: text.label),
@@ -3129,6 +3141,7 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
   String? _method;
   int? _recoveryMemberId;
   File? _receipt;
+  DateTime _paymentDate = DateTime.now();
   bool _saving = false;
 
   @override
@@ -3171,6 +3184,7 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
             orderId: widget.orderId,
             instalmentPrice: amount.toString(),
             paymentMethod: _method!,
+            paymentDate: formatYmd(_paymentDate),
             recoveryMemberId: _recoveryMemberId?.toString(),
             receipt: _receipt,
           );
@@ -3251,6 +3265,15 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
             onChanged: (m) => setState(() => _method = m),
           ),
           const Gap.v(AppSpace.md),
+          SellerDateField(
+            label: 'Payment Date',
+            helperText: 'Set the date the payment was actually collected — '
+                'use a past date when recording an earlier instalment.',
+            value: _paymentDate,
+            enabled: !_saving,
+            onChanged: (d) => setState(() => _paymentDate = d),
+          ),
+          const Gap.v(AppSpace.md),
           Text('Recovery member (optional)', style: text.label),
           const Gap.v(AppSpace.xs),
           _RecoveryMemberDropdown(
@@ -3300,6 +3323,7 @@ class _CloseDealSheetState extends ConsumerState<_CloseDealSheet> {
   String? _method;
   int? _recoveryMemberId;
   File? _receipt;
+  DateTime _paymentDate = DateTime.now();
   bool _saving = false;
 
   @override
@@ -3344,6 +3368,7 @@ class _CloseDealSheetState extends ConsumerState<_CloseDealSheet> {
                 ? '0'
                 : _settlementCtrl.text.trim(),
             paymentMethod: _method!,
+            paymentDate: formatYmd(_paymentDate),
             recoveryMemberId: _recoveryMemberId?.toString(),
             receipt: _receipt,
           );
@@ -3381,6 +3406,15 @@ class _CloseDealSheetState extends ConsumerState<_CloseDealSheet> {
             label: 'Settlement amount',
             enabled: !_saving,
             decimal: false,
+          ),
+          const Gap.v(AppSpace.md),
+          SellerDateField(
+            label: 'Payment Date',
+            helperText: 'Set the date the settlement was actually collected — '
+                'use a past date if it was paid earlier.',
+            value: _paymentDate,
+            enabled: !_saving,
+            onChanged: (d) => setState(() => _paymentDate = d),
           ),
           const Gap.v(AppSpace.md),
           Text('Payment method', style: text.label),

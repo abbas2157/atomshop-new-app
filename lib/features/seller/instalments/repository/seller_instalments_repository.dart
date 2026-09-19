@@ -53,6 +53,7 @@ class SellerInstalmentsRepository {
     required int orderId,
     required String instalmentPrice,
     required String paymentMethod,
+    String? paymentDate,
     String? recoveryMemberId,
     File? receipt,
   }) async {
@@ -66,6 +67,9 @@ class SellerInstalmentsRepository {
         'order_id': orderId.toString(),
         'instalment_price': instalmentPrice,
         'payment_method': paymentMethod,
+        // `Y-m-d` date the payment was collected; server defaults to today.
+        if (paymentDate != null && paymentDate.isNotEmpty)
+          'payment_date': paymentDate,
         if (recoveryMemberId != null && recoveryMemberId.isNotEmpty)
           'recovery_member_id': recoveryMemberId,
       },

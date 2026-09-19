@@ -1488,6 +1488,7 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
   late final TextEditingController _amountCtrl;
   String? _method;
   File? _receipt;
+  DateTime _paymentDate = DateTime.now();
   bool _saving = false;
 
   @override
@@ -1530,6 +1531,7 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
             orderId: widget.instalment.orderId,
             instalmentPrice: amount.toString(),
             paymentMethod: _method!,
+            paymentDate: formatYmd(_paymentDate),
             receipt: _receipt,
           );
       if (!mounted) return;
@@ -1607,6 +1609,15 @@ class _PayInstalmentSheetState extends ConsumerState<_PayInstalmentSheet> {
             selected: _method,
             enabled: !_saving,
             onChanged: (m) => setState(() => _method = m),
+          ),
+          const Gap.v(AppSpace.md),
+          SellerDateField(
+            label: 'Payment Date',
+            helperText: 'Set the date the payment was actually collected — '
+                'use a past date when recording an earlier instalment.',
+            value: _paymentDate,
+            enabled: !_saving,
+            onChanged: (d) => setState(() => _paymentDate = d),
           ),
           const Gap.v(AppSpace.md),
           Text('Receipt (optional)', style: text.label),
