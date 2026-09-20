@@ -14,7 +14,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
-import 'package:device_preview/device_preview.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
@@ -93,8 +92,6 @@ class _MyAppState extends ConsumerState<MyApp> {
           title: 'AtomShop',
           scaffoldMessengerKey: SnackbarService().scaffoldMessengerKey,
           debugShowCheckedModeBanner: false,
-          locale: DevicePreview.locale(context),
-          builder: DevicePreview.appBuilder,
           // Single theme built from the (now brightness-aware) ColorPalette.
           theme: AppTheme.theme,
 
