@@ -1,0 +1,31 @@
+{
+  "_comment": [
+    "Expected properties of a release Android App Bundle. Checked by",
+    "tool/verify_release_bundle.py, which runs automatically after every",
+    "bundleRelease. Edit this file when a requirement genuinely changes,",
+    "and say why in the commit message.",
+    "",
+    "A certificate fingerprint is public information, not a secret. It is",
+    "committed on purpose so a bundle signed with the wrong key is caught",
+    "before it reaches Play."
+  ],
+
+  "applicationId": "com.ecommerce.atomshop",
+
+  "uploadKeySha1": "EEA3B9D556D7BD07C5EC5B3A8F38D66A0F02C815",
+
+  "requiredPermissions": {
+    "com.google.android.gms.permission.AD_ID": "Meta SDK ad attribution. Play zeroes the advertising ID without it, which silently breaks attribution while the Data Safety form still declares the app uses one. Removed once before and restored in 457c67d.",
+    "android.permission.ACCESS_ADSERVICES_AD_ID": "Same thing on Android's newer Privacy Sandbox AdServices path.",
+    "android.permission.INTERNET": "Every API call.",
+    "android.permission.POST_NOTIFICATIONS": "FCM push on Android 13+.",
+    "android.permission.CAMERA": "Document and product photo capture."
+  },
+
+  "forbiddenPermissions": {
+    "android.permission.READ_MEDIA_IMAGES": "Stripped on purpose in AndroidManifest.xml. Pulled in transitively by image_picker; granting it widens the Data Safety declaration for no benefit.",
+    "android.permission.READ_MEDIA_VIDEO": "Stripped on purpose. See above.",
+    "android.permission.READ_MEDIA_AUDIO": "Stripped on purpose. See above.",
+    "android.permission.READ_EXTERNAL_STORAGE": "Stripped on purpose. See above."
+  }
+}
