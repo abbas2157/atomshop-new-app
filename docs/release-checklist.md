@@ -73,8 +73,30 @@ After each release, open **Test and release → App bundle explorer** and check
 which artifacts are still active. Retire tracks you no longer use instead of
 leaving stale builds on them.
 
-This is what caused the September 2026 advertising ID warning. The source
-manifest had been correct since May.
+This is what caused the September 2026 advertising ID warning.
+
+### Why grepping the source manifest misleads you here
+
+The string `gms.permission.AD_ID` has been in `AndroidManifest.xml` since
+2026-05-05, so searching for it suggests the permission has been granted all
+along. It has not. Until 2026-08-31 it was written as:
+
+```xml
+<uses-permission android:name="com.google.android.gms.permission.AD_ID"
+    tools:node="remove"/>
+```
+
+`tools:node="remove"` *strips* the permission from the merged manifest. It was
+only actually granted from commit 457c67d, "Fix Meta SDK ad-attribution gaps
+for store release".
+
+So **every artifact built before 2026-08-31 is missing it**, including version
+codes 16 and 20, even though the source file mentions it. Only builds made
+after that commit are safe.
+
+This is precisely why `tool/verify_release_bundle.py` reads the manifest inside
+the finished bundle instead of the source file. The source file would have
+passed a naive check for all four of those months.
 
 ## Not covered by the gate
 
