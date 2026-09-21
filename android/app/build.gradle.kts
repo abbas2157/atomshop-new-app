@@ -84,3 +84,23 @@ dependencies {
     // plugin was compiled against.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
+
+// Every release bundle is checked before anyone can upload it: the merged
+// manifest's permissions, the version against pubspec.yaml, and the signing
+// key. The advertising ID permission was already lost once this way and had
+// to be restored in 457c67d; nothing caught it until Play complained. The
+// source manifest is not enough to check, because the manifest merger and the
+// tools:node="remove" rules decide what actually ships.
+//
+// Runs after bundleRelease, so `flutter build appbundle` is covered too.
+// By hand: python3 tool/verify_release_bundle.py
+val verifyReleaseBundle = tasks.register<Exec>("verifyReleaseBundle") {
+    group = "verification"
+    description = "Check the release App Bundle's manifest, version and signing key."
+    workingDir = rootProject.file("..")
+    commandLine("python3", "tool/verify_release_bundle.py")
+}
+
+tasks.matching { it.name == "bundleRelease" }.configureEach {
+    finalizedBy(verifyReleaseBundle)
+}
