@@ -6,21 +6,6 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>FacebookAppID</key>
-	<string>2249660285429838</string>
-	<key>FacebookClientToken</key>
-	<string>0883216a73f1a4a5bf18590ce6e22a8b</string>
-	<key>FacebookDisplayName</key>
-	<string>Atomshop</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This identifier is used to measure how effective our ads are and to show you offers relevant to you.</string>
-	<key>SKAdNetworkItems</key>
-	<array>
-		<dict>
-			<key>SKAdNetworkIdentifier</key>
-			<string>v9wttpbfk9.skadnetwork</string>
-		</dict>
-	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Atomshop</string>
 	<key>CFBundleExecutable</key>
@@ -39,10 +24,29 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FacebookAppID</key>
+	<string>2249660285429838</string>
+	<key>FacebookClientToken</key>
+	<string>0883216a73f1a4a5bf18590ce6e22a8b</string>
+	<key>FacebookDisplayName</key>
+	<string>Atomshop</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Atomshop uses the camera only if you choose to take a photo when adding images to leads, orders or customer records.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-    <string>Atomshop allows users to select images from their photo library when creating leads, submitting customer orders, and uploading supporting images for customer records.</string>
+	<string>Atomshop allows users to select images from their photo library when creating leads, submitting customer orders, and uploading supporting images for customer records.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier is used to measure how effective our ads are and to show you offers relevant to you.</string>
+	<key>SKAdNetworkItems</key>
+	<array>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>v9wttpbfk9.skadnetwork</string>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
