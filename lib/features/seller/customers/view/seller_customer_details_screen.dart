@@ -779,7 +779,7 @@ class _SectionCard extends StatelessWidget {
                     style: text.overline.copyWith(color: c.accent),
                   ),
                 ),
-                if (action case final w?) w,
+                ?action,
               ],
             ),
           ),

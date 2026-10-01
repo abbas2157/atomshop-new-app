@@ -1122,8 +1122,7 @@ class _SearchPickerField extends StatelessWidget {
     required this.enabled,
     required this.onTap,
     this.selectedTitle,
-    this.isLast = false,
-  });
+  }) : isLast = false;
 
   @override
   Widget build(BuildContext context) {

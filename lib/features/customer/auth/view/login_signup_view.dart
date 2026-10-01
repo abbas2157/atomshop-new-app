@@ -158,8 +158,12 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
     _forgotEmailController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
-    for (final c in _otpControllers) c.dispose();
-    for (final f in _otpFocusNodes) f.dispose();
+    for (final c in _otpControllers) {
+      c.dispose();
+    }
+    for (final f in _otpFocusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -320,7 +324,7 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
   Widget _buildHeader() {
     return AnimatedBuilder(
       animation: _logoAnimController,
-      builder: (_, __) => FadeTransition(
+      builder: (_, _) => FadeTransition(
         opacity: _logoFadeAnim,
         child: Transform.scale(
           scale: _logoScaleAnim.value,
@@ -345,7 +349,7 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 32,
                 offset: const Offset(0, 8),
               ),
@@ -803,7 +807,7 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
                 borderSide: const BorderSide(color: Colors.redAccent, width: 2),
               ),
               filled: true,
-              fillColor: ColorPalette.surfaceGray.withOpacity(0.4),
+              fillColor: ColorPalette.surfaceGray.withValues(alpha: 0.4),
             ),
             validator: (v) => (v == null || v.isEmpty) ? '' : null,
             onChanged: (v) {
@@ -927,7 +931,7 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
   Widget _buildPulsingIcon(IconData icon) {
     return AnimatedBuilder(
       animation: _pulseController,
-      builder: (_, __) => Stack(
+      builder: (_, _) => Stack(
         alignment: Alignment.center,
         children: [
           Transform.scale(
@@ -937,7 +941,7 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: ColorPalette.secondary.withOpacity(0.12),
+                color: ColorPalette.secondary.withValues(alpha: 0.12),
               ),
             ),
           ),
@@ -946,7 +950,7 @@ class _ModernAuthScreenState extends ConsumerState<ModernAuthScreen>
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: ColorPalette.secondary.withOpacity(0.18),
+              color: ColorPalette.secondary.withValues(alpha: 0.18),
             ),
             child: Icon(icon, size: 28, color: ColorPalette.secondary),
           ),

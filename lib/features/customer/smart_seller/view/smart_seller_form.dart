@@ -202,7 +202,7 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                 height: 72.w,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: ColorPalette.accentGreen.withOpacity(0.1),
+                  color: ColorPalette.accentGreen.withValues(alpha: 0.1),
                 ),
                 child: Icon(
                   Icons.check_circle_rounded,
@@ -239,7 +239,7 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                     color: ColorPalette.backgroundBlueLight,
                     borderRadius: BorderRadius.circular(10.r),
                     border: Border.all(
-                      color: ColorPalette.secondary.withOpacity(0.2),
+                      color: ColorPalette.secondary.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Row(
@@ -368,9 +368,9 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                       vertical: 5.h,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(100.r),
-                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     child: Text(
                       '${_step + 1} / $_total',
@@ -399,7 +399,7 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                   Text(
                     'بغیر کسی رسک کے اپنا کاروبار بڑھائیں',
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                     textDirection: TextDirection.rtl,
                   ),
@@ -413,12 +413,12 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: AnimatedBuilder(
                 animation: _progressAnim,
-                builder: (_, __) => ClipRRect(
+                builder: (_, _) => ClipRRect(
                   borderRadius: BorderRadius.circular(100),
                   child: LinearProgressIndicator(
                     value: _progressAnim.value,
                     minHeight: 3.h,
-                    backgroundColor: Colors.white.withOpacity(0.15),
+                    backgroundColor: Colors.white.withValues(alpha: 0.15),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       ColorPalette.accentGreen,
                     ),
@@ -451,19 +451,19 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                                   ? ColorPalette.accentGreen
                                   : active
                                   ? Colors.white
-                                  : Colors.white.withOpacity(0.12),
+                                  : Colors.white.withValues(alpha: 0.12),
                               border: Border.all(
                                 color: done
                                     ? ColorPalette.accentGreen
                                     : active
                                     ? Colors.white
-                                    : Colors.white.withOpacity(0.25),
+                                    : Colors.white.withValues(alpha: 0.25),
                                 width: 1.5,
                               ),
                               boxShadow: active
                                   ? [
                                       BoxShadow(
-                                        color: Colors.white.withOpacity(0.3),
+                                        color: Colors.white.withValues(alpha: 0.3),
                                         blurRadius: 8,
                                       ),
                                     ]
@@ -476,7 +476,7 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                                   ? Colors.white
                                   : active
                                   ? ColorPalette.secondary
-                                  : Colors.white.withOpacity(0.4),
+                                  : Colors.white.withValues(alpha: 0.4),
                             ),
                           ),
                           SizedBox(height: 5.h),
@@ -486,8 +486,8 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
                               color: active
                                   ? Colors.white
                                   : done
-                                  ? Colors.white.withOpacity(0.7)
-                                  : Colors.white.withOpacity(0.35),
+                                  ? Colors.white.withValues(alpha: 0.7)
+                                  : Colors.white.withValues(alpha: 0.35),
                               fontWeight: active
                                   ? FontWeight.w700
                                   : FontWeight.w500,
@@ -513,7 +513,7 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
       width: 36.w,
       height: 36.w,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10.r),
       ),
       child: Icon(icon, color: Colors.white, size: 16.sp),
@@ -540,7 +540,7 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
               borderRadius: BorderRadius.circular(16.r),
               boxShadow: [
                 BoxShadow(
-                  color: ColorPalette.secondary.withOpacity(0.07),
+                  color: ColorPalette.secondary.withValues(alpha: 0.07),
                   blurRadius: 18,
                   offset: const Offset(0, 4),
                 ),
@@ -781,7 +781,7 @@ class _SmartSellerFormState extends ConsumerState<SmartSellerForm>
             color: ColorPalette.backgroundBlueLight,
             borderRadius: BorderRadius.circular(10.r),
             border: Border.all(
-              color: ColorPalette.secondaryLight.withOpacity(0.25),
+              color: ColorPalette.secondaryLight.withValues(alpha: 0.25),
             ),
           ),
           child: Row(

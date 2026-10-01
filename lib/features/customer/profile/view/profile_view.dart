@@ -300,7 +300,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                 borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                    color: ColorPalette.secondary.withOpacity(0.26),
+                    color: ColorPalette.secondary.withValues(alpha: 0.26),
                     blurRadius: 22,
                     offset: const Offset(0, 8),
                   ),
@@ -372,7 +372,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                                         (_profileIncomplete
                                                 ? const Color(0xFFFFB020)
                                                 : const Color(0xFF50FAB0))
-                                            .withOpacity(0.7),
+                                            .withValues(alpha: 0.7),
                                     blurRadius: 6,
                                   ),
                                 ],
@@ -403,10 +403,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.16),
+                        color: Colors.white.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.28),
+                          color: Colors.white.withValues(alpha: 0.28),
                           width: 1,
                         ),
                       ),
@@ -478,7 +478,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: ColorPalette.secondary.withOpacity(0.3),
+                      color: ColorPalette.secondary.withValues(alpha: 0.3),
                       blurRadius: 22,
                       offset: const Offset(0, 8),
                     ),
@@ -583,7 +583,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF213F9A).withOpacity(0.06),
+            color: const Color(0xFF213F9A).withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -612,7 +612,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
           await HapticFeedback.selectionClick();
         },
         borderRadius: BorderRadius.circular(18),
-        splashColor: ColorPalette.secondary.withOpacity(0.05),
+        splashColor: ColorPalette.secondary.withValues(alpha: 0.05),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Row(
@@ -711,10 +711,10 @@ class _IncompleteProfileBanner extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFFFF8EC),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFFFB020).withOpacity(0.4)),
+          border: Border.all(color: const Color(0xFFFFB020).withValues(alpha: 0.4)),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFFB020).withOpacity(0.08),
+              color: const Color(0xFFFFB020).withValues(alpha: 0.08),
               blurRadius: 12,
               offset: const Offset(0, 3),
             ),
@@ -726,7 +726,7 @@ class _IncompleteProfileBanner extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFB020).withOpacity(0.12),
+                color: const Color(0xFFFFB020).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -827,18 +827,18 @@ class _ActionButtonState extends State<_ActionButton> {
                 ? null
                 : (widget.tonal
                       ? ColorPalette.surface
-                      : widget.color.withOpacity(0.08)),
+                      : widget.color.withValues(alpha: 0.08)),
             borderRadius: BorderRadius.circular(15),
             border: isGradient
                 ? null
                 : Border.all(
-                    color: widget.color.withOpacity(widget.tonal ? 0.35 : 0.2),
+                    color: widget.color.withValues(alpha: widget.tonal ? 0.35 : 0.2),
                     width: 1.5,
                   ),
             boxShadow: isGradient
                 ? [
                     BoxShadow(
-                      color: widget.color.withOpacity(0.3),
+                      color: widget.color.withValues(alpha: 0.3),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -846,7 +846,7 @@ class _ActionButtonState extends State<_ActionButton> {
                 : widget.tonal
                 ? [
                     BoxShadow(
-                      color: widget.color.withOpacity(0.07),
+                      color: widget.color.withValues(alpha: 0.07),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -926,7 +926,7 @@ class _ConfirmSheet extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: ctaColor.withOpacity(0.1),
+              color: ctaColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Icon(icon, color: ctaColor, size: 26),
@@ -990,7 +990,7 @@ class _ConfirmSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: ctaColor.withOpacity(0.3),
+                          color: ctaColor.withValues(alpha: 0.3),
                           blurRadius: 14,
                           offset: const Offset(0, 5),
                         ),

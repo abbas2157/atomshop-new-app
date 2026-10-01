@@ -85,7 +85,7 @@ class _CustomSearchDropdownState<T> extends State<CustomSearchDropdown<T>> {
                   widget.surfaceColor ??
                   (widget.enabled
                       ? ColorPalette.surfaceGray
-                      : ColorPalette.surfaceGray.withOpacity(0.5)),
+                      : ColorPalette.surfaceGray.withValues(alpha: 0.5)),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: _isFocused
@@ -103,7 +103,7 @@ class _CustomSearchDropdownState<T> extends State<CustomSearchDropdown<T>> {
                 Expanded(
                   child: Text(
                     widget.selectedItem != null
-                        ? widget.itemAsString(widget.selectedItem!)
+                        ? widget.itemAsString(widget.selectedItem as T)
                         : (widget.hintText ?? "Select Option"),
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: widget.selectedItem != null
@@ -204,7 +204,7 @@ class _SearchSheetState<T> extends State<_SearchSheet<T>> {
                 child: ListView.separated(
                   controller: scrollController,
                   itemCount: _filteredItems.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final item = _filteredItems[index];
                     return ListTile(

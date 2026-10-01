@@ -303,7 +303,7 @@ extension ContainerExtensions on Widget {
 
   // Quick container with size
   Widget withSize({double? width, double? height}) {
-    return Container(width: width?.w, height: height?.h, child: this);
+    return SizedBox(width: width?.w, height: height?.h, child: this);
   }
 }
 
@@ -479,7 +479,7 @@ extension DecorationExtensions on Widget {
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: shadowColor.withOpacity(opacity),
+            color: shadowColor.withValues(alpha: opacity),
             blurRadius: blurRadius,
             offset: offset,
           ),

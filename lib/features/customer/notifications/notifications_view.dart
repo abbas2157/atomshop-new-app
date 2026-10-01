@@ -232,7 +232,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withValues(alpha: 0.06),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -356,7 +356,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                               ? [
                                   BoxShadow(
                                     color: ColorPalette.secondary
-                                        .withOpacity(0.25),
+                                        .withValues(alpha: 0.25),
                                     blurRadius: 10,
                                     offset: const Offset(0, 3),
                                   ),
@@ -570,25 +570,25 @@ class _NotifCardState extends State<_NotifCard> {
           decoration: BoxDecoration(
             color: isUnread
                 ? ColorPalette.surface
-                : ColorPalette.surface.withOpacity(0.6),
+                : ColorPalette.surface.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isUnread
-                  ? cfg.color.withOpacity(0.2)
-                  : ColorPalette.border.withOpacity(0.5),
+                  ? cfg.color.withValues(alpha: 0.2)
+                  : ColorPalette.border.withValues(alpha: 0.5),
               width: isUnread ? 1.5 : 1,
             ),
             boxShadow: isUnread
                 ? [
                     BoxShadow(
-                      color: cfg.color.withOpacity(0.08),
+                      color: cfg.color.withValues(alpha: 0.08),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -627,7 +627,7 @@ class _NotifCardState extends State<_NotifCard> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: cfg.color.withOpacity(0.1),
+                              color: cfg.color.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -645,7 +645,7 @@ class _NotifCardState extends State<_NotifCard> {
                             _timeAgo(n.createdAtDate),
                             style: TextStyle(
                               fontSize: 11,
-                              color: ColorPalette.textSecondary.withOpacity(0.7),
+                              color: ColorPalette.textSecondary.withValues(alpha: 0.7),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -680,8 +680,8 @@ class _NotifCardState extends State<_NotifCard> {
                         n.body,
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: ColorPalette.textSecondary.withOpacity(
-                            isUnread ? 0.85 : 0.6,
+                          color: ColorPalette.textSecondary.withValues(
+                            alpha: isUnread ? 0.85 : 0.6,
                           ),
                           height: 1.5,
                         ),
@@ -704,13 +704,13 @@ class _NotifCardState extends State<_NotifCard> {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: cfg.color.withOpacity(isUnread ? 0.12 : 0.07),
+        color: cfg.color.withValues(alpha: isUnread ? 0.12 : 0.07),
         borderRadius: BorderRadius.circular(13),
       ),
       child: Icon(
         cfg.icon,
         size: 21,
-        color: cfg.color.withOpacity(isUnread ? 1.0 : 0.5),
+        color: cfg.color.withValues(alpha: isUnread ? 1.0 : 0.5),
       ),
     );
   }

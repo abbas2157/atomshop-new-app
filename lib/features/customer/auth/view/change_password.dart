@@ -181,7 +181,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen>
                       _iconController,
                       _pulseController,
                     ]),
-                    builder: (_, __) => FadeTransition(
+                    builder: (_, _) => FadeTransition(
                       opacity: _iconFadeAnim,
                       child: Transform.scale(
                         scale: _iconScaleAnim.value,
@@ -196,8 +196,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen>
                                   height: 90,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: ColorPalette.secondary.withOpacity(
-                                      0.08,
+                                    color: ColorPalette.secondary.withValues(
+                                      alpha: 0.08,
                                     ),
                                   ),
                                 ),
@@ -207,8 +207,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen>
                                 height: 64,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: ColorPalette.secondary.withOpacity(
-                                    0.15,
+                                  color: ColorPalette.secondary.withValues(
+                                    alpha: 0.15,
                                   ),
                                 ),
                                 child: Icon(
@@ -234,7 +234,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen>
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 32,
                               offset: const Offset(0, 8),
                             ),

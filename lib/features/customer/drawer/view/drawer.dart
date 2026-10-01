@@ -396,7 +396,7 @@ class _AppDrawerState extends State<AppDrawer>
                                 width: 30,
                                 height: 30,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -414,7 +414,7 @@ class _AppDrawerState extends State<AppDrawer>
                         'Welcome back,',
                         style: TextStyle(
                           fontSize: subFontSize,
-                          color: Colors.white.withOpacity(0.55),
+                          color: Colors.white.withValues(alpha: 0.55),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -456,7 +456,7 @@ class _AppDrawerState extends State<AppDrawer>
       child: InkWell(
         onTap: () => onChanged(!isDark),
         borderRadius: BorderRadius.circular(10),
-        splashColor: _kGold2.withOpacity(0.08),
+        splashColor: _kGold2.withValues(alpha: 0.08),
         highlightColor: Colors.transparent,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -466,7 +466,7 @@ class _AppDrawerState extends State<AppDrawer>
                 width: iconBoxSize,
                 height: iconBoxSize,
                 decoration: BoxDecoration(
-                  color: _kGold2.withOpacity(0.12),
+                  color: _kGold2.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(
@@ -539,10 +539,10 @@ class _AppDrawerState extends State<AppDrawer>
         curve: Curves.easeOut,
         margin: const EdgeInsets.symmetric(vertical: 1),
         decoration: BoxDecoration(
-          color: isHovered ? _kGold2.withOpacity(0.06) : Colors.transparent,
+          color: isHovered ? _kGold2.withValues(alpha: 0.06) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isHovered ? _kGold2.withOpacity(0.15) : Colors.transparent,
+            color: isHovered ? _kGold2.withValues(alpha: 0.15) : Colors.transparent,
           ),
         ),
         child: Material(
@@ -550,7 +550,7 @@ class _AppDrawerState extends State<AppDrawer>
           child: InkWell(
             onTap: item.onTap,
             borderRadius: BorderRadius.circular(10),
-            splashColor: _kGold2.withOpacity(0.08),
+            splashColor: _kGold2.withValues(alpha: 0.08),
             highlightColor: Colors.transparent,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -562,7 +562,7 @@ class _AppDrawerState extends State<AppDrawer>
                     height: iconBoxSize,
                     decoration: BoxDecoration(
                       color: isHovered
-                          ? _kGold2.withOpacity(0.12)
+                          ? _kGold2.withValues(alpha: 0.12)
                           : ColorPalette.surfaceGray,
                       borderRadius: BorderRadius.circular(9),
                     ),
@@ -713,9 +713,9 @@ class _AppDrawerState extends State<AppDrawer>
       child: Container(
         height: chipH,
         decoration: BoxDecoration(
-          color: brandColor.withOpacity(0.07),
+          color: brandColor.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: brandColor.withOpacity(0.18)),
+          border: Border.all(color: brandColor.withValues(alpha: 0.18)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Row(

@@ -562,7 +562,7 @@ class _PlanReviewPhase extends StatelessWidget {
           decoration: BoxDecoration(
             color: ColorPalette.backgroundBlueLight,
             borderRadius: BorderRadius.circular(10.r),
-            border: Border.all(color: ColorPalette.secondary.withOpacity(0.2)),
+            border: Border.all(color: ColorPalette.secondary.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
@@ -626,7 +626,7 @@ class _PlanReviewPhase extends StatelessWidget {
                       Text(
                         'Monthly Installment',
                         style: AppTextStyles.bodyMedium.copyWith(
-                          color: Colors.white.withOpacity(0.75),
+                          color: Colors.white.withValues(alpha: 0.75),
                         ),
                       ),
                       Container(
@@ -635,7 +635,7 @@ class _PlanReviewPhase extends StatelessWidget {
                           vertical: 3.h,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6.r),
                         ),
                         child: Text(
@@ -654,7 +654,7 @@ class _PlanReviewPhase extends StatelessWidget {
                       Text(
                         'Rs.',
                         style: AppTextStyles.h5.copyWith(
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                         ),
                       ),
                       SizedBox(width: 4.w),
@@ -668,7 +668,7 @@ class _PlanReviewPhase extends StatelessWidget {
                       Text(
                         ' /month',
                         style: AppTextStyles.bodyMedium.copyWith(
-                          color: Colors.white.withOpacity(0.65),
+                          color: Colors.white.withValues(alpha: 0.65),
                         ),
                       ),
                     ],
@@ -677,7 +677,7 @@ class _PlanReviewPhase extends StatelessWidget {
                   Text(
                     'for ${state.installmentMonths} months',
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -829,7 +829,7 @@ class _PersonalPhaseState extends ConsumerState<_PersonalPhase> {
                     Text(
                       'Monthly Installment',
                       style: AppTextStyles.caption.copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                     SizedBox(height: 2.h),
@@ -849,7 +849,7 @@ class _PersonalPhaseState extends ConsumerState<_PersonalPhase> {
                     Text(
                       '${state.installmentMonths} months',
                       style: AppTextStyles.caption.copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                     SizedBox(height: 4.h),
@@ -861,7 +861,7 @@ class _PersonalPhaseState extends ConsumerState<_PersonalPhase> {
                           vertical: 4.h,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6.r),
                         ),
                         child: Text(
@@ -913,10 +913,10 @@ class _PersonalPhaseState extends ConsumerState<_PersonalPhase> {
                         vertical: 6.h,
                       ),
                       decoration: BoxDecoration(
-                        color: ColorPalette.secondary.withOpacity(0.08),
+                        color: ColorPalette.secondary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8.r),
                         border: Border.all(
-                          color: ColorPalette.secondary.withOpacity(0.2),
+                          color: ColorPalette.secondary.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(
@@ -1146,7 +1146,7 @@ class _IncompleteDetailsNudge extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFFFF8EC),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFFB020).withOpacity(0.35)),
+          border: Border.all(color: const Color(0xFFFFB020).withValues(alpha: 0.35)),
         ),
         child: Row(
           children: [
@@ -1154,7 +1154,7 @@ class _IncompleteDetailsNudge extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFB020).withOpacity(0.12),
+                color: const Color(0xFFFFB020).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -1236,7 +1236,7 @@ class _PrefilledInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: ColorPalette.backgroundBlueLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ColorPalette.secondary.withOpacity(0.15)),
+        border: Border.all(color: ColorPalette.secondary.withValues(alpha: 0.15)),
       ),
       child: Column(
         children: [
@@ -1275,7 +1275,7 @@ class _PrefilledInfoCard extends StatelessWidget {
         ),
         Expanded(
           child: Text(
-            isEmpty ? '—' : value!,
+            isEmpty ? '—' : value,
             style: AppTextStyles.bodyMedium.copyWith(
               color: isEmpty
                   ? ColorPalette.textSecondary
@@ -1408,7 +1408,7 @@ class _Card extends StatelessWidget {
       border: Border.all(color: ColorPalette.border),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
@@ -1437,7 +1437,7 @@ class _SectionHeader extends StatelessWidget {
       Container(
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: color, size: 18),
@@ -1538,9 +1538,9 @@ class _DiscountBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     decoration: BoxDecoration(
-      color: ColorPalette.accentGreen.withOpacity(0.08),
+      color: ColorPalette.accentGreen.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: ColorPalette.accentGreen.withOpacity(0.4)),
+      border: Border.all(color: ColorPalette.accentGreen.withValues(alpha: 0.4)),
     ),
     child: Row(
       children: [
@@ -1569,9 +1569,9 @@ class _InvalidRefBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     decoration: BoxDecoration(
-      color: ColorPalette.error.withOpacity(0.06),
+      color: ColorPalette.error.withValues(alpha: 0.06),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: ColorPalette.error.withOpacity(0.3)),
+      border: Border.all(color: ColorPalette.error.withValues(alpha: 0.3)),
     ),
     child: Row(
       children: [
@@ -1627,7 +1627,7 @@ class _WhyChooseUsSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: ColorPalette.backgroundBlueLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ColorPalette.secondary.withOpacity(0.1)),
+        border: Border.all(color: ColorPalette.secondary.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1677,7 +1677,7 @@ class _WhyChooseUsSection extends StatelessWidget {
             color: ColorPalette.surface,
             borderRadius: BorderRadius.circular(9),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4),
             ],
           ),
           child: Icon(icon, color: ColorPalette.secondary, size: 18),
@@ -1760,7 +1760,7 @@ class _ConvenienceSection extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: ColorPalette.secondary.withOpacity(0.08),
+                          color: ColorPalette.secondary.withValues(alpha: 0.08),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

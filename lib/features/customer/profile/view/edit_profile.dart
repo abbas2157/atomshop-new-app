@@ -212,7 +212,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                                 BoxShadow(
                                   color: const Color(
                                     0xFF213F9A,
-                                  ).withOpacity(0.06),
+                                  ).withValues(alpha: 0.06),
                                   blurRadius: 16,
                                   offset: const Offset(0, 4),
                                 ),
@@ -275,7 +275,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
+                        color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -414,7 +414,7 @@ class _CompletionBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: ColorPalette.secondary.withOpacity(0.22),
+            color: ColorPalette.secondary.withValues(alpha: 0.22),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -426,7 +426,7 @@ class _CompletionBanner extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
+              color: Colors.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(

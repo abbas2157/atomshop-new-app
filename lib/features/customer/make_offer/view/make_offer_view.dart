@@ -193,7 +193,7 @@ class _MakeOfferViewState extends State<MakeOfferView> {
           // Mature Shadow: Low opacity, high blur, subtle offset
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 15,
               spreadRadius: 0,
               offset: const Offset(0, 8),
@@ -246,7 +246,7 @@ class LoopingArrowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color.withOpacity(0.5)
+      ..color = color.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth =
           2.5 // Slightly thicker for better visibility

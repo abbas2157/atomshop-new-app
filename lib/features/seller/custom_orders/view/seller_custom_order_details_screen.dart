@@ -657,7 +657,7 @@ class _SectionCard extends StatelessWidget {
                         color: c.accent,
                       )),
                 ),
-                if (action case final w?) w,
+                ?action,
               ],
             ),
           ),

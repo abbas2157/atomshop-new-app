@@ -165,11 +165,10 @@ class SellerCustomersRepository {
         'customer_physical_meet': customerPhysicalMeet!,
     };
     final files = <String, File>{
-      if (picture != null) 'picture': picture,
-      if (idCardFrontSide != null) 'id_card_front_side': idCardFrontSide,
-      if (idCardBackSide != null) 'id_card_back_side': idCardBackSide,
-      if (selfieWithCustomer != null)
-        'selfie_with_customer': selfieWithCustomer,
+      'picture': ?picture,
+      'id_card_front_side': ?idCardFrontSide,
+      'id_card_back_side': ?idCardBackSide,
+      'selfie_with_customer': ?selfieWithCustomer,
     };
 
     await _post(
@@ -224,7 +223,7 @@ class SellerCustomersRepository {
         'customer_physical_meet': customerPhysicalMeet!,
     };
     final files = <String, File>{
-      if (picture != null) 'picture': picture,
+      'picture': ?picture,
       if (verified && idCardFrontSide != null)
         'id_card_front_side': idCardFrontSide,
       if (verified && idCardBackSide != null)

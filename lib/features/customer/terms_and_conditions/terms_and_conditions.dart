@@ -54,7 +54,7 @@ class TermsAndConditionsPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(22),
                           boxShadow: [
                             BoxShadow(
-                              color: ColorPalette.secondary.withOpacity(0.26),
+                              color: ColorPalette.secondary.withValues(alpha: 0.26),
                               blurRadius: 22,
                               offset: const Offset(0, 8),
                             ),
@@ -66,10 +66,10 @@ class TermsAndConditionsPage extends StatelessWidget {
                               width: 48,
                               height: 48,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.16),
+                                color: Colors.white.withValues(alpha: 0.16),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
+                                  color: Colors.white.withValues(alpha: 0.3),
                                   width: 1.5,
                                 ),
                               ),
@@ -295,10 +295,10 @@ class TermsAndConditionsPage extends StatelessWidget {
                       vertical: 16,
                     ),
                     decoration: BoxDecoration(
-                      color: ColorPalette.secondary.withOpacity(0.07),
+                      color: ColorPalette.secondary.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: ColorPalette.secondary.withOpacity(0.18),
+                        color: ColorPalette.secondary.withValues(alpha: 0.18),
                       ),
                     ),
                     child: const Row(
@@ -398,7 +398,7 @@ class TermsAndConditionsPage extends StatelessWidget {
               width: 5,
               height: 5,
               decoration: BoxDecoration(
-                color: ColorPalette.secondary.withOpacity(0.5),
+                color: ColorPalette.secondary.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
             ),
@@ -419,7 +419,7 @@ class TermsAndConditionsPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF213F9A).withOpacity(0.06),
+            color: const Color(0xFF213F9A).withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -448,7 +448,7 @@ class TermsAndConditionsPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

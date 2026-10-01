@@ -175,7 +175,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                       width: 72,
                       height: 72,
                       decoration: BoxDecoration(
-                        color: ColorPalette.error.withOpacity(0.1),
+                        color: ColorPalette.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(22),
                       ),
                       child: const Icon(
@@ -259,7 +259,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withValues(alpha: 0.06),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -314,7 +314,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF213F9A).withOpacity(0.06),
+                    color: const Color(0xFF213F9A).withValues(alpha: 0.06),
                     blurRadius: 12,
                     offset: const Offset(0, 3),
                   ),
@@ -330,7 +330,7 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                   hintText: 'Search by order or product…',
                   hintStyle: TextStyle(
                     fontSize: 13.5,
-                    color: ColorPalette.textSecondary.withOpacity(0.7),
+                    color: ColorPalette.textSecondary.withValues(alpha: 0.7),
                   ),
                   prefixIcon: const Icon(
                     Icons.search_rounded,
@@ -386,8 +386,8 @@ class _MyOrdersPageState extends ConsumerState<MyOrdersPage>
                           boxShadow: active
                               ? [
                                   BoxShadow(
-                                    color: ColorPalette.secondary.withOpacity(
-                                      0.25,
+                                    color: ColorPalette.secondary.withValues(
+                                      alpha: 0.25,
                                     ),
                                     blurRadius: 10,
                                     offset: const Offset(0, 3),
@@ -510,7 +510,7 @@ class _OrderCardState extends State<_OrderCard> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF213F9A).withOpacity(0.07),
+                color: const Color(0xFF213F9A).withValues(alpha: 0.07),
                 blurRadius: 18,
                 offset: const Offset(0, 4),
               ),
@@ -572,10 +572,10 @@ class _OrderCardState extends State<_OrderCard> {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: statusColor.withOpacity(0.3),
+                          color: statusColor.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -645,8 +645,8 @@ class _OrderCardState extends State<_OrderCard> {
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 6,
-                        backgroundColor: ColorPalette.secondary.withOpacity(
-                          0.1,
+                        backgroundColor: ColorPalette.secondary.withValues(
+                          alpha: 0.1,
                         ),
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           ColorPalette.secondary,
@@ -846,14 +846,14 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                         (o.isApproved
                                 ? ColorPalette.success
                                 : ColorPalette.warning)
-                            .withOpacity(0.12),
+                            .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color:
                           (o.isApproved
                                   ? ColorPalette.success
                                   : ColorPalette.warning)
-                              .withOpacity(0.3),
+                              .withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -1022,7 +1022,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: ColorPalette.secondary.withOpacity(0.22),
+                  color: ColorPalette.secondary.withValues(alpha: 0.22),
                   blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),
@@ -1035,10 +1035,10 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha: 0.3),
                       width: 1.5,
                     ),
                   ),
@@ -1103,10 +1103,10 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.25),
+                      color: Colors.white.withValues(alpha: 0.25),
                       width: 1,
                     ),
                   ),
@@ -1223,7 +1223,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                 decoration: BoxDecoration(
                   color:
                       (isCancelled ? ColorPalette.error : ColorPalette.warning)
-                          .withOpacity(0.1),
+                          .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: Icon(
@@ -1268,10 +1268,10 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: ColorPalette.warning.withOpacity(0.08),
+                    color: ColorPalette.warning.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: ColorPalette.warning.withOpacity(0.25),
+                      color: ColorPalette.warning.withValues(alpha: 0.25),
                     ),
                   ),
                   child: const Row(
@@ -1329,7 +1329,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: ColorPalette.secondary.withOpacity(0.22),
+                  color: ColorPalette.secondary.withValues(alpha: 0.22),
                   blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),
@@ -1341,10 +1341,10 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha: 0.3),
                       width: 1.5,
                     ),
                   ),
@@ -1411,7 +1411,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       physics: const BouncingScrollPhysics(),
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final item = items[i];
         final statusColor = item.isPaid
@@ -1423,7 +1423,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF213F9A).withOpacity(0.05),
+                color: const Color(0xFF213F9A).withValues(alpha: 0.05),
                 blurRadius: 12,
                 offset: const Offset(0, 3),
               ),
@@ -1439,7 +1439,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(9),
                       ),
                       child: Center(
@@ -1470,10 +1470,10 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: statusColor.withOpacity(0.3),
+                          color: statusColor.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -1543,7 +1543,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFF213F9A).withOpacity(0.05),
+          color: const Color(0xFF213F9A).withValues(alpha: 0.05),
           blurRadius: 12,
           offset: const Offset(0, 3),
         ),
@@ -1656,7 +1656,7 @@ class _PulsingOrderIconState extends State<_PulsingOrderIcon>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) => Stack(
+      builder: (_, _) => Stack(
         alignment: Alignment.center,
         children: [
           // Outer pulsing ring
@@ -1667,7 +1667,7 @@ class _PulsingOrderIconState extends State<_PulsingOrderIcon>
               height: 90,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: ColorPalette.secondary.withOpacity(0.08),
+                color: ColorPalette.secondary.withValues(alpha: 0.08),
               ),
             ),
           ),
@@ -1677,7 +1677,7 @@ class _PulsingOrderIconState extends State<_PulsingOrderIcon>
             height: 68,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: ColorPalette.secondary.withOpacity(0.14),
+              color: ColorPalette.secondary.withValues(alpha: 0.14),
             ),
             child: const Icon(
               Icons.shopping_bag_outlined,
