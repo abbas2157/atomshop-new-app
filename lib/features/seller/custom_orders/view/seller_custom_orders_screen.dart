@@ -1061,6 +1061,10 @@ class _CreateCustomOrderSheetState
   final List<_SpecRow> _specs = [];
   File? _picture;
 
+  // Date the sale actually happened (sent as `order_date`). Defaults to today;
+  // sellers backdate it when entering paper orders from earlier months.
+  DateTime _orderDate = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -1236,6 +1240,7 @@ class _CreateCustomOrderSheetState
                 ? null
                 : _perMonthPercentage.text.trim(),
             totalDealPrice: total > 0 ? total.round().toString() : null,
+            orderDate: formatYmd(_orderDate),
             picture: _picture,
           );
       if (!mounted) return;
@@ -1452,6 +1457,15 @@ class _CreateCustomOrderSheetState
                   ),
                 ),
               ],
+            ),
+            const Gap.v(AppSpace.sm),
+            SellerDateField(
+              label: 'Order date',
+              helperText: 'When the sale happened. Pick an earlier date for '
+                  'past paper orders.',
+              value: _orderDate,
+              enabled: !_saving,
+              onChanged: (d) => setState(() => _orderDate = d),
             ),
             const Gap.v(AppSpace.sm),
             _TotalDealPreview(amount: _totalDealPreview),

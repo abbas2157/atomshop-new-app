@@ -115,7 +115,9 @@ class SellerCustomOrdersRepository {
   /// inline; `area_id`/`city_id` are taken server-side from the customer.
   /// [categoryId]/[brandId] may be a numeric id string or the literal `"other"`
   /// (then send the matching *_title). [detailTitles]/[detailValues] are spec
-  /// pairs sent as `detail_titles[]` / `detail_values[]`.
+  /// pairs sent as `detail_titles[]` / `detail_values[]`. [orderDate] is the
+  /// `Y-m-d` date the sale actually happened; the server saves it as the
+  /// order's `created_at` so backdated paper orders land in the right month.
   Future<void> storeCustomOrder({
     required String customerId,
     String? categoryId,
@@ -130,6 +132,7 @@ class SellerCustomOrdersRepository {
     String? tenureMonths,
     String? perMonthPercentage,
     String? totalDealPrice,
+    String? orderDate,
     File? picture,
   }) async {
     final token = await SellerSessionManager.getToken();
@@ -147,6 +150,7 @@ class SellerCustomOrdersRepository {
       if (_has(tenureMonths)) 'tenure_months': tenureMonths,
       if (_has(perMonthPercentage)) 'per_month_percentage': perMonthPercentage,
       if (_has(totalDealPrice)) 'total_deal_price': totalDealPrice,
+      if (_has(orderDate)) 'order_date': orderDate,
       if (detailTitles.isNotEmpty) 'detail_titles[]': detailTitles,
       if (detailValues.isNotEmpty) 'detail_values[]': detailValues,
     };

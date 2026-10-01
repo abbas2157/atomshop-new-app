@@ -2,7 +2,7 @@ import 'package:atompro/features/seller/core/design/design.dart';
 import 'package:flutter/material.dart';
 
 /// Formats [date] as the calendar-only `Y-m-d` string the seller API expects
-/// for backdated payment fields (`payment_date`, `advance_date`).
+/// for backdated fields (`payment_date`, `advance_date`, `order_date`).
 String formatYmd(DateTime date) {
   final m = date.month.toString().padLeft(2, '0');
   final d = date.day.toString().padLeft(2, '0');
