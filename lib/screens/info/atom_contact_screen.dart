@@ -10,6 +10,7 @@ import '../../design/atom_tokens.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_order_providers.dart';
 import '../../utils/atom_validators.dart';
+import '../../utils/atom_format.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_page.dart';
 import '../../widgets/atom_states.dart';
@@ -187,7 +188,12 @@ class _Channels extends StatelessWidget {
                 Icon(icon, color: AtomColors.primary, size: 22),
                 const SizedBox(height: AtomSpace.xs),
                 Text(title, style: AtomText.label),
-                Text(value, maxLines: 2, overflow: TextOverflow.ellipsis, style: AtomText.small.copyWith(color: AtomColors.body)),
+                // One line: shrink a long email rather than break it mid-word.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, maxLines: 1, style: AtomText.small.copyWith(color: AtomColors.body)),
+                ),
               ],
             ),
           ),
@@ -212,7 +218,7 @@ class _Channels extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Chat on WhatsApp', style: AtomText.subheading.copyWith(color: AtomColors.white)),
-                        Text('${c.whatsapp} · fastest for orders and plans', style: AtomText.small.copyWith(color: AtomColors.white)),
+                        Text('${AtomFormat.phone(c.whatsapp)} · fastest for orders and plans', style: AtomText.small.copyWith(color: AtomColors.white)),
                       ],
                     ),
                   ),
@@ -226,7 +232,7 @@ class _Channels extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (c.phone.isNotEmpty) tile(Icons.call_outlined, 'Call us', c.phone, () => atomOpenUrl(context, 'tel:${c.phone.replaceAll(' ', '')}')),
+              if (c.phone.isNotEmpty) tile(Icons.call_outlined, 'Call us', AtomFormat.phone(c.phone), () => atomOpenUrl(context, 'tel:${c.phone.replaceAll(' ', '')}')),
               if (c.phone.isNotEmpty && c.email.isNotEmpty) const SizedBox(width: AtomSpace.sm),
               if (c.email.isNotEmpty) tile(Icons.mail_outline_rounded, 'Email', c.email, () => atomOpenUrl(context, 'mailto:${c.email}')),
             ],

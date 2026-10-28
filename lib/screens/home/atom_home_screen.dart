@@ -264,6 +264,7 @@ class _CategoriesGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
+      padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: designCategories.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

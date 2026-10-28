@@ -17,10 +17,7 @@ import '../../widgets/atom_button.dart';
 import '../../widgets/atom_surfaces.dart';
 
 class _Message {
-  const _Message.user(this.text)
-      : fromUser = true,
-        reply = null,
-        failed = false;
+  const _Message.user(this.text) : fromUser = true, reply = null, failed = false;
 
   const _Message.bot(this.text, {this.reply, this.failed = false}) : fromUser = false;
 
@@ -61,9 +58,7 @@ class _AtomAskAtomScreenState extends ConsumerState<AtomAskAtomScreen> {
     if (q.isEmpty || _waiting) return;
 
     // History is what came before this question, newest last, failures left out.
-    final history = [
-      for (final m in _messages.where((m) => !m.failed)) (m.fromUser, m.text),
-    ];
+    final history = [for (final m in _messages.where((m) => !m.failed)) (m.fromUser, m.text)];
     final recent = history.length > _historyLimit ? history.sublist(history.length - _historyLimit) : history;
 
     setState(() {
@@ -122,67 +117,75 @@ class _AtomAskAtomScreenState extends ConsumerState<AtomAskAtomScreen> {
     // Newest at the bottom: the list is reversed, item 0 is the latest.
     final items = _messages.reversed.toList(growable: false);
 
-    return Scaffold(
-      backgroundColor: AtomColors.surface,
-      body: Column(
-        children: [
-          const _Header(),
-          Expanded(
-            child: AtomPageWidth(
-              child: ListView.builder(
-                reverse: true,
-                padding: EdgeInsets.fromLTRB(gutter, AtomSpace.md, gutter, AtomSpace.md),
-                itemCount: items.length + (_waiting ? 1 : 0),
-                itemBuilder: (context, i) {
-                  if (_waiting && i == 0) return const _Typing();
-                  final m = items[_waiting ? i - 1 : i];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AtomSpace.sm),
-                    child: m.fromUser ? _UserBubble(text: m.text) : _BotBubble(message: m, onAction: _action, onAsk: (q) => _ask(q)),
-                  );
-                },
+    // Light status-bar icons over the dark header.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: AtomColors.surface,
+        body: Column(
+          children: [
+            const _Header(),
+            Expanded(
+              child: AtomPageWidth(
+                child: ListView.builder(
+                  reverse: true,
+                  padding: EdgeInsets.fromLTRB(gutter, AtomSpace.md, gutter, AtomSpace.md),
+                  itemCount: items.length + (_waiting ? 1 : 0),
+                  itemBuilder: (context, i) {
+                    if (_waiting && i == 0) return const _Typing();
+                    final m = items[_waiting ? i - 1 : i];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AtomSpace.sm),
+                      child: m.fromUser ? _UserBubble(text: m.text) : _BotBubble(message: m, onAction: _action, onAsk: (q) => _ask(q)),
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-          AtomPageWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (whatsApp.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: gutter),
-                    child: Row(
-                      children: [
-                        Text('Prefer a person?', style: AtomText.small),
-                        AtomButton(
-                          label: 'Ask on WhatsApp',
-                          icon: Icons.chat_outlined,
-                          variant: AtomButtonVariant.text,
-                          size: AtomButtonSize.small,
-                          onPressed: () => _open(whatsApp),
-                        ),
-                      ],
+            AtomPageWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (whatsApp.isNotEmpty)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: gutter),
+                      child: Row(
+                        children: [
+                          Text('Prefer a person?', style: AtomText.small),
+                          AtomButton(
+                            label: 'Ask on WhatsApp',
+                            icon: Icons.chat_outlined,
+                            variant: AtomButtonVariant.text,
+                            size: AtomButtonSize.small,
+                            onPressed: () => _open(whatsApp),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                if (suggestions.isNotEmpty)
-                  SizedBox(
-                    height: 48,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 6),
-                      itemCount: suggestions.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: AtomSpace.xs),
-                      itemBuilder: (_, i) {
-                        final s = suggestions[i];
-                        return AtomChoiceChip(label: s.label, selected: false, onTap: () => _ask(s.prompt, suggestionId: s.id));
-                      },
+                  if (suggestions.isNotEmpty)
+                    SizedBox(
+                      height: 48,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 6),
+                        itemCount: suggestions.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: AtomSpace.xs),
+                        itemBuilder: (_, i) {
+                          final s = suggestions[i];
+                          return AtomChoiceChip(
+                            label: s.label,
+                            selected: false,
+                            onTap: () => _ask(s.prompt, suggestionId: s.id),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                _Composer(controller: _input, waiting: _waiting, onSend: () => _ask(_input.text)),
-              ],
+                  _Composer(controller: _input, waiting: _waiting, onSend: () => _ask(_input.text)),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -213,7 +216,10 @@ class _Header extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Semantics(header: true, child: Text('Ask Atom', style: AtomText.heading.copyWith(color: AtomColors.white))),
+                      Semantics(
+                        header: true,
+                        child: Text('Ask Atom', style: AtomText.heading.copyWith(color: AtomColors.white)),
+                      ),
                       Text('Prices, plans and products', style: AtomText.small.copyWith(color: AtomColors.onDark)),
                     ],
                   ),
@@ -242,7 +248,12 @@ class _UserBubble extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: const BoxDecoration(
             color: AtomColors.primary,
-            borderRadius: BorderRadius.only(topLeft: Radius.circular(18), topRight: Radius.circular(18), bottomLeft: Radius.circular(18), bottomRight: Radius.circular(6)),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(18),
+              topRight: Radius.circular(18),
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(6),
+            ),
           ),
           child: Text(text, style: AtomText.body.copyWith(color: AtomColors.white)),
         ),
@@ -276,7 +287,12 @@ class _BotBubble extends StatelessWidget {
           decoration: BoxDecoration(
             color: message.failed ? AtomColors.amberSoft : AtomColors.white,
             border: Border.all(color: message.failed ? AtomColors.amberSoft : AtomColors.line),
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(6), topRight: Radius.circular(18), bottomLeft: Radius.circular(18), bottomRight: Radius.circular(18)),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(6),
+              topRight: Radius.circular(18),
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(18),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,10 +301,7 @@ class _BotBubble extends StatelessWidget {
                 if (i > 0) const SizedBox(height: 6),
                 SelectableText.rich(_bold(p, AtomText.body.copyWith(color: message.failed ? AtomColors.amberInk : AtomColors.ink))),
               ],
-              if (plan != null) ...[
-                const SizedBox(height: AtomSpace.sm),
-                _PlanCard(plan: plan),
-              ],
+              if (plan != null) ...[const SizedBox(height: AtomSpace.sm), _PlanCard(plan: plan)],
               if (actions.isNotEmpty) ...[
                 const SizedBox(height: AtomSpace.sm),
                 Wrap(
@@ -332,19 +345,23 @@ class _BotBubble extends StatelessWidget {
       style: style,
       children: [
         for (final (i, part) in parts.indexed)
-          if (part.isNotEmpty) TextSpan(text: part, style: i.isOdd ? const TextStyle(fontWeight: FontWeight.w800) : null),
+          if (part.isNotEmpty)
+            TextSpan(
+              text: part,
+              style: i.isOdd ? const TextStyle(fontWeight: FontWeight.w800) : null,
+            ),
       ],
     );
   }
 
   static IconData _icon(String type) => switch (type) {
-        'product' => Icons.visibility_outlined,
-        'category' || 'brand' => Icons.grid_view_rounded,
-        'whatsapp' => Icons.chat_outlined,
-        'custom_order' => Icons.calculate_outlined,
-        'offer' => Icons.chat_bubble_outline_rounded,
-        _ => Icons.open_in_new_rounded,
-      };
+    'product' => Icons.visibility_outlined,
+    'category' || 'brand' => Icons.grid_view_rounded,
+    'whatsapp' => Icons.chat_outlined,
+    'custom_order' => Icons.calculate_outlined,
+    'offer' => Icons.chat_bubble_outline_rounded,
+    _ => Icons.open_in_new_rounded,
+  };
 }
 
 class _PlanCard extends StatelessWidget {
@@ -387,11 +404,11 @@ class _Line extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          Expanded(child: Text(label, style: AtomText.small)),
-          Text(value, style: AtomText.label.copyWith(fontSize: 13)),
-        ],
-      );
+    children: [
+      Expanded(child: Text(label, style: AtomText.small)),
+      Text(value, style: AtomText.label.copyWith(fontSize: 13)),
+    ],
+  );
 }
 
 class _Typing extends StatelessWidget {
@@ -407,7 +424,11 @@ class _Typing extends StatelessWidget {
           label: 'Atom is typing',
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(color: AtomColors.white, border: Border.all(color: AtomColors.line), borderRadius: BorderRadius.circular(18)),
+            decoration: BoxDecoration(
+              color: AtomColors.white,
+              border: Border.all(color: AtomColors.line),
+              borderRadius: BorderRadius.circular(18),
+            ),
             child: const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AtomColors.primary)),
           ),
         ),
@@ -428,7 +449,10 @@ class _Composer extends StatelessWidget {
     final gutter = context.atomGutter;
     return Container(
       padding: EdgeInsets.fromLTRB(gutter, AtomSpace.xs, gutter, AtomSpace.sm),
-      decoration: const BoxDecoration(color: AtomColors.white, border: Border(top: BorderSide(color: AtomColors.line))),
+      decoration: const BoxDecoration(
+        color: AtomColors.white,
+        border: Border(top: BorderSide(color: AtomColors.line)),
+      ),
       child: Row(
         children: [
           Expanded(
@@ -448,7 +472,10 @@ class _Composer extends StatelessWidget {
                 fillColor: AtomColors.surface,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(AtomRadius.pill), borderSide: BorderSide.none),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AtomRadius.pill), borderSide: BorderSide.none),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AtomRadius.pill), borderSide: const BorderSide(color: AtomColors.primary, width: 1.5)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AtomRadius.pill),
+                  borderSide: const BorderSide(color: AtomColors.primary, width: 1.5),
+                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: AtomSpace.md, vertical: 12),
               ),
             ),
@@ -466,7 +493,10 @@ class _Composer extends StatelessWidget {
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: enabled ? onSend : null,
-                    child: const SizedBox.square(dimension: AtomSize.iconButton, child: Icon(Icons.send_rounded, color: AtomColors.white, size: 20)),
+                    child: const SizedBox.square(
+                      dimension: AtomSize.iconButton,
+                      child: Icon(Icons.send_rounded, color: AtomColors.white, size: 20),
+                    ),
                   ),
                 ),
               );

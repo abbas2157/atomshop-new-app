@@ -109,7 +109,12 @@ class AtomHttp {
 
     if (status == 401 && res.requestOptions.headers.containsKey('Authorization')) onUnauthorised?.call();
     final data = envelope['data'];
-    final message = envelope['message'];
+    var message = envelope['message'];
+    // Laravel's "The route … could not be found." means the server doesn't
+    // have this feature yet; never show framework text to customers.
+    if (status == 404 && message is String && message.startsWith('The route ')) {
+      message = 'This isn’t available yet. Please try again later.';
+    }
     throw AtomApiException(
       message is String && message.isNotEmpty && message != 'Validation Error.' ? message : _fallback(status, data),
       statusCode: status,

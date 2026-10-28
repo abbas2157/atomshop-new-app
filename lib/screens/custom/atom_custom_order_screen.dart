@@ -193,6 +193,7 @@ class _AtomCustomOrderScreenState extends ConsumerState<AtomCustomOrderScreen> {
         GridView.count(
           crossAxisCount: 5,
           shrinkWrap: true,
+          padding: EdgeInsets.zero,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 6,
           crossAxisSpacing: 6,

@@ -26,7 +26,7 @@ void main() async {
     ),
   );
 
-  runApp(const ProviderScope(child: AtomApp()));
+  runApp(const ProviderScope(retry: atomRetry, child: AtomApp()));
 }
 
 Future<void> _initializeFirebase() async {

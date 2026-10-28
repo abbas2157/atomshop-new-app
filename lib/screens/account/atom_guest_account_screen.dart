@@ -60,13 +60,16 @@ class _SignInCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Dark lettering on a transparent logo: give it a white disc on navy.
+          // The round Atomshop mark on a white disc.
           Container(
             width: 48,
             height: 48,
             decoration: const BoxDecoration(color: AtomColors.white, shape: BoxShape.circle),
             clipBehavior: Clip.antiAlias,
-            child: Image.asset('assets/images/logo.png', fit: BoxFit.cover, cacheWidth: (48 * MediaQuery.devicePixelRatioOf(context)).round(), excludeFromSemantics: true),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Image.asset('assets/images/app-atomshop.png', fit: BoxFit.contain, excludeFromSemantics: true),
+            ),
           ),
           const SizedBox(height: AtomSpace.sm),
           Text('Sign in to track your orders and installments', style: AtomText.heading.copyWith(color: AtomColors.white)),

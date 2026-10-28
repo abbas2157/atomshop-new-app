@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'core/auth/session_manager.dart';
+import 'data/atom_http.dart';
+import 'data/atom_product_detail.dart';
 
 import 'design/atom_theme.dart';
 import 'memory/atom_image_memory.dart';
 import 'responsive/atom_responsive.dart';
 import 'shell/atom_shell.dart';
 import 'shell/atom_update_gate.dart';
+
+/// When a failed provider tries again. Only a lost connection or a timeout
+/// is worth retrying (3 times, 0.5 s, 1 s, 2 s); a real answer from the
+/// server (404, 422, "product not found") is shown at once.
+Duration? atomRetry(int retryCount, Object error) {
+  if (retryCount >= 3) return null;
+  if (error is AtomApiException && !error.isOffline) return null;
+  if (error is ProductNotFound) return null;
+  return Duration(milliseconds: 500 * (1 << retryCount));
+}
 
 /// Start-up work for the app (call once in `main`, after the binding exists).
 Future<void> initAtomApp() async {
@@ -72,7 +85,12 @@ class _AtomAppState extends State<AtomApp> {
       title: 'Atomshop',
       debugShowCheckedModeBanner: false,
       theme: AtomTheme.light(),
-      builder: (context, child) => AtomTextScaleClamp(child: child!),
+      // Dark status-bar icons by default; screens with a dark header set
+      // light ones over it (an AnnotatedRegion nearer the top wins).
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+        child: AtomTextScaleClamp(child: child!),
+      ),
       home: const AtomUpdateGate(child: AtomShell()),
     );
   }

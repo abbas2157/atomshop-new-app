@@ -1,6 +1,7 @@
 import 'package:atompro/data/atom_account.dart';
 import 'package:atompro/data/atom_product_detail.dart';
 import 'package:atompro/state/atom_app_version.dart';
+import 'package:atompro/utils/atom_format.dart';
 import 'package:atompro/utils/atom_validators.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,6 +20,12 @@ void main() {
       expect(compareVersions('2.0.0', ''), 0);
       expect(compareVersions('abc', '9.0.0'), 0);
     });
+  });
+
+  test('phones read as +92 333 1214955', () {
+    expect(AtomFormat.phone('+923331214955'), '+92 333 1214955');
+    expect(AtomFormat.phone('03331214955'), '+92 333 1214955');
+    expect(AtomFormat.phone('042 111 222'), '042 111 222');
   });
 
   group('validators', () {

@@ -306,6 +306,7 @@ class _InstallmentPlan extends StatelessWidget {
       return GridView.count(
         crossAxisCount: 4,
         shrinkWrap: true,
+        padding: EdgeInsets.zero,
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 6,
         crossAxisSpacing: 6,
@@ -521,15 +522,18 @@ class _DetailsState extends State<_Details> {
 
   @override
   Widget build(BuildContext context) {
-    final hasLong = widget.long.isNotEmpty && widget.long != widget.short;
+    // The long description usually repeats the short one: show the short
+    // text only when there is no long one.
+    final hasLong = widget.long.isNotEmpty;
+    final short = hasLong ? '' : widget.short;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('About this product', style: AtomText.heading),
         const SizedBox(height: AtomSpace.xs),
-        if (widget.short.isNotEmpty) Text(widget.short, style: AtomText.body),
+        if (short.isNotEmpty) Text(short, style: AtomText.body),
         if (hasLong) ...[
-          if (widget.short.isNotEmpty) const SizedBox(height: AtomSpace.xs),
+
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             alignment: Alignment.topCenter,

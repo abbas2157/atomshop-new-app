@@ -162,49 +162,20 @@ class HomeEcosystemCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text('One account. Four connected apps.', style: AtomText.heading.copyWith(fontSize: 20)),
           const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, c) {
-              final width = (c.maxWidth - 10) / 2;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
+          // Two apps per row, both cards as tall as the taller one.
+          for (var i = 0; i < designApps.length; i += 2) ...[
+            if (i > 0) const SizedBox(height: 10),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final app in designApps)
-                    SizedBox(
-                      width: width,
-                      child: Semantics(
-                        button: true,
-                        label: app.name,
-                        child: Material(
-                          color: AtomColors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            side: const BorderSide(color: AtomColors.line),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: onOpen,
-                            child: Padding(
-                              padding: const EdgeInsets.all(AtomSpace.sm),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Image.asset(app.logo, width: 40, height: 40, fit: BoxFit.contain, excludeFromSemantics: true),
-                                  const SizedBox(height: 6),
-                                  Text(app.name, style: AtomText.label.copyWith(fontWeight: FontWeight.w800)),
-                                  const SizedBox(height: 4),
-                                  Text(app.body, style: AtomText.small.copyWith(color: AtomColors.body, height: 1.4)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                  Expanded(child: _AppTile(app: designApps[i], onTap: onOpen)),
+                  const SizedBox(width: 10),
+                  Expanded(child: i + 1 < designApps.length ? _AppTile(app: designApps[i + 1], onTap: onOpen) : const SizedBox.shrink()),
                 ],
-              );
-            },
-          ),
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           AtomButton(
             label: 'Explore the ecosystem',
@@ -215,6 +186,42 @@ class HomeEcosystemCard extends StatelessWidget {
             expand: true,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AppTile extends StatelessWidget {
+  const _AppTile({required this.app, required this.onTap});
+
+  final DesignApp app;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: app.name,
+      child: Material(
+        color: AtomColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: AtomColors.line)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AtomSpace.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Image.asset(app.logo, width: 40, height: 40, fit: BoxFit.contain, excludeFromSemantics: true),
+                const SizedBox(height: 6),
+                Text(app.name, style: AtomText.label.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text(app.body, style: AtomText.small.copyWith(color: AtomColors.body, height: 1.4)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

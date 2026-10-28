@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/atom_auth.dart';
@@ -92,84 +93,89 @@ class _AtomSignInScreenState extends ConsumerState<AtomSignInScreen> {
   @override
   Widget build(BuildContext context) {
     final gutter = context.atomGutter;
-    return Scaffold(
-      body: AtomPageWidth(
-        child: Form(
-          key: _form,
-          child: AutofillGroup(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _DarkHeader(onGuest: () => AtomNav.finishAuth(context)),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(gutter, AtomSpace.lg, gutter, AtomSpace.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AtomSegmented<int>(
-                        items: const {0: 'Sign in', 1: 'Create account'},
-                        value: 0,
-                        onChanged: (v) {
-                          if (v == 1) AtomNav.register(context, replace: true);
-                        },
-                      ),
-                      const SizedBox(height: AtomSpace.lg),
-                      AtomTextField(
-                        label: 'Phone number or email',
-                        controller: _login,
-                        hint: '0300 1234567',
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.username, AutofillHints.telephoneNumber],
-                        validator: validateLogin,
-                      ),
-                      const SizedBox(height: 14),
-                      AtomPasswordField(
-                        controller: _password,
-                        validator: (v) => (v ?? '').isEmpty ? 'Enter your password.' : null,
-                        onSubmitted: _signIn,
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: AtomButton(
-                          label: 'Forgot password?',
-                          icon: Icons.lock_reset_rounded,
-                          variant: AtomButtonVariant.text,
-                          size: AtomButtonSize.small,
-                          onPressed: () => AtomNav.forgotPassword(context, login: _login.text.trim()),
+    // Light status-bar icons over the dark header.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: AtomPageWidth(
+          child: Form(
+            key: _form,
+            child: AutofillGroup(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _DarkHeader(onGuest: () => AtomNav.finishAuth(context)),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(gutter, AtomSpace.lg, gutter, AtomSpace.xl),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AtomSegmented<int>(
+                          items: const {0: 'Sign in', 1: 'Create account'},
+                          value: 0,
+                          onChanged: (v) {
+                            if (v == 1) AtomNav.register(context, replace: true);
+                          },
                         ),
-                      ),
-                      AuthError(_error),
-                      const SizedBox(height: AtomSpace.sm),
-                      AtomButton(label: 'Sign in', icon: Icons.login_rounded, expand: true, loading: _busy, onPressed: _busy ? null : _signIn),
-                      const SizedBox(height: AtomSpace.md),
-                      Row(
-                        children: [
-                          const Expanded(child: Divider()),
-                          Padding(padding: const EdgeInsets.symmetric(horizontal: AtomSpace.sm), child: Text('or', style: AtomText.small)),
-                          const Expanded(child: Divider()),
-                        ],
-                      ),
-                      const SizedBox(height: AtomSpace.md),
-                      AtomButton(
-                        label: 'Get a code on WhatsApp',
-                        icon: Icons.chat_outlined,
-                        variant: AtomButtonVariant.secondary,
-                        expand: true,
-                        loading: _sendingCode,
-                        onPressed: _sendingCode ? null : _sendCode,
-                      ),
-                      const SizedBox(height: AtomSpace.lg),
-                      AuthLinks(parts: [
-                        ('By continuing you agree to the ', null),
-                        ('Terms of use', () => AtomNav.legal(context, tab: LegalTab.terms)),
-                        (' and ', null),
-                        ('Privacy policy', () => AtomNav.legal(context, tab: LegalTab.privacy)),
-                        ('.', null),
-                      ]),
-                    ],
+                        const SizedBox(height: AtomSpace.lg),
+                        AtomTextField(
+                          label: 'Phone number or email',
+                          controller: _login,
+                          hint: '0300 1234567',
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.username, AutofillHints.telephoneNumber],
+                          validator: validateLogin,
+                        ),
+                        const SizedBox(height: 14),
+                        AtomPasswordField(controller: _password, validator: (v) => (v ?? '').isEmpty ? 'Enter your password.' : null, onSubmitted: _signIn),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: AtomButton(
+                            label: 'Forgot password?',
+                            icon: Icons.lock_reset_rounded,
+                            variant: AtomButtonVariant.text,
+                            size: AtomButtonSize.small,
+                            onPressed: () => AtomNav.forgotPassword(context, login: _login.text.trim()),
+                          ),
+                        ),
+                        AuthError(_error),
+                        const SizedBox(height: AtomSpace.sm),
+                        AtomButton(label: 'Sign in', icon: Icons.login_rounded, expand: true, loading: _busy, onPressed: _busy ? null : _signIn),
+                        const SizedBox(height: AtomSpace.md),
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: AtomSpace.sm),
+                              child: Text('or', style: AtomText.small),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: AtomSpace.md),
+                        AtomButton(
+                          label: 'Get a code on WhatsApp',
+                          icon: Icons.chat_outlined,
+                          variant: AtomButtonVariant.secondary,
+                          expand: true,
+                          loading: _sendingCode,
+                          onPressed: _sendingCode ? null : _sendCode,
+                        ),
+                        const SizedBox(height: AtomSpace.lg),
+                        AuthLinks(
+                          parts: [
+                            ('By continuing you agree to the ', null),
+                            ('Terms of use', () => AtomNav.legal(context, tab: LegalTab.terms)),
+                            (' and ', null),
+                            ('Privacy policy', () => AtomNav.legal(context, tab: LegalTab.privacy)),
+                            ('.', null),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -187,7 +193,10 @@ class _DarkHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final gutter = context.atomGutter;
     return Container(
-      decoration: const BoxDecoration(color: AtomColors.ink, borderRadius: BorderRadius.vertical(bottom: Radius.circular(28))),
+      decoration: const BoxDecoration(
+        color: AtomColors.ink,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
       padding: EdgeInsets.fromLTRB(gutter, MediaQuery.paddingOf(context).top + AtomSpace.sm, gutter, AtomSpace.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,7 +207,12 @@ class _DarkHeader extends StatelessWidget {
                 AtomIconButton(icon: Icons.arrow_back_rounded, tooltip: 'Back', dark: true, onPressed: () => Navigator.of(context).maybePop()),
                 const SizedBox(width: AtomSpace.sm),
               ],
-              Expanded(child: Text('Atomshop.pk', style: AtomText.subheading.copyWith(color: AtomColors.white, fontWeight: FontWeight.w800))),
+              Expanded(
+                child: Text(
+                  'Atomshop.pk',
+                  style: AtomText.subheading.copyWith(color: AtomColors.white, fontWeight: FontWeight.w800),
+                ),
+              ),
               Material(
                 color: Colors.transparent,
                 shape: StadiumBorder(side: BorderSide(color: AtomColors.white.withValues(alpha: 0.3))),
@@ -214,7 +228,10 @@ class _DarkHeader extends StatelessWidget {
                         children: [
                           const Icon(Icons.shopping_bag_outlined, size: 16, color: AtomColors.white),
                           const SizedBox(width: 6),
-                          Text('Continue as guest', style: AtomText.small.copyWith(color: AtomColors.white, fontWeight: FontWeight.w700)),
+                          Text(
+                            'Continue as guest',
+                            style: AtomText.small.copyWith(color: AtomColors.white, fontWeight: FontWeight.w700),
+                          ),
                         ],
                       ),
                     ),
@@ -226,7 +243,10 @@ class _DarkHeader extends StatelessWidget {
           const SizedBox(height: AtomSpace.lg),
           Text('ONE ACCOUNT', style: AtomText.eyebrow.copyWith(color: AtomColors.amber)),
           const SizedBox(height: 6),
-          Semantics(header: true, child: Text('Sign in to track your plans', style: AtomText.title.copyWith(color: AtomColors.white))),
+          Semantics(
+            header: true,
+            child: Text('Sign in to track your plans', style: AtomText.title.copyWith(color: AtomColors.white)),
+          ),
           const SizedBox(height: 6),
           Text('The same login works on atomshop.pk and AtomPay.', style: AtomText.body.copyWith(color: AtomColors.onDark)),
         ],

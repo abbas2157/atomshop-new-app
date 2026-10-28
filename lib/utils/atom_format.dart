@@ -20,6 +20,17 @@ abstract final class AtomFormat {
     return negative ? '-$out' : out.toString();
   }
 
+  /// "+923331214955" / "03331214955" → "+92 333 1214955" (Pakistani
+  /// mobiles); anything else is returned as given.
+  static String phone(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    final local = digits.startsWith('92') && digits.length == 12
+        ? digits.substring(2)
+        : (digits.startsWith('0') && digits.length == 11 ? digits.substring(1) : null);
+    if (local == null) return raw.trim();
+    return '+92 ${local.substring(0, 3)} ${local.substring(3)}';
+  }
+
   static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   /// "05 Nov 2026" (d M Y).

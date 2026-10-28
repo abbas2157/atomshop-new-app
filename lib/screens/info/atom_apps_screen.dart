@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../design/atom_text.dart';
@@ -20,118 +21,122 @@ class AtomAppsScreen extends ConsumerWidget {
     final gutter = context.atomGutter;
     final brandApp = config?.storeLinks['atombrand']?['android'] ?? '';
 
-    return Scaffold(
-      backgroundColor: AtomColors.ink,
-      body: SafeArea(
-        child: AtomPageWidth(
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, AtomSpace.xl),
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: AtomIconButton(icon: Icons.arrow_back_rounded, tooltip: 'Back', dark: true, onPressed: () => Navigator.of(context).maybePop()),
-              ),
-              const SizedBox(height: AtomSpace.lg),
-              const InfoEyebrow('The Atom ecosystem', color: AtomColors.amber),
-              const SizedBox(height: 6),
-              Semantics(
-                header: true,
-                child: Text('One account. Four connected apps.', style: AtomText.title.copyWith(color: AtomColors.white)),
-              ),
-              const SizedBox(height: AtomSpace.xs),
-              Text(
-                'One login and one data layer behind every app. Limits, routing and reminders are decided in one place, so each app knows what the others just did.',
-                style: AtomText.body.copyWith(color: AtomColors.onDark),
-              ),
-              const SizedBox(height: AtomSpace.lg),
-              const _AppCard(
-                logo: 'assets/images/app-atomshop.png',
-                audience: 'For shoppers',
-                name: 'Atomshop',
-                body: 'Buy anything on installments and track every payment.',
-                here: true,
-              ),
-              _AppCard(
-                logo: 'assets/images/app-atompay.png',
-                audience: 'For financing',
-                name: 'AtomPay',
-                body: 'Your purchase limit, KYC and 3-month 0% markup plans on eligible products. Same login as Atomshop.',
-                links: config?.storeLinks['atompay'],
-              ),
-              _AppCard(
-                logo: 'assets/images/app-atomseller.png',
-                audience: 'For local sellers',
-                name: 'Atom Seller',
-                body: 'Leads from your own area, deals, guarantors and collections on a phone.',
-                links: config?.storeLinks['atomseller'] ?? config?.storeLinks['seller'],
-              ),
-              _AppCard(
-                logo: 'assets/images/app-atombrand.png',
-                audience: 'For brands',
-                name: 'AtomBrand',
-                body: 'Brands run their storefront, stock, orders and bulk quotes on Atomshop.',
-                links: config?.storeLinks['atombrand'],
-              ),
-              AtomCard(
-                radius: AtomRadius.hero,
-                borderColor: null,
-                padding: EdgeInsets.zero,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: 150,
-                      width: double.infinity,
-                      child: Image.asset(
-                        'assets/images/brand-partner.jpg',
-                        fit: BoxFit.cover,
-                        alignment: const Alignment(0, -0.4),
-                        cacheWidth: (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round(),
-                        semanticLabel: 'A brand partner serving a customer at a phone counter',
+    // Light status-bar icons over the dark header.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: AtomColors.ink,
+        body: SafeArea(
+          child: AtomPageWidth(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, AtomSpace.xl),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AtomIconButton(icon: Icons.arrow_back_rounded, tooltip: 'Back', dark: true, onPressed: () => Navigator.of(context).maybePop()),
+                ),
+                const SizedBox(height: AtomSpace.lg),
+                const InfoEyebrow('The Atom ecosystem', color: AtomColors.amber),
+                const SizedBox(height: 6),
+                Semantics(
+                  header: true,
+                  child: Text('One account. Four connected apps.', style: AtomText.title.copyWith(color: AtomColors.white)),
+                ),
+                const SizedBox(height: AtomSpace.xs),
+                Text(
+                  'One login and one data layer behind every app. Limits, routing and reminders are decided in one place, so each app knows what the others just did.',
+                  style: AtomText.body.copyWith(color: AtomColors.onDark),
+                ),
+                const SizedBox(height: AtomSpace.lg),
+                const _AppCard(
+                  logo: 'assets/images/app-atomshop.png',
+                  audience: 'For shoppers',
+                  name: 'Atomshop',
+                  body: 'Buy anything on installments and track every payment.',
+                  here: true,
+                ),
+                _AppCard(
+                  logo: 'assets/images/app-atompay.png',
+                  audience: 'For financing',
+                  name: 'AtomPay',
+                  body: 'Your purchase limit, KYC and 3-month 0% markup plans on eligible products. Same login as Atomshop.',
+                  links: config?.storeLinks['atompay'],
+                ),
+                _AppCard(
+                  logo: 'assets/images/app-atomseller.png',
+                  audience: 'For local sellers',
+                  name: 'Atom Seller',
+                  body: 'Leads from your own area, deals, guarantors and collections on a phone.',
+                  links: config?.storeLinks['atomseller'] ?? config?.storeLinks['seller'],
+                ),
+                _AppCard(
+                  logo: 'assets/images/app-atombrand.png',
+                  audience: 'For brands',
+                  name: 'AtomBrand',
+                  body: 'Brands run their storefront, stock, orders and bulk quotes on Atomshop.',
+                  links: config?.storeLinks['atombrand'],
+                ),
+                AtomCard(
+                  radius: AtomRadius.hero,
+                  borderColor: null,
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 150,
+                        width: double.infinity,
+                        child: Image.asset(
+                          'assets/images/brand-partner.jpg',
+                          fit: BoxFit.cover,
+                          alignment: const Alignment(0, -0.4),
+                          cacheWidth: (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round(),
+                          semanticLabel: 'A brand partner serving a customer at a phone counter',
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(AtomSpace.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Become a Brand Partner', style: AtomText.heading),
-                          const SizedBox(height: 4),
-                          Text('Sell your brand on Atomshop with verified sellers across your area.', style: AtomText.body),
-                          const SizedBox(height: AtomSpace.md),
-                          AtomButton(
-                            label: 'Apply as a Brand Partner',
-                            icon: Icons.description_outlined,
-                            expand: true,
-                            onPressed: () => atomOpenUrl(context, brandApp.isNotEmpty ? brandApp : 'https://atomshop.pk/brand-partners'),
-                          ),
-                        ],
+                      Padding(
+                        padding: const EdgeInsets.all(AtomSpace.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Become a Brand Partner', style: AtomText.heading),
+                            const SizedBox(height: 4),
+                            Text('Sell your brand on Atomshop with verified sellers across your area.', style: AtomText.body),
+                            const SizedBox(height: AtomSpace.md),
+                            AtomButton(
+                              label: 'Apply as a Brand Partner',
+                              icon: Icons.description_outlined,
+                              expand: true,
+                              onPressed: () => atomOpenUrl(context, brandApp.isNotEmpty ? brandApp : 'https://atomshop.pk/brand-partners'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: AtomSpace.md),
-              Container(
-                padding: const EdgeInsets.all(AtomSpace.md),
-                decoration: BoxDecoration(
-                  color: AtomColors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AtomRadius.card),
-                  border: Border.all(color: AtomColors.white.withValues(alpha: 0.14)),
+                const SizedBox(height: AtomSpace.md),
+                Container(
+                  padding: const EdgeInsets.all(AtomSpace.md),
+                  decoration: BoxDecoration(
+                    color: AtomColors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AtomRadius.card),
+                    border: Border.all(color: AtomColors.white.withValues(alpha: 0.14)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Smart by design', style: AtomText.subheading.copyWith(color: AtomColors.white)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Limits, routing and reminders run today. Risk prediction, CNIC reading and demand insights are next.',
+                        style: AtomText.body.copyWith(fontSize: 13, color: AtomColors.onDark),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Smart by design', style: AtomText.subheading.copyWith(color: AtomColors.white)),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Limits, routing and reminders run today. Risk prediction, CNIC reading and demand insights are next.',
-                      style: AtomText.body.copyWith(fontSize: 13, color: AtomColors.onDark),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

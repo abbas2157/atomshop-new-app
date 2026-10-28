@@ -65,6 +65,9 @@ class AtomPageWidth extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.topCenter,
+      // As tall as the child, so it also works in a Scaffold's
+      // bottomNavigationBar (a plain Align would fill the screen there).
+      heightFactor: 1,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AtomBreakpoints.maxContentWidth),
         child: child,

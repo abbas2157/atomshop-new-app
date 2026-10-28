@@ -109,7 +109,13 @@ class _AtomShellState extends ConsumerState<AtomShell> {
           _opened.contains(t)
               ? KeyedSubtree(
                   key: ValueKey('${t.name}-$signedIn'),
-                  child: _TabNavigator(navigatorKey: _navigator(t, signedIn), active: t == tab, child: _page(t, signedIn)),
+                  child: _TabNavigator(
+                    navigatorKey: _navigator(t, signedIn),
+                    active: t == tab,
+                    isHome: t == AtomTab.home,
+                    onLeaveTab: () => ref.read(atomTabProvider.notifier).select(AtomTab.home),
+                    child: _page(t, signedIn),
+                  ),
                 )
               : const SizedBox.shrink(),
       ],
@@ -156,22 +162,47 @@ class _AtomShellState extends ConsumerState<AtomShell> {
   }
 }
 
-/// A tab's own navigator. System back pops inside the open tab first.
-class _TabNavigator extends StatelessWidget {
-  const _TabNavigator({required this.navigatorKey, required this.active, required this.child});
+/// A tab's own navigator. System back pops inside the open tab first; on a
+/// tab's first screen it goes to Home ([onLeaveTab]); only Home lets the
+/// app close.
+class _TabNavigator extends StatefulWidget {
+  const _TabNavigator({required this.navigatorKey, required this.active, required this.isHome, required this.onLeaveTab, required this.child});
 
   final GlobalKey<NavigatorState> navigatorKey;
   final bool active;
+  final bool isHome;
+  final VoidCallback onLeaveTab;
   final Widget child;
 
   @override
+  State<_TabNavigator> createState() => _TabNavigatorState();
+}
+
+class _TabNavigatorState extends State<_TabNavigator> {
+  /// Whether this tab's navigator has a screen to go back from.
+  bool _innerCanPop = false;
+
+  @override
   Widget build(BuildContext context) {
-    return NavigatorPopHandler<Object?>(
-      enabled: active,
-      onPopWithResult: (_) => navigatorKey.currentState?.maybePop(),
-      child: Navigator(
-        key: navigatorKey,
-        onGenerateRoute: (settings) => MaterialPageRoute(settings: settings, builder: (_) => child),
+    return PopScope<Object?>(
+      canPop: !widget.active || (widget.isHome && !_innerCanPop),
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || !widget.active) return;
+        if (_innerCanPop) {
+          widget.navigatorKey.currentState?.maybePop();
+        } else if (!widget.isHome) {
+          widget.onLeaveTab();
+        }
+      },
+      child: NotificationListener<NavigationNotification>(
+        onNotification: (notification) {
+          if (notification.canHandlePop != _innerCanPop) setState(() => _innerCanPop = notification.canHandlePop);
+          return false;
+        },
+        child: Navigator(
+          key: widget.navigatorKey,
+          onGenerateRoute: (settings) => MaterialPageRoute(settings: settings, builder: (_) => widget.child),
+        ),
       ),
     );
   }

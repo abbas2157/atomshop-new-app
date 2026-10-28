@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/atom_models.dart';
@@ -19,10 +20,10 @@ enum _Sort { newest, lowestMonthly, highestMonthly }
 
 extension on _Sort {
   String get label => switch (this) {
-        _Sort.newest => 'Newest',
-        _Sort.lowestMonthly => 'Lowest monthly',
-        _Sort.highestMonthly => 'Highest monthly',
-      };
+    _Sort.newest => 'Newest',
+    _Sort.lowestMonthly => 'Lowest monthly',
+    _Sort.highestMonthly => 'Highest monthly',
+  };
 }
 
 /// Products of one category or one brand (canvas: "Shop" and "Brand page").
@@ -56,8 +57,7 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
     super.dispose();
   }
 
-  FutureProvider<List<ProductCard>> get _provider =>
-      widget.isBrand ? brandProductsProvider(widget.item.id) : categoryProductsProvider(widget.item.id);
+  FutureProvider<List<ProductCard>> get _provider => widget.isBrand ? brandProductsProvider(widget.item.id) : categoryProductsProvider(widget.item.id);
 
   String _groupOf(ProductCard p) => widget.isBrand ? p.category : p.brand;
 
@@ -124,112 +124,126 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
     final all = value.value ?? const <ProductCard>[];
     final groups = {for (final p in all) _groupOf(p)}.where((g) => g.isNotEmpty).toList()..sort();
     final products = _apply(all);
-    Widget padded(Widget child, {double top = 0}) =>
-        SliverPadding(padding: EdgeInsets.fromLTRB(gutter, top, gutter, 0), sliver: SliverToBoxAdapter(child: child));
+    Widget padded(Widget child, {double top = 0}) => SliverPadding(
+      padding: EdgeInsets.fromLTRB(gutter, top, gutter, 0),
+      sliver: SliverToBoxAdapter(child: child),
+    );
 
-    return Scaffold(
-      backgroundColor: AtomColors.white,
-      body: SafeArea(
-        bottom: false,
-        child: AtomPageWidth(
-          child: RefreshIndicator(
-            color: AtomColors.primary,
-            onRefresh: () async {
-              ref.invalidate(_provider);
-              await ref.read(_provider.future).catchError((_) => const <ProductCard>[]);
-            },
-            child: CustomScrollView(
-              slivers: [
-                widget.isBrand
-                    ? SliverToBoxAdapter(child: _BrandHeader(item: widget.item, gutter: gutter))
-                    : padded(_CategoryHeader(title: widget.item.title), top: AtomSpace.sm),
-                padded(
-                  AtomSearchField(controller: _search, hint: 'Search in ${widget.item.title}', onChanged: (q) => setState(() => _query = q)),
-                  top: AtomSpace.md,
-                ),
-                if (groups.length > 1)
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 42 + AtomSpace.sm,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, 0),
-                        itemCount: groups.length + 1,
-                        separatorBuilder: (_, _) => const SizedBox(width: AtomSpace.xs),
-                        itemBuilder: (_, i) {
-                          final g = i == 0 ? null : groups[i - 1];
-                          return AtomChoiceChip(label: g ?? 'All', dark: true, selected: _group == g, onTap: () => setState(() => _group = g));
-                        },
-                      ),
-                    ),
+    // Light status-bar icons over the dark header.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: widget.isBrand ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AtomColors.white,
+        body: SafeArea(
+          bottom: false,
+          child: AtomPageWidth(
+            child: RefreshIndicator(
+              color: AtomColors.primary,
+              onRefresh: () async {
+                ref.invalidate(_provider);
+                await ref.read(_provider.future).catchError((_) => const <ProductCard>[]);
+              },
+              child: CustomScrollView(
+                slivers: [
+                  widget.isBrand
+                      ? SliverToBoxAdapter(
+                          child: _BrandHeader(item: widget.item, gutter: gutter),
+                        )
+                      : padded(_CategoryHeader(title: widget.item.title), top: AtomSpace.sm),
+                  padded(
+                    AtomSearchField(controller: _search, hint: 'Search in ${widget.item.title}', onChanged: (q) => setState(() => _query = q)),
+                    top: AtomSpace.md,
                   ),
-                padded(
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AtomButton(
-                          label: _sort.label,
-                          icon: Icons.swap_vert_rounded,
-                          onPressed: _pickSort,
-                          variant: AtomButtonVariant.secondary,
-                          size: AtomButtonSize.small,
-                          expand: true,
+                  if (groups.length > 1)
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 42 + AtomSpace.sm,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, 0),
+                          itemCount: groups.length + 1,
+                          separatorBuilder: (_, _) => const SizedBox(width: AtomSpace.xs),
+                          itemBuilder: (_, i) {
+                            final g = i == 0 ? null : groups[i - 1];
+                            return AtomChoiceChip(label: g ?? 'All', dark: true, selected: _group == g, onTap: () => setState(() => _group = g));
+                          },
                         ),
                       ),
-                      const SizedBox(width: AtomSpace.xs),
-                      AtomChoiceChip(label: 'AtomPay only', selected: _atompayOnly, onTap: () => setState(() => _atompayOnly = !_atompayOnly)),
-                    ],
-                  ),
-                  top: AtomSpace.sm,
-                ),
-                ...value.when(
-                  skipLoadingOnRefresh: true,
-                  loading: () => [
-                    padded(
-                      const Row(children: [Expanded(child: AtomProductCardSkeleton()), SizedBox(width: AtomSpace.sm), Expanded(child: AtomProductCardSkeleton())]),
-                      top: AtomSpace.md,
                     ),
-                  ],
-                  error: (_, _) => [padded(AtomErrorState(onRetry: () => ref.invalidate(_provider)), top: AtomSpace.md)],
-                  data: (_) => products.isEmpty
-                      ? [
-                          padded(
-                            AtomEmptyState(
-                              icon: Icons.search_off_rounded,
-                              title: all.isEmpty ? 'No products here yet' : 'No products match',
-                              message: 'Place a custom order and a seller on Atomshop sources it for you.',
-                              actionLabel: 'Custom order',
-                              actionIcon: Icons.calculate_outlined,
-                              onAction: _customOrder,
+                  padded(
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AtomButton(
+                            label: _sort.label,
+                            icon: Icons.swap_vert_rounded,
+                            onPressed: _pickSort,
+                            variant: AtomButtonVariant.secondary,
+                            size: AtomButtonSize.small,
+                            expand: true,
+                          ),
+                        ),
+                        const SizedBox(width: AtomSpace.xs),
+                        AtomChoiceChip(label: 'AtomPay only', selected: _atompayOnly, onTap: () => setState(() => _atompayOnly = !_atompayOnly)),
+                      ],
+                    ),
+                    top: AtomSpace.sm,
+                  ),
+                  ...value.when(
+                    skipLoadingOnRefresh: true,
+                    loading: () => [
+                      padded(
+                        const Row(
+                          children: [
+                            Expanded(child: AtomProductCardSkeleton()),
+                            SizedBox(width: AtomSpace.sm),
+                            Expanded(child: AtomProductCardSkeleton()),
+                          ],
+                        ),
+                        top: AtomSpace.md,
+                      ),
+                    ],
+                    error: (_, _) => [padded(AtomErrorState(onRetry: () => ref.invalidate(_provider)), top: AtomSpace.md)],
+                    data: (_) => products.isEmpty
+                        ? [
+                            padded(
+                              AtomEmptyState(
+                                icon: Icons.search_off_rounded,
+                                title: all.isEmpty ? 'No products here yet' : 'No products match',
+                                message: 'Place a custom order and a seller on Atomshop sources it for you.',
+                                actionLabel: 'Custom order',
+                                actionIcon: Icons.calculate_outlined,
+                                onAction: _customOrder,
+                              ),
+                              top: AtomSpace.md,
                             ),
-                            top: AtomSpace.md,
-                          ),
-                        ]
-                      : [
-                          padded(
-                            Text(
-                              '${products.length} ${products.length == 1 ? 'product' : 'products'} · prices confirmed by the seller',
-                              style: AtomText.small.copyWith(color: AtomColors.body, fontSize: 13),
+                          ]
+                        : [
+                            padded(
+                              Text(
+                                '${products.length} ${products.length == 1 ? 'product' : 'products'} · prices confirmed by the seller',
+                                style: AtomText.small.copyWith(color: AtomColors.body, fontSize: 13),
+                              ),
+                              top: AtomSpace.md,
                             ),
-                            top: AtomSpace.md,
-                          ),
-                          SliverPadding(
-                            padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, 0),
-                            sliver: AtomProductSliverGrid(products: products, showCash: true, onTap: (p) => AtomNav.product(context, p.id)),
-                          ),
-                          padded(
-                            AtomLinkCard(
-                              icon: Icons.add_rounded,
-                              title: "Can't find your model?",
-                              message: 'Place a custom order or make an offer',
-                              onTap: _customOrder,
+                            SliverPadding(
+                              padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, 0),
+                              sliver: AtomProductSliverGrid(products: products, showCash: true, onTap: (p) => AtomNav.product(context, p.id)),
                             ),
-                            top: AtomSpace.md,
-                          ),
-                        ],
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.xl)),
-              ],
+                            padded(
+                              AtomLinkCard(
+                                icon: Icons.add_rounded,
+                                title: "Can't find your model?",
+                                message: 'Place a custom order or make an offer',
+                                onTap: _customOrder,
+                              ),
+                              top: AtomSpace.md,
+                            ),
+                          ],
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.xl)),
+                ],
+              ),
             ),
           ),
         ),
@@ -253,7 +267,10 @@ class _CategoryHeader extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Semantics(header: true, child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AtomText.heading.copyWith(fontSize: 20))),
+              Semantics(
+                header: true,
+                child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AtomText.heading.copyWith(fontSize: 20)),
+              ),
               Text('On easy monthly installments', style: AtomText.small),
             ],
           ),
@@ -292,7 +309,9 @@ class _BrandHeader extends StatelessWidget {
                 padding: const EdgeInsets.all(AtomSpace.sm),
                 decoration: BoxDecoration(color: AtomColors.white, borderRadius: BorderRadius.circular(22)),
                 child: item.picture.isEmpty
-                    ? Center(child: Text(item.title.isEmpty ? '?' : item.title[0].toUpperCase(), style: AtomText.title.copyWith(color: AtomColors.primary)))
+                    ? Center(
+                        child: Text(item.title.isEmpty ? '?' : item.title[0].toUpperCase(), style: AtomText.title.copyWith(color: AtomColors.primary)),
+                      )
                     : AtomNetworkImage(item.picture, fit: BoxFit.contain, semanticLabel: '${item.title} logo', placeholderIcon: Icons.storefront_outlined),
               ),
               const SizedBox(width: 14),
@@ -300,7 +319,10 @@ class _BrandHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Semantics(header: true, child: Text(item.title, style: AtomText.title.copyWith(color: AtomColors.white))),
+                    Semantics(
+                      header: true,
+                      child: Text(item.title, style: AtomText.title.copyWith(color: AtomColors.white)),
+                    ),
                     const SizedBox(height: 4),
                     Text('On easy monthly installments', style: AtomText.body.copyWith(color: AtomColors.onDark)),
                   ],
