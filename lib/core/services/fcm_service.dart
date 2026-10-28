@@ -78,7 +78,7 @@ class FcmService {
 
     await _refreshSubscription?.cancel();
     _refreshSubscription = _messaging.onTokenRefresh.listen((newToken) async {
-      debugPrint('[FCM] Token refreshed: $newToken');
+      debugPrint('[FCM] Token refreshed.');
       await _storage.write(key: _keyFcmToken, value: newToken);
       await syncToken(newToken);
       FacebookEventsService.setPushNotificationsDeviceToken(newToken);
@@ -93,7 +93,7 @@ class FcmService {
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         final token = await _messaging.getToken();
-        debugPrint('[FCM] Device token: $token');
+        debugPrint('[FCM] Device token obtained.');
         return token;
       } catch (e, st) {
         debugPrint(
@@ -280,7 +280,7 @@ class FcmService {
 
     try {
       final token = await _messaging.getToken();
-      debugPrint('[FCM] getToken() fetched fresh token: $token');
+      debugPrint('[FCM] getToken() fetched a fresh token.');
       if (token != null && token.isNotEmpty) {
         await _storage.write(key: _keyFcmToken, value: token);
       }
@@ -300,7 +300,7 @@ class FcmService {
 
     final userId = await SessionManager.getUserId();
     if (userId != null && userId.isNotEmpty) {
-      debugPrint('[FCM] syncToken() — routing as CUSTOMER (userId=$userId) -> ${ApiEndpoints.fcmAttachUser}');
+      debugPrint('[FCM] syncToken() — routing as CUSTOMER -> ${ApiEndpoints.fcmAttachUser}');
       await attachUser(userId: userId, fcmToken: resolvedToken);
       return;
     }
@@ -360,9 +360,10 @@ class FcmService {
     Map<String, dynamic> data,
   ) async {
     try {
-      debugPrint('[FCM] POST $endpoint -> $data');
+      // Bodies hold the push token and user id: log the endpoint only.
+      debugPrint('[FCM] POST $endpoint');
       final response = await _network.postRequest(endpoint, data);
-      debugPrint('[FCM] POST $endpoint <- $response');
+      debugPrint('[FCM] POST $endpoint done (${response is Map ? response['success'] : 'no envelope'})');
     } catch (e) {
       debugPrint('[FCM] POST $endpoint threw: $e');
       // FCM sync must not block app launch, auth, or logout.

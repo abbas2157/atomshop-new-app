@@ -150,6 +150,12 @@ Add `order_uuid` (the uuid `api/app/orders/{uuid}` accepts: the `Order`'s for a 
 - `api/app/config`: add `pages` (slug → website url) and `apps.atomseller {android, ios}` from new env keys `ATOMSELLER_APP_ANDROID` / `ATOMSELLER_APP_IOS` (add to `config/website.php` like `atombrand`, and to `.env.example`). The website shows no support hours, so don't invent them.
 - `hack@123` in `Api\AccountController@login`: still waiting on the owner; don't touch it.
 
+## J. Reliability (from the app audit)
+
+- **Idempotent orders.** The app sends `request_id` (32 hex characters, the same for every retry of one order form) with `POST api/app/orders` and `POST api/app/custom-orders`. Store it (nullable unique column on `orders` / `custom_orders`, or a short-lived cache key per user/phone) and, when the same `request_id` arrives again, return the first order's answer instead of creating a second order. This covers double taps, timeouts and retries after a lost connection.
+- **Maintenance mode.** Add to `api/app/config`: `maintenance {enabled: bool, message: string|null, until: ISO 8601|null}` from `.env` (`APP_MAINTENANCE`, `APP_MAINTENANCE_MESSAGE`, `APP_MAINTENANCE_UNTIL`; add to `.env.example`). `api/app/config` itself must keep answering during maintenance; while it is on, the `api/app/*` write endpoints answer 503 with the same message (the app screen is UX only).
+- **Rate limits.** Keep 429 + `data.retry_after` on every limited endpoint (the app shows the message and never retries a 429 by itself).
+
 ## Tests (write, don't run)
 
 Feature tests per area: register → verify signs in and never returns the code; login refuses non-customers and unverified accounts (with a new code sent); duplicate-phone rule; forgot/verify/reset with tries and expiry; `me` only for the token user; orders list/detail never show another customer's order (404) and never show a mirror twice; installments tabs and empty → 200; receipt_url; custom-order quote = web maths (before/after) and the web page still gives the same figures; minimum advance; store recomputes; leads validation without breaking the old app's body; offer status labels for every stored variant; ask-atom action types; pages text matches the website views. Unit tests for the pure parts (labels, masks, quote maths, backfill matcher).

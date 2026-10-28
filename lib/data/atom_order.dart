@@ -117,9 +117,12 @@ class AtomOrderApi {
   /// Places the order. A signed-in customer's token makes it their order;
   /// a guest's order goes on the customer account for the phone. Throws with
   /// the server's message when it refuses (sold out, plan not offered).
-  Future<OrderReceipt> place(ProductOrderChoice choice, OrderContact contact) async {
+  /// [requestId] stays the same for every retry of one order form, so the
+  /// server can ignore a repeat (backend prompt: idempotent orders).
+  Future<OrderReceipt> place(ProductOrderChoice choice, OrderContact contact, {String requestId = ''}) async {
     final quote = choice.quote;
     final res = await _network.postRequest('app/orders', {
+      if (requestId.isNotEmpty) 'request_id': requestId,
       'product_id': choice.product.id,
       'mode': choice.mode.apiName,
       if (choice.mode == PayMode.installment && quote != null) ...{'months': quote.months, 'advance_percent': quote.advancePercent},

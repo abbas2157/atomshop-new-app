@@ -98,6 +98,13 @@ class _AtomShellState extends ConsumerState<AtomShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Signed out (or the session was revoked): close every full-screen page
+    // that belonged to the account, so nothing of it stays on screen.
+    ref.listen(atomSignedInProvider, (previous, next) {
+      if (previous == true && next == false) {
+        Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+      }
+    });
     final tab = ref.watch(atomTabProvider);
     final signedIn = ref.watch(atomSignedInProvider);
     _opened.add(tab);

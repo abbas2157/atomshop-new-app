@@ -16,6 +16,7 @@ import '../../state/atom_account_providers.dart';
 import '../../state/atom_order_providers.dart';
 import '../../state/atom_session.dart';
 import '../../utils/atom_validators.dart';
+import '../../widgets/atom_leave_guard.dart';
 import '../../widgets/atom_city_area_fields.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_page.dart';
@@ -46,6 +47,14 @@ class _AtomMakeOfferScreenState extends ConsumerState<AtomMakeOfferScreen> {
   bool _whatsApp = true;
   final List<String> _photos = [];
   bool _sending = false;
+
+  /// Edited and not sent yet: leaving asks first.
+  bool _dirty = false;
+
+  void _markDirty() {
+    if (!_dirty) setState(() => _dirty = true);
+  }
+
   bool _sent = false;
 
   @override
@@ -83,11 +92,15 @@ class _AtomMakeOfferScreenState extends ConsumerState<AtomMakeOfferScreen> {
   }
 
   Future<void> _submit() async {
+    // A second tap before the button repaints must not send twice.
+    if (_sending) return;
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _sending = true);
     try {
-      await ref.read(atomAccountApiProvider).makeOffer(
+      await ref
+          .read(atomAccountApiProvider)
+          .makeOffer(
             fullName: _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
             phone: _phone.text.trim(),
             cityId: _cityId!,
@@ -113,157 +126,171 @@ class _AtomMakeOfferScreenState extends ConsumerState<AtomMakeOfferScreen> {
   Widget build(BuildContext context) {
     if (_sent) return _Sent(signedIn: ref.watch(atomSignedInProvider));
 
-    return Form(
-      key: _form,
-      child: AtomPage(
-        title: 'Make an offer',
-        bottom: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AtomButton(label: 'Submit request', icon: Icons.send_rounded, expand: true, loading: _sending, onPressed: _sending ? null : _submit),
-            const SizedBox(height: AtomSpace.xs),
-            Text('A seller contacts you to confirm the price and plan.', textAlign: TextAlign.center, style: AtomText.small.copyWith(color: AtomColors.body)),
-          ],
-        ),
-        hero: const AtomPhotoHero(
-          asset: 'assets/images/slide-verified-sellers.jpg',
-          alt: 'Sellers reviewing a request on a tablet',
-          eyebrow: 'Make an offer',
-          title: 'Tell us what you want. A seller calls you.',
-          height: 230,
-        ),
-        children: [
-          Row(
+    return AtomLeaveGuard(
+      dirty: _dirty,
+      child: Form(
+        key: _form,
+        onChanged: _markDirty,
+        child: AtomPage(
+          title: 'Make an offer',
+          bottom: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              for (final (i, text) in const [(1, 'Choose any product'), (2, 'Send this form'), (3, 'Get it at home')]) ...[
-                if (i > 1) const SizedBox(width: AtomSpace.xs),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: AtomColors.surface, borderRadius: BorderRadius.circular(16)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(color: AtomColors.primary, shape: BoxShape.circle),
-                          child: Text('$i', style: AtomText.small.copyWith(color: AtomColors.white, fontWeight: FontWeight.w800)),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(text, style: AtomText.small.copyWith(color: AtomColors.ink, fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              AtomButton(label: 'Submit request', icon: Icons.send_rounded, expand: true, loading: _sending, onPressed: _sending ? null : _submit),
+              const SizedBox(height: AtomSpace.xs),
+              Text(
+                'A seller contacts you to confirm the price and plan.',
+                textAlign: TextAlign.center,
+                style: AtomText.small.copyWith(color: AtomColors.body),
+              ),
             ],
           ),
-          const SizedBox(height: AtomSpace.md),
-          AtomTextField(
-            label: 'Full name',
-            controller: _name,
-            hint: 'Enter your full name',
-            autofillHints: const [AutofillHints.name],
-            textCapitalization: TextCapitalization.words,
-            validator: validatePersonName,
+          hero: const AtomPhotoHero(
+            asset: 'assets/images/slide-verified-sellers.jpg',
+            alt: 'Sellers reviewing a request on a tablet',
+            eyebrow: 'Make an offer',
+            title: 'Tell us what you want. A seller calls you.',
+            height: 230,
           ),
-          const SizedBox(height: 14),
-          AtomTextField(
-            label: 'Product',
-            controller: _product,
-            hint: 'e.g. iPhone 15 Pro Max',
-            textCapitalization: TextCapitalization.sentences,
-            inputFormatters: [LengthLimitingTextInputFormatter(255)],
-            validator: (v) => (v ?? '').trim().isEmpty ? 'Tell us which product you want.' : null,
-          ),
-          const SizedBox(height: 14),
-          AtomCityAreaFields(
-            cityId: _cityId,
-            areaId: _areaId,
-            areaRequired: false,
-            onCity: (id) => setState(() {
-              if (id != _cityId) _areaId = null;
-              _cityId = id;
-            }),
-            onArea: (id) => setState(() => _areaId = id),
-          ),
-          const SizedBox(height: 14),
-          AtomTextField(
-            label: 'Contact number',
-            controller: _phone,
-            hint: '03001234567',
-            keyboardType: TextInputType.phone,
-            autofillHints: const [AutofillHints.telephoneNumber],
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')), LengthLimitingTextInputFormatter(20)],
-            validator: validatePhone,
-          ),
-          const SizedBox(height: AtomSpace.sm),
-          Container(
-            decoration: BoxDecoration(color: AtomColors.surface, borderRadius: BorderRadius.circular(16)),
-            child: SwitchListTile(
-              value: _whatsApp,
-              onChanged: (v) => setState(() => _whatsApp = v),
-              title: Text('This number is on WhatsApp', style: AtomText.label),
-              activeThumbColor: AtomColors.white,
-              activeTrackColor: AtomColors.primary,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-          ),
-          const SizedBox(height: 14),
-          if (_photos.isNotEmpty) ...[
-            Wrap(
-              spacing: AtomSpace.xs,
-              runSpacing: AtomSpace.xs,
+          children: [
+            Row(
               children: [
-                for (final (i, path) in _photos.indexed)
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.file(File(path), width: 72, height: 72, fit: BoxFit.cover, cacheWidth: 216),
-                      ),
-                      Positioned(
-                        top: -10,
-                        right: -10,
-                        child: IconButton.filled(
-                          tooltip: 'Remove photo ${i + 1}',
-                          iconSize: 16,
-                          style: IconButton.styleFrom(backgroundColor: AtomColors.ink, minimumSize: const Size(32, 32)),
-                          icon: const Icon(Icons.close_rounded, color: AtomColors.white),
-                          onPressed: () => setState(() => _photos.removeAt(i)),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-            const SizedBox(height: AtomSpace.xs),
-          ],
-          if (_photos.length < _maxPhotos)
-            AtomCard(
-              onTap: _addPhotos,
-              borderColor: AtomColors.line2,
-              child: Row(
-                children: [
-                  const Icon(Icons.upload_rounded, color: AtomColors.primary),
-                  const SizedBox(width: AtomSpace.sm),
+                for (final (i, text) in const [(1, 'Choose any product'), (2, 'Send this form'), (3, 'Get it at home')]) ...[
+                  if (i > 1) const SizedBox(width: AtomSpace.xs),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Add product photos', style: AtomText.label.copyWith(color: AtomColors.primary)),
-                        Text('PNG, JPG or JPEG. You can add up to $_maxPhotos.', style: AtomText.small),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: AtomColors.surface, borderRadius: BorderRadius.circular(16)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(color: AtomColors.primary, shape: BoxShape.circle),
+                            child: Text(
+                              '$i',
+                              style: AtomText.small.copyWith(color: AtomColors.white, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            text,
+                            style: AtomText.small.copyWith(color: AtomColors.ink, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
+              ],
+            ),
+            const SizedBox(height: AtomSpace.md),
+            AtomTextField(
+              label: 'Full name',
+              controller: _name,
+              hint: 'Enter your full name',
+              autofillHints: const [AutofillHints.name],
+              textCapitalization: TextCapitalization.words,
+              validator: validatePersonName,
+            ),
+            const SizedBox(height: 14),
+            AtomTextField(
+              label: 'Product',
+              controller: _product,
+              hint: 'e.g. iPhone 15 Pro Max',
+              textCapitalization: TextCapitalization.sentences,
+              inputFormatters: [LengthLimitingTextInputFormatter(255)],
+              validator: (v) => (v ?? '').trim().isEmpty ? 'Tell us which product you want.' : null,
+            ),
+            const SizedBox(height: 14),
+            AtomCityAreaFields(
+              cityId: _cityId,
+              areaId: _areaId,
+              areaRequired: false,
+              onCity: (id) => setState(() {
+                if (id != _cityId) _areaId = null;
+                _cityId = id;
+              }),
+              onArea: (id) => setState(() => _areaId = id),
+            ),
+            const SizedBox(height: 14),
+            AtomTextField(
+              label: 'Contact number',
+              controller: _phone,
+              hint: '03001234567',
+              keyboardType: TextInputType.phone,
+              autofillHints: const [AutofillHints.telephoneNumber],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')), LengthLimitingTextInputFormatter(20)],
+              validator: validatePhone,
+            ),
+            const SizedBox(height: AtomSpace.sm),
+            Container(
+              decoration: BoxDecoration(color: AtomColors.surface, borderRadius: BorderRadius.circular(16)),
+              child: SwitchListTile(
+                value: _whatsApp,
+                onChanged: (v) => setState(() => _whatsApp = v),
+                title: Text('This number is on WhatsApp', style: AtomText.label),
+                activeThumbColor: AtomColors.white,
+                activeTrackColor: AtomColors.primary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
-        ],
+            const SizedBox(height: 14),
+            if (_photos.isNotEmpty) ...[
+              Wrap(
+                spacing: AtomSpace.xs,
+                runSpacing: AtomSpace.xs,
+                children: [
+                  for (final (i, path) in _photos.indexed)
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.file(File(path), width: 72, height: 72, fit: BoxFit.cover, cacheWidth: 216),
+                        ),
+                        Positioned(
+                          top: -10,
+                          right: -10,
+                          child: IconButton.filled(
+                            tooltip: 'Remove photo ${i + 1}',
+                            iconSize: 16,
+                            style: IconButton.styleFrom(backgroundColor: AtomColors.ink, minimumSize: const Size(32, 32)),
+                            icon: const Icon(Icons.close_rounded, color: AtomColors.white),
+                            onPressed: () => setState(() => _photos.removeAt(i)),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              const SizedBox(height: AtomSpace.xs),
+            ],
+            if (_photos.length < _maxPhotos)
+              AtomCard(
+                onTap: _addPhotos,
+                borderColor: AtomColors.line2,
+                child: Row(
+                  children: [
+                    const Icon(Icons.upload_rounded, color: AtomColors.primary),
+                    const SizedBox(width: AtomSpace.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Add product photos', style: AtomText.label.copyWith(color: AtomColors.primary)),
+                          Text('PNG, JPG or JPEG. You can add up to $_maxPhotos.', style: AtomText.small),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -291,9 +318,16 @@ class _Sent extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              Semantics(header: true, child: Text('Request sent', textAlign: TextAlign.center, style: AtomText.title.copyWith(fontSize: 26))),
+              Semantics(
+                header: true,
+                child: Text('Request sent', textAlign: TextAlign.center, style: AtomText.title.copyWith(fontSize: 26)),
+              ),
               const SizedBox(height: AtomSpace.xs),
-              Text('A seller in your area contacts you to confirm the price and plan.', textAlign: TextAlign.center, style: AtomText.body.copyWith(fontSize: 15)),
+              Text(
+                'A seller in your area contacts you to confirm the price and plan.',
+                textAlign: TextAlign.center,
+                style: AtomText.body.copyWith(fontSize: 15),
+              ),
               const SizedBox(height: AtomSpace.xl),
               if (signedIn) ...[
                 AtomButton(
@@ -301,9 +335,7 @@ class _Sent extends ConsumerWidget {
                   icon: Icons.chat_bubble_outline_rounded,
                   expand: true,
                   // Replaces this screen, so back from the list doesn't return here.
-                  onPressed: () => Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const AtomCustomOrdersScreen(showOffers: true)),
-                  ),
+                  onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AtomCustomOrdersScreen(showOffers: true))),
                 ),
                 const SizedBox(height: 10),
               ],

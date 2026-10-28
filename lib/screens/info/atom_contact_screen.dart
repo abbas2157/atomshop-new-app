@@ -55,6 +55,8 @@ class _AtomContactScreenState extends ConsumerState<AtomContactScreen> {
   }
 
   Future<void> _send() async {
+    // A second tap before the button repaints must not send twice.
+    if (_sending) return;
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _sending = true);

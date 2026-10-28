@@ -46,6 +46,8 @@ class _AtomRegisterScreenState extends ConsumerState<AtomRegisterScreen> {
   String? _server(String field) => _fieldErrors?.fieldError(field);
 
   Future<void> _submit() async {
+    // A second tap before the button repaints must not send twice.
+    if (_busy) return;
     FocusScope.of(context).unfocus();
     setState(() => _fieldErrors = null);
     if (!(_form.currentState?.validate() ?? false)) return;

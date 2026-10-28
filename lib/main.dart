@@ -1,4 +1,5 @@
 import 'package:atompro/app.dart';
+import 'package:atompro/shell/atom_error_boundary.dart';
 import 'package:atompro/core/services/facebook_events_service.dart';
 import 'package:atompro/core/services/fcm_service.dart';
 import 'package:atompro/firebase_options.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  installAtomErrorBoundary();
   await initAtomApp();
   // Enable edge-to-edge mode
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

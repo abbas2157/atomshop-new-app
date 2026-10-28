@@ -51,6 +51,8 @@ class _AtomResetScreenState extends ConsumerState<AtomResetScreen> {
   }
 
   Future<void> _save() async {
+    // A second tap before the button repaints must not send twice.
+    if (_busy) return;
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() {

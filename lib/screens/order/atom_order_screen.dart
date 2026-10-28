@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/atom_http.dart';
 import '../../data/atom_order.dart';
 import '../../data/atom_product_detail.dart';
 import '../../design/atom_text.dart';
@@ -13,6 +14,7 @@ import '../../state/atom_order_providers.dart';
 import '../../state/atom_session.dart';
 import '../../utils/atom_format.dart';
 import '../../utils/atom_validators.dart';
+import '../../widgets/atom_leave_guard.dart';
 import '../../widgets/atom_city_area_fields.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_network_image.dart';
@@ -41,6 +43,16 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
   int? _cityId;
   int? _areaId;
   bool _sending = false;
+
+  /// Edited and not sent yet: leaving asks first.
+  bool _dirty = false;
+
+  void _markDirty() {
+    if (!_dirty) setState(() => _dirty = true);
+  }
+
+  /// One id for this order form, sent with every attempt.
+  final String _requestId = atomRequestId();
 
   @override
   void initState() {
@@ -76,12 +88,17 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
   }
 
   Future<void> _submit() async {
+    // A second tap before the button repaints must not send twice.
+    if (_sending) return;
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
 
     setState(() => _sending = true);
     try {
-      final receipt = await ref.read(atomOrderApiProvider).place(
+      final receipt = await ref
+          .read(atomOrderApiProvider)
+          .place(
+            requestId: _requestId,
             widget.choice,
             OrderContact(
               fullName: _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
@@ -121,125 +138,135 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
       body: SafeArea(
         bottom: false,
         child: AtomPageWidth(
-          child: Form(
-            key: _form,
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Container(
-                    padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, AtomSpace.sm),
-                    decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AtomColors.line))),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: AtomLeaveGuard(
+            dirty: _dirty,
+            child: Form(
+              key: _form,
+              onChanged: _markDirty,
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, AtomSpace.sm),
+                      decoration: const BoxDecoration(
+                        border: Border(bottom: BorderSide(color: AtomColors.line)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              AtomIconButton(icon: Icons.arrow_back_rounded, tooltip: 'Back', onPressed: () => Navigator.of(context).maybePop()),
+                              const SizedBox(width: AtomSpace.sm),
+                              Expanded(
+                                child: Semantics(header: true, child: Text(title, style: AtomText.heading.copyWith(fontSize: 20))),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          const _Steps(current: 2),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(gutter, AtomSpace.md, gutter, AtomSpace.lg),
+                    sliver: SliverList.list(
                       children: [
-                        Row(
-                          children: [
-                            AtomIconButton(icon: Icons.arrow_back_rounded, tooltip: 'Back', onPressed: () => Navigator.of(context).maybePop()),
-                            const SizedBox(width: AtomSpace.sm),
-                            Expanded(child: Semantics(header: true, child: Text(title, style: AtomText.heading.copyWith(fontSize: 20)))),
-                          ],
+                        _Summary(choice: widget.choice),
+                        if (!signedIn) ...[
+                          const SizedBox(height: AtomSpace.sm),
+                          AtomLinkCard(
+                            icon: Icons.login_rounded,
+                            title: 'Ordering as a guest',
+                            message: 'Have an account? Sign in',
+                            onTap: () => AtomNav.signIn(context),
+                          ),
+                        ],
+                        const SizedBox(height: AtomSpace.md),
+                        AtomTextField(
+                          label: 'Full name',
+                          controller: _name,
+                          hint: 'As on your CNIC',
+                          autofillHints: const [AutofillHints.name],
+                          textCapitalization: TextCapitalization.words,
+                          validator: validatePersonName,
                         ),
                         const SizedBox(height: 14),
-                        const _Steps(current: 2),
+                        AtomTextField(
+                          label: 'Phone number',
+                          controller: _phone,
+                          hint: '03xx xxxxxxx',
+                          keyboardType: TextInputType.phone,
+                          autofillHints: const [AutofillHints.telephoneNumber],
+                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')), LengthLimitingTextInputFormatter(20)],
+                          validator: validatePhone,
+                        ),
+                        const SizedBox(height: 14),
+                        AtomTextField(
+                          label: 'Email',
+                          optional: true,
+                          controller: _email,
+                          hint: 'you@example.com',
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          validator: validateOptionalEmail,
+                        ),
+                        const SizedBox(height: 14),
+                        AtomCityAreaFields(
+                          cityId: _cityId,
+                          areaId: _areaId,
+                          onCity: (id) => setState(() {
+                            if (id != _cityId) _areaId = null;
+                            _cityId = id;
+                          }),
+                          onArea: (id) => setState(() => _areaId = id),
+                        ),
+                        if (area.isNotEmpty) ...[const SizedBox(height: 6), Text('Delivery in $area only', style: AtomText.small)],
+                        const SizedBox(height: 14),
+                        AtomTextField(
+                          label: 'Delivery address',
+                          controller: _address,
+                          hint: 'House, street and block',
+                          maxLines: 2,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.fullStreetAddress],
+                          validator: (v) {
+                            final t = (v ?? '').trim();
+                            if (t.isEmpty) return 'Enter your delivery address.';
+                            if (t.length > 500) return 'Keep the address under 500 characters.';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: AtomSpace.md),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(color: AtomColors.primarySoft, borderRadius: BorderRadius.circular(18)),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.verified_user_outlined, size: 20, color: AtomColors.primary),
+                              const SizedBox(width: AtomSpace.sm),
+                              Expanded(
+                                child: Text(notice, style: AtomText.body.copyWith(fontSize: 13, color: AtomColors.primaryDark)),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(gutter, AtomSpace.md, gutter, AtomSpace.lg),
-                  sliver: SliverList.list(
-                    children: [
-                      _Summary(choice: widget.choice),
-                      if (!signedIn) ...[
-                        const SizedBox(height: AtomSpace.sm),
-                        AtomLinkCard(
-                          icon: Icons.login_rounded,
-                          title: 'Ordering as a guest',
-                          message: 'Have an account? Sign in',
-                          onTap: () => AtomNav.signIn(context),
-                        ),
-                      ],
-                      const SizedBox(height: AtomSpace.md),
-                      AtomTextField(
-                        label: 'Full name',
-                        controller: _name,
-                        hint: 'As on your CNIC',
-                        autofillHints: const [AutofillHints.name],
-                        textCapitalization: TextCapitalization.words,
-                        validator: validatePersonName,
-                      ),
-                      const SizedBox(height: 14),
-                      AtomTextField(
-                        label: 'Phone number',
-                        controller: _phone,
-                        hint: '03xx xxxxxxx',
-                        keyboardType: TextInputType.phone,
-                        autofillHints: const [AutofillHints.telephoneNumber],
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')), LengthLimitingTextInputFormatter(20)],
-                        validator: validatePhone,
-                      ),
-                      const SizedBox(height: 14),
-                      AtomTextField(
-                        label: 'Email',
-                        optional: true,
-                        controller: _email,
-                        hint: 'you@example.com',
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
-                        validator: validateOptionalEmail,
-                      ),
-                      const SizedBox(height: 14),
-                      AtomCityAreaFields(
-                        cityId: _cityId,
-                        areaId: _areaId,
-                        onCity: (id) => setState(() {
-                          if (id != _cityId) _areaId = null;
-                          _cityId = id;
-                        }),
-                        onArea: (id) => setState(() => _areaId = id),
-                      ),
-                      if (area.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text('Delivery in $area only', style: AtomText.small),
-                      ],
-                      const SizedBox(height: 14),
-                      AtomTextField(
-                        label: 'Delivery address',
-                        controller: _address,
-                        hint: 'House, street and block',
-                        maxLines: 2,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.fullStreetAddress],
-                        validator: (v) {
-                          final t = (v ?? '').trim();
-                          if (t.isEmpty) return 'Enter your delivery address.';
-                          if (t.length > 500) return 'Keep the address under 500 characters.';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AtomSpace.md),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(color: AtomColors.primarySoft, borderRadius: BorderRadius.circular(18)),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.verified_user_outlined, size: 20, color: AtomColors.primary),
-                            const SizedBox(width: AtomSpace.sm),
-                            Expanded(child: Text(notice, style: AtomText.body.copyWith(fontSize: 13, color: AtomColors.primaryDark))),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
       bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(color: AtomColors.white, border: Border(top: BorderSide(color: AtomColors.line))),
+        decoration: const BoxDecoration(
+          color: AtomColors.white,
+          border: Border(top: BorderSide(color: AtomColors.line)),
+        ),
         child: SafeArea(
           top: false,
           child: AtomPageWidth(
@@ -267,7 +294,12 @@ class _Steps extends StatelessWidget {
       final on = n == current;
       final color = done ? AtomColors.green : (on ? AtomColors.primary : AtomColors.muted);
       return Semantics(
-        label: '$label${done ? ', done' : on ? ', current step' : ''}',
+        label:
+            '$label${done
+                ? ', done'
+                : on
+                ? ', current step'
+                : ''}',
         excludeSemantics: true,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -283,22 +315,28 @@ class _Steps extends StatelessWidget {
               ),
               child: done
                   ? const Icon(Icons.check_rounded, size: 13, color: AtomColors.white)
-                  : Text('$n', style: AtomText.small.copyWith(fontSize: 11, fontWeight: FontWeight.w800, color: on ? AtomColors.white : AtomColors.muted)),
+                  : Text(
+                      '$n',
+                      style: AtomText.small.copyWith(fontSize: 11, fontWeight: FontWeight.w800, color: on ? AtomColors.white : AtomColors.muted),
+                    ),
             ),
             const SizedBox(width: 6),
-            Text(label, style: AtomText.small.copyWith(color: color, fontWeight: FontWeight.w700)),
+            Text(
+              label,
+              style: AtomText.small.copyWith(color: color, fontWeight: FontWeight.w700),
+            ),
           ],
         ),
       );
     }
 
     Widget line(bool done) => Expanded(
-          child: Container(
-            height: 2,
-            margin: const EdgeInsets.symmetric(horizontal: AtomSpace.xs),
-            decoration: BoxDecoration(color: done ? AtomColors.green : AtomColors.line, borderRadius: BorderRadius.circular(2)),
-          ),
-        );
+      child: Container(
+        height: 2,
+        margin: const EdgeInsets.symmetric(horizontal: AtomSpace.xs),
+        decoration: BoxDecoration(color: done ? AtomColors.green : AtomColors.line, borderRadius: BorderRadius.circular(2)),
+      ),
+    );
 
     return Row(children: [step(1, 'Plan'), line(current > 1), step(2, 'Your details'), line(current > 2), step(3, 'Done')]);
   }
@@ -318,15 +356,15 @@ class _Summary extends StatelessWidget {
 
     final (detail, left, right) = switch (choice.mode) {
       PayMode.installment => (
-          [if (choice.colour != null) choice.colour!.title, '${quote?.months} months', '${quote?.advancePercent}% advance'].join(' · '),
-          ('Advance', quote?.advance),
-          quote?.monthly,
-        ),
+        [if (choice.colour != null) choice.colour!.title, '${quote?.months} months', '${quote?.advancePercent}% advance'].join(' · '),
+        ('Advance', quote?.advance),
+        quote?.monthly,
+      ),
       PayMode.atompay => (
-          [if (choice.colour != null) choice.colour!.title, 'AtomPay', '${atompay?.months} months', 'no advance'].join(' · '),
-          ('Total', atompay?.total),
-          atompay?.monthly,
-        ),
+        [if (choice.colour != null) choice.colour!.title, 'AtomPay', '${atompay?.months} months', 'no advance'].join(' · '),
+        ('Total', atompay?.total),
+        atompay?.monthly,
+      ),
       PayMode.cash => ([if (choice.colour != null) choice.colour!.title, 'Pay in full'].join(' · '), ('Payable', choice.price), null),
     };
 
@@ -355,16 +393,27 @@ class _Summary extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text.rich(TextSpan(children: [
-                        TextSpan(text: '${left.$1} ', style: AtomText.body.copyWith(fontSize: 13)),
-                        TextSpan(text: AtomFormat.rupees(left.$2), style: AtomText.label.copyWith(fontSize: 13)),
-                      ])),
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(text: '${left.$1} ', style: AtomText.body.copyWith(fontSize: 13)),
+                            TextSpan(text: AtomFormat.rupees(left.$2), style: AtomText.label.copyWith(fontSize: 13)),
+                          ],
+                        ),
+                      ),
                     ),
                     if (right != null)
-                      Text.rich(TextSpan(children: [
-                        TextSpan(text: AtomFormat.rupees(right), style: AtomText.label.copyWith(fontSize: 13, color: AtomColors.primary)),
-                        TextSpan(text: '/mo', style: AtomText.body.copyWith(fontSize: 13)),
-                      ])),
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: AtomFormat.rupees(right),
+                              style: AtomText.label.copyWith(fontSize: 13, color: AtomColors.primary),
+                            ),
+                            TextSpan(text: '/mo', style: AtomText.body.copyWith(fontSize: 13)),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ],

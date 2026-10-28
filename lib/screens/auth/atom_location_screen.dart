@@ -62,6 +62,8 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
   }
 
   Future<void> _save() async {
+    // A second tap before the button repaints must not send twice.
+    if (_busy) return;
     final city = _cityId, area = _areaId;
     if (city == null || area == null) {
       setState(() => _error = 'Choose your city and area.');

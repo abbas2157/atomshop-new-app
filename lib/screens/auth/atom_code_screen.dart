@@ -66,6 +66,8 @@ class _AtomCodeScreenState extends ConsumerState<AtomCodeScreen> {
   }
 
   Future<void> _verify() async {
+    // A second tap before the button repaints must not send twice.
+    if (_busy) return;
     final code = _code.text.trim();
     if (code.length < _length) {
       setState(() => _error = 'Enter the $_length-digit code.');

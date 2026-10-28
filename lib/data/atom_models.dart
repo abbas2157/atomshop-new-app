@@ -98,6 +98,9 @@ class AppConfig {
     required this.latestVersion,
     required this.minVersion,
     this.pages = const {},
+    this.maintenance = false,
+    this.maintenanceMessage = '',
+    this.maintenanceUntil,
   });
 
   final String phone;
@@ -126,6 +129,14 @@ class AppConfig {
 
   /// Content page slug → its page on the website (fallback links).
   final Map<String, String> pages;
+
+  /// The server is in maintenance: the app shows only the maintenance
+  /// screen (backend prompt: `maintenance {enabled, message, until}`).
+  final bool maintenance;
+  final String maintenanceMessage;
+
+  /// When maintenance should end, only if the server says.
+  final DateTime? maintenanceUntil;
 
   factory AppConfig.fromJson(Map<String, dynamic> j) {
     final contact = Map<String, dynamic>.from(j['contact'] as Map? ?? const {});
@@ -160,6 +171,9 @@ class AppConfig {
       atompayFeePercent: (atompay['processing_fee_percent'] as num?) ?? 3,
       latestVersion: _str(version['latest']),
       minVersion: _str(version['min']),
+      maintenance: (j['maintenance'] as Map?)?['enabled'] == true,
+      maintenanceMessage: _str((j['maintenance'] as Map?)?['message']),
+      maintenanceUntil: DateTime.tryParse(_str((j['maintenance'] as Map?)?['until'])),
       pages: {
         for (final e in (j['pages'] as Map? ?? const {}).entries)
           if (e.value != null && e.value.toString().isNotEmpty) e.key.toString(): e.value.toString(),

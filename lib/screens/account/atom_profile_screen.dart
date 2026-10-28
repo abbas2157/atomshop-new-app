@@ -9,6 +9,7 @@ import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../shell/atom_nav.dart';
 import '../../state/atom_account_providers.dart';
+import '../../widgets/atom_leave_guard.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_page.dart';
 import '../../widgets/atom_states.dart';
@@ -29,11 +30,14 @@ class AtomProfileScreen extends ConsumerWidget {
       skipLoadingOnRefresh: true,
       skipLoadingOnReload: true,
       data: (user) => _ProfileForm(user: user),
-      loading: () => const AtomPage(title: 'Profile and verification', children: [
-        AtomSkeleton(height: 160, radius: AtomRadius.card),
-        SizedBox(height: AtomSpace.md),
-        AtomSkeleton(height: 300, radius: AtomRadius.card),
-      ]),
+      loading: () => const AtomPage(
+        title: 'Profile and verification',
+        children: [
+          AtomSkeleton(height: 160, radius: AtomRadius.card),
+          SizedBox(height: AtomSpace.md),
+          AtomSkeleton(height: 300, radius: AtomRadius.card),
+        ],
+      ),
       error: (_, _) => AtomPage(
         title: 'Profile and verification',
         children: [AtomErrorState(onRetry: () => ref.invalidate(meProvider))],
@@ -61,6 +65,13 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
   late final _address = TextEditingController(text: widget.user.address);
   late final _work = TextEditingController(text: widget.user.workAddress);
   bool _saving = false;
+
+  /// Edited and not sent yet: leaving asks first.
+  bool _dirty = false;
+
+  void _markDirty() {
+    if (!_dirty) setState(() => _dirty = true);
+  }
 
   /// Which upload is running: 'photo', 'front', 'back'.
   String? _uploading;
@@ -101,11 +112,15 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
   }
 
   Future<void> _save() async {
+    // A second tap before the button repaints must not send twice.
+    if (_saving) return;
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
     try {
-      await ref.read(atomAuthApiProvider).updateMe(
+      await ref
+          .read(atomAuthApiProvider)
+          .updateMe(
             name: _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
             email: _email.text.trim(),
             fatherName: _father.text.trim().replaceAll(RegExp(r'\s+'), ' '),
@@ -119,7 +134,11 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
       refreshAccount(ref);
       if (!mounted) return;
       _say('Your profile is saved.');
-      Navigator.of(context).maybePop();
+      // Saved: no "leave this form?" question on the way out.
+      setState(() => _dirty = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -137,94 +156,97 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
   @override
   Widget build(BuildContext context) {
     final u = widget.user;
-    return Form(
-      key: _form,
-      child: AtomPage(
-        title: 'Profile and verification',
-        bottom: AtomButton(label: 'Save changes', icon: Icons.check_rounded, expand: true, loading: _saving, onPressed: _saving ? null : _save),
-        children: [
-          _Identity(user: u, uploading: _uploading == 'photo', onChangePhoto: () => _upload('photo')),
-          const AtomGroupLabel('Personal'),
-          AtomTextField(
-            label: 'Full name',
-            controller: _name,
-            textCapitalization: TextCapitalization.words,
-            autofillHints: const [AutofillHints.name],
-            validator: (v) => _personName(v, required: true),
-          ),
-          const SizedBox(height: 14),
-          AtomTextField(label: 'Father name', optional: true, controller: _father, textCapitalization: TextCapitalization.words, validator: _personName),
-          const SizedBox(height: 14),
-          AtomTextField(
-            label: 'CNIC number',
-            optional: true,
-            controller: _cnic,
-            hint: u.cnicMasked.isEmpty ? '35202-1234567-1' : '${u.cnicMasked} (type to change)',
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(13), _CnicFormatter()],
-            validator: (v) {
-              final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
-              if (digits.isEmpty) return null;
-              return digits.length == 13 ? null : 'Enter the 13 digits of your CNIC.';
-            },
-          ),
-          const SizedBox(height: 14),
-          AtomTextField(
-            label: 'Email',
-            optional: true,
-            controller: _email,
-            hint: 'you@example.com',
-            keyboardType: TextInputType.emailAddress,
-            autofillHints: const [AutofillHints.email],
-            validator: (v) {
-              final t = (v ?? '').trim();
-              if (t.isEmpty) return null;
-              return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t) ? null : 'Enter a valid email or leave it empty.';
-            },
-          ),
-          const AtomGroupLabel('Phone numbers'),
-          _ReadOnlyField(label: 'Mobile', value: u.phone, note: 'To change your mobile number, contact us.', onNote: () => AtomNav.contact(context)),
-          const SizedBox(height: 14),
-          AtomTextField(
-            label: 'Alternate number',
-            optional: true,
-            controller: _alternate,
-            hint: 'Optional',
-            keyboardType: TextInputType.phone,
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')), LengthLimitingTextInputFormatter(20)],
-          ),
-          const AtomGroupLabel('Address'),
-          _ReadOnlyField(
-            label: 'City and area',
-            value: u.place.isEmpty ? 'Not set' : u.place,
-            note: 'Change',
-            onNote: () => AtomNav.location(context),
-          ),
-          const SizedBox(height: 14),
-          AtomTextField(
-            label: 'Home address',
-            controller: _address,
-            hint: 'House, street and block',
-            maxLines: 2,
-            autofillHints: const [AutofillHints.fullStreetAddress],
-            validator: (v) => (v ?? '').trim().isEmpty ? 'Enter your home address.' : null,
-          ),
-          const SizedBox(height: 14),
-          AtomTextField(label: 'Work or office address', optional: true, controller: _work, hint: 'Optional', maxLines: 2),
-          const AtomGroupLabel('CNIC photos'),
-          Row(
-            children: [
-              Expanded(child: _CnicTile(label: 'Front', uploaded: u.cnicFrontUploaded, busy: _uploading == 'front', onTap: () => _upload('front'))),
-              const SizedBox(width: AtomSpace.sm),
-              Expanded(child: _CnicTile(label: 'Back', uploaded: u.cnicBackUploaded, busy: _uploading == 'back', onTap: () => _upload('back'))),
-            ],
-          ),
-          const SizedBox(height: AtomSpace.md),
-          const AtomNotice(
-            icon: Icons.lock_outline_rounded,
-            text: 'Your documents are only seen by the team that verifies you. They are never shown publicly.',
-          ),
-        ],
+    return AtomLeaveGuard(
+      dirty: _dirty,
+      child: Form(
+        key: _form,
+        onChanged: _markDirty,
+        child: AtomPage(
+          title: 'Profile and verification',
+          bottom: AtomButton(label: 'Save changes', icon: Icons.check_rounded, expand: true, loading: _saving, onPressed: _saving ? null : _save),
+          children: [
+            _Identity(user: u, uploading: _uploading == 'photo', onChangePhoto: () => _upload('photo')),
+            const AtomGroupLabel('Personal'),
+            AtomTextField(
+              label: 'Full name',
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
+              autofillHints: const [AutofillHints.name],
+              validator: (v) => _personName(v, required: true),
+            ),
+            const SizedBox(height: 14),
+            AtomTextField(label: 'Father name', optional: true, controller: _father, textCapitalization: TextCapitalization.words, validator: _personName),
+            const SizedBox(height: 14),
+            AtomTextField(
+              label: 'CNIC number',
+              optional: true,
+              controller: _cnic,
+              hint: u.cnicMasked.isEmpty ? '35202-1234567-1' : '${u.cnicMasked} (type to change)',
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(13), _CnicFormatter()],
+              validator: (v) {
+                final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                if (digits.isEmpty) return null;
+                return digits.length == 13 ? null : 'Enter the 13 digits of your CNIC.';
+              },
+            ),
+            const SizedBox(height: 14),
+            AtomTextField(
+              label: 'Email',
+              optional: true,
+              controller: _email,
+              hint: 'you@example.com',
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              validator: (v) {
+                final t = (v ?? '').trim();
+                if (t.isEmpty) return null;
+                return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t) ? null : 'Enter a valid email or leave it empty.';
+              },
+            ),
+            const AtomGroupLabel('Phone numbers'),
+            _ReadOnlyField(label: 'Mobile', value: u.phone, note: 'To change your mobile number, contact us.', onNote: () => AtomNav.contact(context)),
+            const SizedBox(height: 14),
+            AtomTextField(
+              label: 'Alternate number',
+              optional: true,
+              controller: _alternate,
+              hint: 'Optional',
+              keyboardType: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')), LengthLimitingTextInputFormatter(20)],
+            ),
+            const AtomGroupLabel('Address'),
+            _ReadOnlyField(label: 'City and area', value: u.place.isEmpty ? 'Not set' : u.place, note: 'Change', onNote: () => AtomNav.location(context)),
+            const SizedBox(height: 14),
+            AtomTextField(
+              label: 'Home address',
+              controller: _address,
+              hint: 'House, street and block',
+              maxLines: 2,
+              autofillHints: const [AutofillHints.fullStreetAddress],
+              validator: (v) => (v ?? '').trim().isEmpty ? 'Enter your home address.' : null,
+            ),
+            const SizedBox(height: 14),
+            AtomTextField(label: 'Work or office address', optional: true, controller: _work, hint: 'Optional', maxLines: 2),
+            const AtomGroupLabel('CNIC photos'),
+            Row(
+              children: [
+                Expanded(
+                  child: _CnicTile(label: 'Front', uploaded: u.cnicFrontUploaded, busy: _uploading == 'front', onTap: () => _upload('front')),
+                ),
+                const SizedBox(width: AtomSpace.sm),
+                Expanded(
+                  child: _CnicTile(label: 'Back', uploaded: u.cnicBackUploaded, busy: _uploading == 'back', onTap: () => _upload('back')),
+                ),
+              ],
+            ),
+            const SizedBox(height: AtomSpace.md),
+            const AtomNotice(
+              icon: Icons.lock_outline_rounded,
+              text: 'Your documents are only seen by the team that verifies you. They are never shown publicly.',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -260,7 +282,10 @@ class _Identity extends StatelessWidget {
                     child: SizedBox.square(
                       dimension: 40,
                       child: uploading
-                          ? const Padding(padding: EdgeInsets.all(11), child: CircularProgressIndicator(strokeWidth: 2, color: AtomColors.white))
+                          ? const Padding(
+                              padding: EdgeInsets.all(11),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AtomColors.white),
+                            )
                           : const Icon(Icons.photo_camera_outlined, size: 18, color: AtomColors.white),
                     ),
                   ),
@@ -273,9 +298,7 @@ class _Identity extends StatelessWidget {
         Text(user.name, textAlign: TextAlign.center, style: AtomText.heading),
         if (user.customerId.isNotEmpty) Text('Customer ID ${user.customerId}', style: AtomText.small),
         const SizedBox(height: 6),
-        user.verified
-            ? const AtomBadge('Verified', tone: AtomTone.green, icon: Icons.check_rounded)
-            : const AtomBadge('Not verified yet'),
+        user.verified ? const AtomBadge('Verified', tone: AtomTone.green, icon: Icons.check_rounded) : const AtomBadge('Not verified yet'),
       ],
     );
   }
@@ -300,13 +323,20 @@ class _ReadOnlyField extends StatelessWidget {
           width: double.infinity,
           constraints: const BoxConstraints(minHeight: AtomSize.input),
           padding: const EdgeInsets.symmetric(horizontal: AtomSpace.md, vertical: 14),
-          decoration: BoxDecoration(color: AtomColors.surface, borderRadius: BorderRadius.circular(AtomRadius.input), border: Border.all(color: AtomColors.line)),
+          decoration: BoxDecoration(
+            color: AtomColors.surface,
+            borderRadius: BorderRadius.circular(AtomRadius.input),
+            border: Border.all(color: AtomColors.line),
+          ),
           child: Text(value, style: AtomText.body.copyWith(fontSize: 15, color: AtomColors.ink)),
         ),
         TextButton(
           onPressed: onNote,
           style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4), minimumSize: const Size(44, 36)),
-          child: Text(note, style: AtomText.small.copyWith(color: AtomColors.primary, fontWeight: FontWeight.w700)),
+          child: Text(
+            note,
+            style: AtomText.small.copyWith(color: AtomColors.primary, fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );
@@ -338,7 +368,11 @@ class _CnicTile extends StatelessWidget {
               height: 40,
               child: busy
                   ? const Center(child: SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2)))
-                  : Icon(uploaded ? Icons.check_circle_rounded : Icons.add_photo_alternate_outlined, size: 32, color: uploaded ? AtomColors.green : AtomColors.primary),
+                  : Icon(
+                      uploaded ? Icons.check_circle_rounded : Icons.add_photo_alternate_outlined,
+                      size: 32,
+                      color: uploaded ? AtomColors.green : AtomColors.primary,
+                    ),
             ),
             const SizedBox(height: 6),
             Text(uploaded ? '$label uploaded' : 'Add $label', textAlign: TextAlign.center, style: AtomText.label.copyWith(fontSize: 13)),
@@ -360,6 +394,9 @@ class _CnicFormatter extends TextInputFormatter {
       b.write(d[i]);
     }
     final text = b.toString();
-    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
   }
 }

@@ -40,6 +40,8 @@ class _AtomPasswordScreenState extends ConsumerState<AtomPasswordScreen> {
   }
 
   Future<void> _save() async {
+    // A second tap before the button repaints must not send twice.
+    if (_saving) return;
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);

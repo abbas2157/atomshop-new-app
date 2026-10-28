@@ -4,6 +4,7 @@ import '../core/auth/session_manager.dart';
 import '../core/services/fcm_service.dart';
 import '../data/atom_auth.dart';
 import '../data/atom_http.dart';
+import '../shell/atom_feedback.dart';
 
 /// Who is using the app. The app opens as a guest (owner decision
 /// 2026-10-28); signing in is needed only for orders, installments and
@@ -37,7 +38,11 @@ class AtomSessionNotifier extends AsyncNotifier<AtomSession> {
   Future<AtomSession> build() {
     // A token revoked elsewhere (password reset, another sign-out) makes the
     // app a guest again instead of failing every signed-in call.
-    AtomHttp.onUnauthorised = () => _forget();
+    AtomHttp.onUnauthorised = () {
+      if (state.value?.signedIn != true) return;
+      _forget();
+      atomToast('Your session has ended. Please sign in again.');
+    };
     ref.onDispose(() => AtomHttp.onUnauthorised = null);
     return _read();
   }

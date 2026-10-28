@@ -40,6 +40,8 @@ class _AtomSignInScreenState extends ConsumerState<AtomSignInScreen> {
   }
 
   Future<void> _signIn() async {
+    // A second tap before the button repaints must not send twice.
+    if (_busy || _sendingCode) return;
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() {
@@ -65,6 +67,8 @@ class _AtomSignInScreenState extends ConsumerState<AtomSignInScreen> {
   }
 
   Future<void> _sendCode() async {
+    // A second tap before the button repaints must not send twice.
+    if (_busy || _sendingCode) return;
     FocusScope.of(context).unfocus();
     final problem = validateLogin(_login.text);
     if (problem != null) {

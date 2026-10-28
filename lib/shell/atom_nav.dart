@@ -35,6 +35,7 @@ import '../screens/placeholder/atom_placeholder_screen.dart';
 import '../screens/product/atom_product_screen.dart';
 import '../screens/shop/atom_product_list_screen.dart';
 import '../screens/shop/atom_search_screen.dart';
+import '../state/atom_session.dart';
 import 'atom_shell.dart';
 
 /// Every way of moving between screens, in one place.
@@ -46,10 +47,20 @@ abstract final class AtomNav {
   // ── Shop ────────────────────────────────────────────────────────────────
 
   static Future<void> category(BuildContext context, CatalogueItem item) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => AtomProductListScreen.category(item)));
+      _tooSoon() ? Future.value() : Navigator.of(context).push(MaterialPageRoute(builder: (_) => AtomProductListScreen.category(item)));
 
   static Future<void> brand(BuildContext context, CatalogueItem item) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => AtomProductListScreen.brand(item)));
+      _tooSoon() ? Future.value() : Navigator.of(context).push(MaterialPageRoute(builder: (_) => AtomProductListScreen.brand(item)));
+
+  static DateTime _lastPush = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// A second tap within half a second must not open the screen twice.
+  static bool _tooSoon() {
+    final now = DateTime.now();
+    if (now.difference(_lastPush) < const Duration(milliseconds: 500)) return true;
+    _lastPush = now;
+    return false;
+  }
 
   static Future<void> product(BuildContext context, int id) => _push(context, AtomProductScreen(productId: id));
 
@@ -74,6 +85,7 @@ abstract final class AtomNav {
   static const authPrefix = '/auth';
 
   static Future<void> _auth(BuildContext context, String name, Widget page, {bool replace = false}) {
+    if (!replace && _tooSoon()) return Future.value();
     final route = MaterialPageRoute<void>(settings: RouteSettings(name: '$authPrefix/$name'), builder: (_) => page);
     final nav = Navigator.of(context, rootNavigator: true);
     return replace ? nav.pushReplacement(route) : nav.push(route);
@@ -81,7 +93,12 @@ abstract final class AtomNav {
 
   static Future<void> welcome(BuildContext context) => _auth(context, 'welcome', const AtomWelcomeScreen());
 
-  static Future<void> signIn(BuildContext context, {bool replace = false}) => _auth(context, 'sign-in', const AtomSignInScreen(), replace: replace);
+  /// A new sign-in forgets a screen an earlier, abandoned one was heading
+  /// to (switching between sign in and sign up keeps it: [replace]).
+  static Future<void> signIn(BuildContext context, {bool replace = false}) {
+    if (!replace) _afterSignIn = null;
+    return _auth(context, 'sign-in', const AtomSignInScreen(), replace: replace);
+  }
 
   static Future<void> register(BuildContext context, {bool replace = false}) => _auth(context, 'register', const AtomRegisterScreen(), replace: replace);
 
@@ -97,30 +114,48 @@ abstract final class AtomNav {
       ? _auth(context, 'location', const AtomLocationScreen(signUpStep: true), replace: true)
       : _push(context, const AtomLocationScreen());
 
-  /// Closes every auth screen after signing in or up.
+  /// Closes every auth screen after signing in or up, then opens the
+  /// signed-in screen the customer was trying to reach, if any.
   static void finishAuth(BuildContext context) {
-    Navigator.of(context, rootNavigator: true).popUntil((route) => !(route.settings.name ?? '').startsWith(authPrefix));
+    final nav = Navigator.of(context, rootNavigator: true);
+    final signedIn = ProviderScope.containerOf(context, listen: false).read(atomSignedInProvider);
+    nav.popUntil((route) => !(route.settings.name ?? '').startsWith(authPrefix));
+    final next = _afterSignIn;
+    _afterSignIn = null;
+    if (signedIn && next != null) nav.push(MaterialPageRoute(builder: (_) => next));
+  }
+
+  /// The signed-in screen to open once sign-in finishes.
+  static Widget? _afterSignIn;
+
+  /// Signed-in screens: a guest signs in first and then lands on [page].
+  static Future<void> _protected(BuildContext context, Widget page) {
+    final signedIn = ProviderScope.containerOf(context, listen: false).read(atomSignedInProvider);
+    if (signedIn) return _push(context, page);
+    final route = signIn(context);
+    _afterSignIn = page;
+    return route;
   }
 
   // ── Account ─────────────────────────────────────────────────────────────
 
-  static Future<void> overview(BuildContext context) => _push(context, const AtomOverviewScreen());
+  static Future<void> overview(BuildContext context) => _protected(context, const AtomOverviewScreen());
 
-  static Future<void> orders(BuildContext context) => _push(context, const AtomOrdersScreen());
+  static Future<void> orders(BuildContext context) => _protected(context, const AtomOrdersScreen());
 
-  static Future<void> orderDetail(BuildContext context, String uuid) => _push(context, AtomOrderDetailScreen(uuid: uuid));
+  static Future<void> orderDetail(BuildContext context, String uuid) => _protected(context, AtomOrderDetailScreen(uuid: uuid));
 
-  static Future<void> customOrders(BuildContext context, {bool offers = false}) => _push(context, AtomCustomOrdersScreen(showOffers: offers));
+  static Future<void> customOrders(BuildContext context, {bool offers = false}) => _protected(context, AtomCustomOrdersScreen(showOffers: offers));
 
-  static Future<void> profile(BuildContext context) => _push(context, const AtomProfileScreen());
+  static Future<void> profile(BuildContext context) => _protected(context, const AtomProfileScreen());
 
-  static Future<void> changePassword(BuildContext context) => _push(context, const AtomPasswordScreen());
+  static Future<void> changePassword(BuildContext context) => _protected(context, const AtomPasswordScreen());
 
-  static Future<void> notifications(BuildContext context) => _push(context, const AtomNotificationsScreen());
+  static Future<void> notifications(BuildContext context) => _protected(context, const AtomNotificationsScreen());
 
-  static Future<void> payments(BuildContext context, {String orderUuid = ''}) => _push(context, AtomPaymentsScreen(orderUuid: orderUuid));
+  static Future<void> payments(BuildContext context, {String orderUuid = ''}) => _protected(context, AtomPaymentsScreen(orderUuid: orderUuid));
 
-  static Future<void> receipt(BuildContext context, int paymentId) => _push(context, AtomReceiptScreen(paymentId: paymentId));
+  static Future<void> receipt(BuildContext context, int paymentId) => _protected(context, AtomReceiptScreen(paymentId: paymentId));
 
   // ── Help and info ───────────────────────────────────────────────────────
 
@@ -149,5 +184,5 @@ abstract final class AtomNav {
       _push(context, AtomPlaceholderScreen(title: title, icon: icon));
 
   static Future<void> _push(BuildContext context, Widget page) =>
-      Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(builder: (_) => page));
+      _tooSoon() ? Future.value() : Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(builder: (_) => page));
 }

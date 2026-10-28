@@ -10,6 +10,8 @@ import 'data/atom_product_detail.dart';
 import 'design/atom_theme.dart';
 import 'memory/atom_image_memory.dart';
 import 'responsive/atom_responsive.dart';
+import 'shell/atom_feedback.dart';
+import 'shell/atom_offline_banner.dart';
 import 'shell/atom_shell.dart';
 import 'shell/atom_update_gate.dart';
 
@@ -83,15 +85,17 @@ class _AtomAppState extends State<AtomApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Atomshop',
+      scaffoldMessengerKey: atomMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: AtomTheme.light(),
       // Dark status-bar icons by default; screens with a dark header set
       // light ones over it (an AnnotatedRegion nearer the top wins).
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
-        child: AtomTextScaleClamp(child: child!),
+        child: AtomTextScaleClamp(child: AtomOfflineBanner(child: AtomUpdateGate(child: child!))),
       ),
-      home: const AtomUpdateGate(child: AtomShell()),
+      navigatorKey: atomNavigatorKey,
+      home: const AtomShell(),
     );
   }
 }

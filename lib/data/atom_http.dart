@@ -1,8 +1,11 @@
+import 'dart:math';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/auth/session_manager.dart';
 import '../core/network/api_endpoints.dart';
+import '../core/network/reachability.dart';
 
 /// An API refusal or failure with a sentence the customer can act on.
 ///
@@ -97,10 +100,12 @@ class AtomHttp {
     try {
       res = await request();
     } on DioException catch (e) {
+      atomServerReachable.value = false;
       final timedOut = e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout;
       throw AtomApiException(timedOut ? 'The server is taking too long. Please try again.' : 'Check your internet connection and try again.');
     }
 
+    atomServerReachable.value = true;
     final status = res.statusCode ?? 500;
     final body = res.data;
     final envelope = body is Map ? Map<String, dynamic>.from(body) : const <String, dynamic>{};
@@ -148,4 +153,11 @@ String atomMessage(Object error) {
     return 'Check your internet connection and try again.';
   }
   return text;
+}
+
+/// Random id for one submission (orders), so the server can recognise a
+/// repeat of the same request after a timeout or a double tap.
+String atomRequestId() {
+  final r = Random.secure();
+  return List.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
 }

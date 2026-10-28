@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:atompro/core/network/api_endpoints.dart';
+import 'package:atompro/core/network/reachability.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -198,6 +199,7 @@ class NetworkManager {
   }
 
   dynamic _processResponse(Response response) {
+    atomServerReachable.value = true;
     if (response.statusCode == 200 || response.statusCode == 201) {
       return response.data;
     } else {
@@ -207,6 +209,7 @@ class NetworkManager {
 
   dynamic _handleError(dynamic error) {
     if (error is DioException) {
+      atomServerReachable.value = error.response != null;
       if (error.response != null) {
         final data = error.response!.data;
         throw Exception(data['message'] ?? 'Error occurred');
