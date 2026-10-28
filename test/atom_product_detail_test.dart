@@ -94,9 +94,7 @@ void main() {
 
   test('atompay_quotes is null for products that are not eligible', () {
     final json = payload();
-    (json['plan'] as Map)
-      ..['atompay'] = false
-      ..['atompay_quotes'] = null;
+    json['plan'] = <String, dynamic>{...json['plan'] as Map<String, dynamic>, 'atompay': false, 'atompay_quotes': null};
     expect(ProductDetail.fromJson(json).plan.atompayQuotes, isEmpty);
   });
 
