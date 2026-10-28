@@ -11,4 +11,5 @@
 
     <!-- Status/System UI -->
     <color name="transparent">@android:color/transparent</color>
+	<color name="ic_launcher_background">#FFFFFF</color>
 </resources>

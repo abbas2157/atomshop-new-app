@@ -51,12 +51,6 @@ class SessionManager {
     return await _storage.read(key: _keyRole);
   }
 
-  // is-Agent
-  static Future<bool> isAgent() async {
-    String? role = await getUserRole();
-    return role != null && role.toLowerCase() == 'agent';
-  }
-
   /// Retrieve user ID
   static Future<String?> getUserId() async {
     return await _storage.read(key: _keyUserId);

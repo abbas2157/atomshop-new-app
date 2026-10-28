@@ -2,10 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:atompro/core/auth/session_manager.dart';
-import 'package:atompro/core/auth/seller_session_manager.dart';
 import 'package:atompro/core/network/api_endpoints.dart';
 import 'package:atompro/core/network/network_manager.dart';
-import 'package:atompro/core/routes/app_navigator.dart';
 import 'package:atompro/core/services/facebook_events_service.dart';
 import 'package:atompro/firebase_options.dart';
 import 'package:dio/dio.dart';
@@ -253,19 +251,26 @@ class FcmService {
     _openNotificationsScreen();
   }
 
-  /// Routes every tap to the in-app notifications list. The backend payload
-  /// doesn't carry a typed deep-link target, so this is the one destination
-  /// guaranteed to make sense for any push the app can receive.
-  static void _openNotificationsScreen() {
-    void attempt() {
-      if (AppNavigator.navigatorKey.currentState != null) {
-        AppNavigator.goToNotifications();
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) => attempt());
-      }
-    }
+  static VoidCallback? _onNotificationTap;
+  static bool _pendingTap = false;
 
-    attempt();
+  /// Set by the app shell. A tap that arrived before (the app was opened
+  /// from a notification) is delivered as soon as the handler is set.
+  static set onNotificationTap(VoidCallback? handler) {
+    _onNotificationTap = handler;
+    if (handler != null && _pendingTap) {
+      _pendingTap = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => handler());
+    }
+  }
+
+  static void _openNotificationsScreen() {
+    final open = _onNotificationTap;
+    if (open == null) {
+      _pendingTap = true;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => open());
   }
 
   static Future<String?> getToken() async {
@@ -290,13 +295,6 @@ class FcmService {
     final resolvedToken = token ?? await getToken();
     if (resolvedToken == null || resolvedToken.isEmpty) {
       debugPrint('[FCM] syncToken() — no token to sync, aborting.');
-      return;
-    }
-
-    final sellerUserId = await SellerSessionManager.getUserId();
-    if (sellerUserId != null && sellerUserId.isNotEmpty) {
-      debugPrint('[FCM] syncToken() — routing as SELLER (userId=$sellerUserId) -> ${ApiEndpoints.fcmAttachUser}');
-      await attachUser(userId: sellerUserId, fcmToken: resolvedToken);
       return;
     }
 
@@ -336,10 +334,7 @@ class FcmService {
     final resolvedToken = fcmToken ?? await getToken();
     if (resolvedToken == null || resolvedToken.isEmpty) return;
 
-    final resolvedUserId =
-        userId ??
-        await SellerSessionManager.getUserId() ??
-        await SessionManager.getUserId();
+    final resolvedUserId = userId ?? await SessionManager.getUserId();
     if (resolvedUserId == null || resolvedUserId.isEmpty) return;
 
     await _safePost(ApiEndpoints.fcmLogout, {

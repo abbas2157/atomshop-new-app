@@ -1,8 +1,6 @@
 import 'dart:io';
 
 import 'package:atompro/core/network/api_endpoints.dart';
-import 'package:atompro/core/seller_plan_upgrade_exception.dart';
-import 'package:atompro/core/seller_subscription_gate.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -201,59 +199,16 @@ class NetworkManager {
 
   dynamic _processResponse(Response response) {
     if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = response.data;
-      if (data is Map) {
-        final path = response.requestOptions.path;
-        final isSubscriptionEndpoint = path.contains('seller-app/subscription');
-
-        if (data['requires_subscription'] == true) {
-          if (!isSubscriptionEndpoint) {
-            SellerSubscriptionGate.trigger(false);
-          }
-          throw Exception(data['message'] ?? 'No active subscription.');
-        }
-        final msg = data['message'];
-        if (data['success'] == false &&
-            msg is String &&
-            msg.contains('pending monthly payment')) {
-          if (!isSubscriptionEndpoint) {
-            SellerSubscriptionGate.trigger(true);
-          }
-          throw Exception(msg);
-        }
-        if (data['requires_upgrade'] == true || data['requires_plan'] is String) {
-          throw SellerPlanUpgradeException(
-            message: msg is String && msg.isNotEmpty
-                ? msg
-                : 'Your current plan does not include access to this feature.',
-            messageUr: data['message_ur']?.toString() ?? '',
-            phone: data['phone']?.toString() ?? '+923302277522',
-          );
-        }
-      }
-      return data;
+      return response.data;
     } else {
       throw Exception(response.data['message'] ?? 'Something went wrong');
     }
   }
 
   dynamic _handleError(dynamic error) {
-    if (error is SellerPlanUpgradeException) throw error;
     if (error is DioException) {
       if (error.response != null) {
         final data = error.response!.data;
-        if (data is Map &&
-            (data['requires_upgrade'] == true ||
-                data['requires_plan'] is String)) {
-          final msg = data['message'];
-          throw SellerPlanUpgradeException(
-            message: msg is String && msg.isNotEmpty
-                ? msg
-                : 'Your current plan does not include access to this feature.',
-            messageUr: data['message_ur']?.toString() ?? '',
-            phone: data['phone']?.toString() ?? '+923302277522',
-          );
-        }
         throw Exception(data['message'] ?? 'Error occurred');
       } else {
         throw Exception("Network Error: ${error.message}");

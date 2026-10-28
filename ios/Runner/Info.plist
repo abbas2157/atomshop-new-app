@@ -42,7 +42,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-    <string>Atomshop allows users to select images from their photo library when creating leads, submitting customer orders, and uploading supporting images for customer records.</string>
+    <string>Atomshop lets you choose photos from your library for your profile picture, your CNIC verification, custom orders and offers.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
