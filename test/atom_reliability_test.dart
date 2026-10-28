@@ -5,6 +5,7 @@ import 'package:atompro/data/atom_product_detail.dart';
 import 'package:atompro/design/atom_theme.dart';
 import 'package:atompro/responsive/atom_responsive.dart';
 import 'package:atompro/widgets/atom_leave_guard.dart';
+import 'package:atompro/widgets/atom_select_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -55,6 +56,36 @@ void main() {
     ));
     final bar = tester.getSize(find.byType(AtomPageWidth));
     expect(bar.height, 60);
+  });
+
+  testWidgets('selects have a search box that filters the options', (tester) async {
+    String? picked;
+    await tester.pumpWidget(MaterialApp(
+      theme: AtomTheme.light(),
+      home: Scaffold(
+        body: AtomSelectField<String>(
+          title: 'Choose your city',
+          options: const ['Lahore', 'Faisalabad', 'Multan'],
+          label: (c) => c,
+          selected: null,
+          hint: 'Select city',
+          onChanged: (c) => picked = c,
+        ),
+      ),
+    ));
+    await tester.tap(find.text('Select city'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose your city'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'mul');
+    await tester.pumpAndSettle();
+    expect(find.text('Lahore'), findsNothing);
+    expect(find.text('Multan'), findsOneWidget);
+
+    await tester.tap(find.text('Multan'));
+    await tester.pumpAndSettle();
+    expect(picked, 'Multan');
   });
 
   group('AtomLeaveGuard', () {

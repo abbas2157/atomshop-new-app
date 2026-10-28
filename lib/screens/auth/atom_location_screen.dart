@@ -13,6 +13,7 @@ import '../../state/atom_account_providers.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_order_providers.dart';
 import '../../state/atom_session.dart';
+import '../../widgets/atom_select_field.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_states.dart';
 import '../../widgets/atom_surfaces.dart';
@@ -140,21 +141,18 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
                 if (mounted && _cityId == null) setState(() => _cityId = list.first.id);
               });
             }
-            return Wrap(
-              spacing: AtomSpace.xs,
-              runSpacing: AtomSpace.xs,
-              children: [
-                for (final c in list)
-                  AtomChoiceChip(
-                    label: c.title,
-                    dark: true,
-                    selected: c.id == city,
-                    onTap: () => setState(() {
-                      if (c.id != _cityId) _areaId = null;
-                      _cityId = c.id;
-                    }),
-                  ),
-              ],
+            // A searchable list, like every select in the app.
+            return AtomSelectField<AtomPlace>(
+              title: 'Choose your city',
+              searchHint: 'Search cities',
+              hint: 'Select city',
+              options: list,
+              label: (c) => c.title,
+              selected: list.where((c) => c.id == city).firstOrNull,
+              onChanged: (c) => setState(() {
+                if (c.id != _cityId) _areaId = null;
+                _cityId = c.id;
+              }),
             );
           },
         ),

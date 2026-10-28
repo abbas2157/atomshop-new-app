@@ -9,6 +9,7 @@ import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_nav.dart';
 import '../../shell/atom_shell.dart';
 import '../../state/atom_catalogue_providers.dart';
+import '../../widgets/atom_select_field.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_catalogue_widgets.dart';
 import '../../widgets/atom_network_image.dart';
@@ -92,27 +93,13 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
   void _customOrder() => AtomNav.customOrder(context);
 
   Future<void> _pickSort() async {
-    final picked = await showModalBottomSheet<_Sort>(
-      context: context,
-      useRootNavigator: true,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(AtomSpace.gutter, 0, AtomSpace.gutter, AtomSpace.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Sort by', style: AtomText.heading),
-              const SizedBox(height: AtomSpace.sm),
-              for (final s in _Sort.values) ...[
-                AtomChoiceChip(label: s.label, selected: s == _sort, onTap: () => Navigator.of(context).pop(s)),
-                const SizedBox(height: AtomSpace.xs),
-              ],
-            ],
-          ),
-        ),
-      ),
+    final picked = await showAtomSearchSelect<_Sort>(
+      context,
+      title: 'Sort by',
+      searchHint: 'Search sort options',
+      options: _Sort.values,
+      label: (s) => s.label,
+      isSelected: (s) => s == _sort,
     );
     if (picked != null) setState(() => _sort = picked);
   }
