@@ -91,6 +91,16 @@ class _AtomNotificationsScreenState extends ConsumerState<AtomNotificationsScree
       ref.read(atomAccountApiProvider).markNotificationRead(n.id).then((_) => _refreshCounts()).ignore();
     }
     if (!mounted) return;
+    // Open the exact receipt or order when the server says which.
+    final paymentId = n.paymentId;
+    if (paymentId != null) {
+      AtomNav.receipt(context, paymentId);
+      return;
+    }
+    if (n.orderUuid.isNotEmpty) {
+      AtomNav.orderDetail(context, n.orderUuid);
+      return;
+    }
     switch (n.screen.isNotEmpty ? n.screen : n.type) {
       case 'instalments' || 'installments' || 'instalment_paid':
         AtomNav.toTab(context, ref, AtomTab.installments);

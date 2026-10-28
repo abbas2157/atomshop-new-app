@@ -6,6 +6,7 @@ import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_nav.dart';
+import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_account_providers.dart';
 import '../../utils/atom_format.dart';
 import '../../widgets/atom_button.dart';
@@ -100,7 +101,7 @@ class _AtomLegalScreenState extends ConsumerState<AtomLegalScreen> {
                           SizedBox(height: AtomSpace.md),
                           AtomSkeleton(height: 200, radius: AtomRadius.card),
                         ],
-                        error: (_, _) => [InfoPageError(onRetry: () => ref.invalidate(pageContentProvider(_tab.slug)), websiteUrl: _tab.websiteUrl)],
+                        error: (_, _) => [InfoPageError(onRetry: () => ref.invalidate(pageContentProvider(_tab.slug)), websiteUrl: ref.watch(appConfigProvider).value?.pages[_tab.slug] ?? _tab.websiteUrl)],
                       ),
                     ],
                   ),

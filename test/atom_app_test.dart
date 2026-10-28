@@ -70,6 +70,31 @@ void main() {
     });
   });
 
+  test('notifications carry the order and receipt a tap opens', () {
+    final n = AppNotification.fromJson({
+      'id': 7,
+      'type': 'instalment_paid',
+      'title': 'Payment received',
+      'body': 'Rs. 19,840 for the 2nd Month was marked paid.',
+      'screen': 'instalments',
+      'order_id': '48213',
+      'order_uuid': '9b1d-uuid',
+      'payment_id': 412,
+      'is_read': false,
+      'data': {'screen': 'instalments', 'order_id': '48213'},
+    });
+    expect(n.screen, 'instalments');
+    expect(n.orderUuid, '9b1d-uuid');
+    expect(n.paymentId, 412);
+    expect(n.markedRead().paymentId, 412);
+
+    // Older notifications: only data.screen / data.order_id.
+    final old = AppNotification.fromJson({'id': 1, 'data': {'screen': 'orders', 'order_id': '12'}});
+    expect(old.screen, 'orders');
+    expect(old.orderUuid, isEmpty);
+    expect(old.paymentId, isNull);
+  });
+
   test('product share link comes from url, else slug', () {
     Map<String, dynamic> base(Map<String, dynamic> extra) => {'id': 1, 'title': 'Galaxy A56', 'plan': <String, dynamic>{}, ...extra};
 

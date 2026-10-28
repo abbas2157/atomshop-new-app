@@ -9,6 +9,7 @@ import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_order_providers.dart';
+import '../../utils/atom_validators.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_page.dart';
 import '../../widgets/atom_states.dart';
@@ -104,7 +105,7 @@ class _AtomContactScreenState extends ConsumerState<AtomContactScreen> {
                       hint: 'Your name',
                       textCapitalization: TextCapitalization.words,
                       autofillHints: const [AutofillHints.name],
-                      validator: (v) => _required(v, 'Enter your name.'),
+                      validator: validatePersonName,
                     ),
                   ),
                   const SizedBox(width: 10),

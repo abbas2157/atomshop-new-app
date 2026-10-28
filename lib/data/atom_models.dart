@@ -97,6 +97,7 @@ class AppConfig {
     required this.atompayFeePercent,
     required this.latestVersion,
     required this.minVersion,
+    this.pages = const {},
   });
 
   final String phone;
@@ -122,6 +123,9 @@ class AppConfig {
   final num atompayFeePercent;
   final String latestVersion;
   final String minVersion;
+
+  /// Content page slug → its page on the website (fallback links).
+  final Map<String, String> pages;
 
   factory AppConfig.fromJson(Map<String, dynamic> j) {
     final contact = Map<String, dynamic>.from(j['contact'] as Map? ?? const {});
@@ -156,6 +160,10 @@ class AppConfig {
       atompayFeePercent: (atompay['processing_fee_percent'] as num?) ?? 3,
       latestVersion: _str(version['latest']),
       minVersion: _str(version['min']),
+      pages: {
+        for (final e in (j['pages'] as Map? ?? const {}).entries)
+          if (e.value != null && e.value.toString().isNotEmpty) e.key.toString(): e.value.toString(),
+      },
     );
   }
 }

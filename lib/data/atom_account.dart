@@ -721,7 +721,18 @@ class PageContent {
 // ── Notifications (existing API, token-scoped) ────────────────────────────
 
 class AppNotification {
-  const AppNotification({required this.id, required this.type, required this.title, required this.body, required this.screen, required this.orderId, required this.read, required this.createdAt});
+  const AppNotification({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.screen,
+    required this.orderId,
+    required this.read,
+    required this.createdAt,
+    this.orderUuid = '',
+    this.paymentId,
+  });
 
   final int id;
 
@@ -736,8 +747,24 @@ class AppNotification {
   final bool read;
   final DateTime? createdAt;
 
-  AppNotification markedRead() =>
-      AppNotification(id: id, type: type, title: title, body: body, screen: screen, orderId: orderId, read: true, createdAt: createdAt);
+  /// The order a tap opens (api/app/orders/{uuid}), when the server sends it.
+  final String orderUuid;
+
+  /// The paid installment whose receipt a tap opens.
+  final int? paymentId;
+
+  AppNotification markedRead() => AppNotification(
+        id: id,
+        type: type,
+        title: title,
+        body: body,
+        screen: screen,
+        orderId: orderId,
+        read: true,
+        createdAt: createdAt,
+        orderUuid: orderUuid,
+        paymentId: paymentId,
+      );
 
   factory AppNotification.fromJson(Map<String, dynamic> j) {
     final data = _map(j['data']);
@@ -746,10 +773,12 @@ class AppNotification {
       type: _str(j['type']),
       title: _str(j['title']),
       body: _str(j['body']),
-      screen: _str(data['screen']),
-      orderId: _str(data['order_id']),
+      screen: _str(j['screen'] ?? data['screen']),
+      orderId: _str(j['order_id'] ?? data['order_id']),
       read: j['is_read'] == true,
       createdAt: _date(j['created_at']),
+      orderUuid: _str(j['order_uuid'] ?? data['order_uuid']),
+      paymentId: _intOrNull(j['payment_id'] ?? data['payment_id']),
     );
   }
 }

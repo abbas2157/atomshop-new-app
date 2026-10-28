@@ -6,6 +6,7 @@ import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../shell/atom_nav.dart';
 import '../../shell/atom_shell.dart';
+import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_account_providers.dart';
 import '../../widgets/atom_page.dart';
 import '../../widgets/atom_states.dart';
@@ -44,7 +45,7 @@ class _AtomFaqsScreenState extends ConsumerState<AtomFaqsScreen> {
           loading: () => [
             for (var i = 0; i < 5; i++) ...[const AtomSkeleton(height: 64, radius: AtomRadius.card), const SizedBox(height: AtomSpace.xs)],
           ],
-          error: (_, _) => [InfoPageError(onRetry: () => ref.invalidate(pageContentProvider('faqs')), websiteUrl: 'https://atomshop.pk/faqs')],
+          error: (_, _) => [InfoPageError(onRetry: () => ref.invalidate(pageContentProvider('faqs')), websiteUrl: ref.watch(appConfigProvider).value?.pages['faqs'] ?? 'https://atomshop.pk/faqs')],
         ),
         const SizedBox(height: AtomSpace.lg),
         AtomCard(
