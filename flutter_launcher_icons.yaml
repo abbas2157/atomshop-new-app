@@ -1,12 +1,14 @@
 # flutter pub run flutter_launcher_icons
 flutter_launcher_icons:
-  image_path: "assets/images/icon.png"
+  image_path: "assets/launcher/icon.png"
 
   android: "launcher_icon"
   # image_path_android: "assets/icon/icon.png"
   min_sdk_android: 21 # android min sdk min:16, default 21
-  # adaptive_icon_background: "assets/icon/background.png"
-  # adaptive_icon_foreground: "assets/icon/foreground.png"
+  # The round Atomshop mark without the wordmark (assets/launcher), cut from
+  # the full-size logo (assets/images/nav-logo.png, 6846 x 2352).
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/launcher/icon_foreground.png"
   # adaptive_icon_foreground_inset: 16
   # adaptive_icon_monochrome: "assets/icon/monochrome.png"
 

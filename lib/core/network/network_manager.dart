@@ -1,8 +1,8 @@
+import '../../data/atom_http.dart';
 import 'dart:io';
 
 import 'package:atompro/core/network/api_endpoints.dart';
-import 'package:atompro/core/seller_plan_upgrade_exception.dart';
-import 'package:atompro/core/seller_subscription_gate.dart';
+import 'package:atompro/core/network/reachability.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -200,66 +200,30 @@ class NetworkManager {
   }
 
   dynamic _processResponse(Response response) {
+    atomServerReachable.value = true;
     if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = response.data;
-      if (data is Map) {
-        final path = response.requestOptions.path;
-        final isSubscriptionEndpoint = path.contains('seller-app/subscription');
-
-        if (data['requires_subscription'] == true) {
-          if (!isSubscriptionEndpoint) {
-            SellerSubscriptionGate.trigger(false);
-          }
-          throw Exception(data['message'] ?? 'No active subscription.');
-        }
-        final msg = data['message'];
-        if (data['success'] == false &&
-            msg is String &&
-            msg.contains('pending monthly payment')) {
-          if (!isSubscriptionEndpoint) {
-            SellerSubscriptionGate.trigger(true);
-          }
-          throw Exception(msg);
-        }
-        if (data['requires_upgrade'] == true || data['requires_plan'] is String) {
-          throw SellerPlanUpgradeException(
-            message: msg is String && msg.isNotEmpty
-                ? msg
-                : 'Your current plan does not include access to this feature.',
-            messageUr: data['message_ur']?.toString() ?? '',
-            phone: data['phone']?.toString() ?? '+923302277522',
-          );
-        }
-      }
-      return data;
-    } else {
-      throw Exception(response.data['message'] ?? 'Something went wrong');
+      return response.data;
     }
+    throw _apiError(response);
   }
 
   dynamic _handleError(dynamic error) {
-    if (error is SellerPlanUpgradeException) throw error;
+    if (error is AtomApiException) throw error;
     if (error is DioException) {
-      if (error.response != null) {
-        final data = error.response!.data;
-        if (data is Map &&
-            (data['requires_upgrade'] == true ||
-                data['requires_plan'] is String)) {
-          final msg = data['message'];
-          throw SellerPlanUpgradeException(
-            message: msg is String && msg.isNotEmpty
-                ? msg
-                : 'Your current plan does not include access to this feature.',
-            messageUr: data['message_ur']?.toString() ?? '',
-            phone: data['phone']?.toString() ?? '+923302277522',
-          );
-        }
-        throw Exception(data['message'] ?? 'Error occurred');
-      } else {
-        throw Exception("Network Error: ${error.message}");
-      }
-    } else {
-      throw Exception("Unexpected Error: $error");
+      atomServerReachable.value = error.response != null;
+      final response = error.response;
+      if (response != null) throw _apiError(response);
+      throw AtomApiException(atomDioMessage(error));
     }
+    throw AtomApiException(atomStatusMessage(500), statusCode: 500);
+  }
+
+  /// A server answer that is not a success, as a customer-ready error.
+  AtomApiException _apiError(Response response) {
+    final status = response.statusCode ?? 500;
+    final body = response.data;
+    final message = body is Map ? body['message'] : null;
+    final data = body is Map && body['data'] is Map ? Map<String, dynamic>.from(body['data'] as Map) : const <String, dynamic>{};
+    return AtomApiException(atomFriendlyMessage(message is String ? message : null, status: status, data: data), statusCode: status, data: data);
   }
 }

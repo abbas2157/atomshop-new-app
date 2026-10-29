@@ -51,12 +51,6 @@ class SessionManager {
     return await _storage.read(key: _keyRole);
   }
 
-  // is-Agent
-  static Future<bool> isAgent() async {
-    String? role = await getUserRole();
-    return role != null && role.toLowerCase() == 'agent';
-  }
-
   /// Retrieve user ID
   static Future<String?> getUserId() async {
     return await _storage.read(key: _keyUserId);
@@ -127,6 +121,9 @@ class SessionManager {
       _storage.delete(key: _keyEmail),
       _storage.delete(key: _keyCity),
       _storage.delete(key: _keyArea),
+      // Area names saved for Home's "Delivering to …" (atom_delivery_area.dart).
+      _storage.delete(key: 'city_title'),
+      _storage.delete(key: 'area_title'),
       _storage.delete(key: _keyAddress),
       _storage.delete(key: _keyRole),
     ]);
