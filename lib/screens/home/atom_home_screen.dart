@@ -59,7 +59,7 @@ class AtomHomeScreen extends ConsumerWidget {
               scrollCacheExtent: const ScrollCacheExtent.pixels(400),
               slivers: [
                 padded(
-                  _Header(
+                  HomeHeader(
                     signedIn: signedIn,
                     onSignIn: () => AtomNav.signIn(context),
                     // Notifications belong to an account; guests are asked to sign in.
@@ -138,8 +138,9 @@ class AtomHomeScreen extends ConsumerWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.signedIn, required this.onSignIn, required this.onNotifications});
+/// Home top bar: logo, bell, and Sign in for guests.
+class HomeHeader extends StatelessWidget {
+  const HomeHeader({super.key, required this.signedIn, required this.onSignIn, required this.onNotifications});
 
   final bool signedIn;
   final VoidCallback onSignIn;
@@ -151,16 +152,22 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.only(top: AtomSpace.sm),
       child: Row(
         children: [
-          Expanded(
+          // The logo shrinks to fit (never under the buttons) and always
+          // keeps a gap before them, at any phone width or text size.
+          const Expanded(
             child: Align(
               alignment: Alignment.centerLeft,
-              child: const AtomLogo(),
+              child: AtomLogo(height: 34),
             ),
           ),
+          const SizedBox(width: AtomSpace.sm),
           AtomIconButton(icon: Icons.notifications_none_rounded, tooltip: 'Notifications', onPressed: onNotifications),
           if (!signedIn) ...[
             const SizedBox(width: AtomSpace.xs),
-            AtomButton(label: 'Sign in', icon: Icons.login_rounded, onPressed: onSignIn, size: AtomButtonSize.medium),
+            MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.1,
+              child: AtomButton(label: 'Sign in', icon: Icons.login_rounded, onPressed: onSignIn, size: AtomButtonSize.small),
+            ),
           ],
         ],
       ),
