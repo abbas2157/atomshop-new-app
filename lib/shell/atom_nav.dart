@@ -5,6 +5,8 @@ import '../data/atom_auth.dart';
 import '../data/atom_models.dart';
 import '../data/atom_order.dart';
 import '../data/atom_product_detail.dart';
+import '../screens/installments/atom_guest_plans_screen.dart';
+import '../screens/installments/atom_plans_screen.dart';
 import '../screens/account/atom_settings_screen.dart';
 import '../screens/account/atom_custom_orders_screen.dart';
 import '../screens/account/atom_notifications_screen.dart';
@@ -34,6 +36,7 @@ import '../screens/order/atom_order_placed_screen.dart';
 import '../screens/order/atom_order_screen.dart';
 import '../screens/placeholder/atom_placeholder_screen.dart';
 import '../screens/product/atom_product_screen.dart';
+import '../screens/sellers/atom_sellers_screen.dart';
 import '../screens/shop/atom_product_list_screen.dart';
 import '../screens/shop/atom_search_screen.dart';
 import '../state/atom_session.dart';
@@ -154,6 +157,12 @@ abstract final class AtomNav {
 
   static Future<void> notifications(BuildContext context) => _protected(context, const AtomNotificationsScreen());
 
+  /// Installments (no longer a tab): the signed-in plans, or the guest page.
+  static Future<void> installments(BuildContext context) => _push(
+        context,
+        Consumer(builder: (_, ref, _) => ref.watch(atomSignedInProvider) ? const AtomPlansScreen() : const AtomGuestPlansScreen()),
+      );
+
   static Future<void> payments(BuildContext context, {String orderUuid = ''}) => _protected(context, AtomPaymentsScreen(orderUuid: orderUuid));
 
   static Future<void> receipt(BuildContext context, int paymentId) => _protected(context, AtomReceiptScreen(paymentId: paymentId));
@@ -165,6 +174,9 @@ abstract final class AtomNav {
   static Future<void> why(BuildContext context) => _push(context, const AtomWhyScreen());
 
   static Future<void> apps(BuildContext context) => _push(context, const AtomAppsScreen());
+
+  /// Verified sellers directory.
+  static Future<void> sellers(BuildContext context) => _push(context, const AtomSellersScreen());
 
   /// Open to guests too; the account part shows only when signed in.
   static Future<void> settings(BuildContext context) => _push(context, const AtomSettingsScreen());
@@ -180,6 +192,7 @@ abstract final class AtomNav {
   /// Closes full-screen pages and switches to [tab].
   static void toTab(BuildContext context, WidgetRef ref, AtomTab tab) {
     Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    AtomTabNotifier.popToRoot?.call(tab);
     ref.read(atomTabProvider.notifier).select(tab);
   }
 

@@ -23,6 +23,7 @@ import '../../widgets/atom_states.dart';
 import '../../widgets/atom_surfaces.dart';
 import '../info/atom_apps_screen.dart';
 import '../info/atom_info_widgets.dart';
+import '../sellers/atom_seller_widgets.dart';
 import 'atom_home_hero.dart';
 import 'atom_home_sections.dart';
 
@@ -98,12 +99,15 @@ class AtomHomeScreen extends ConsumerWidget {
                   child: _FeaturedRow(gutter: gutter, onOpen: (p) => _openProduct(context, p)),
                 ),
                 gap,
-                padded(AtomSectionHeader(title: 'Our brand partners', subtitle: 'Official brands selling on Atomshop', actionLabel: 'All brands', onAction: goShop)),
+                padded(AtomSectionHeader(title: 'Our brand partners', subtitle: 'Official brands selling on Atomshop', actionLabel: 'Shop all', onAction: goShop)),
                 const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.sm)),
                 SliverToBoxAdapter(
                   child: _BrandsRow(gutter: gutter, onOpen: (b) => AtomNav.brand(context, b)),
                 ),
                 gap,
+                // Verified sellers on Atomshop; shows nothing until the
+                // sellers API is live or when there are none.
+                SliverToBoxAdapter(child: HomeTopSellersStrip(gutter: gutter)),
                 padded(const AtomSectionHeader(title: 'Top picks', subtitle: 'Chosen by the Atomshop team')),
                 const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.sm)),
                 _TopPicksGrid(gutter: gutter, onOpen: (p) => _openProduct(context, p)),

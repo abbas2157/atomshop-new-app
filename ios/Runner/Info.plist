@@ -41,6 +41,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Atomshop uses the microphone when you speak a question to Ask Atom.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Atomshop turns your spoken question to Ask Atom into text.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
     <string>Atomshop lets you choose photos from your library for your profile picture, your CNIC verification, custom orders and offers.</string>
 	<key>UIApplicationSceneManifest</key>

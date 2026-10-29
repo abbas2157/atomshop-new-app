@@ -189,6 +189,7 @@ class ProductDetail {
     required this.longDescription,
     required this.plan,
     this.webUrl = '',
+    this.inStock = true,
   });
 
   final int id;
@@ -208,6 +209,9 @@ class ProductDetail {
   final String shortDescription;
   final String longDescription;
   final ProductPlan plan;
+
+  /// False when sold out ("Out of Stock"): the page opens but cannot order.
+  final bool inStock;
 
   /// Cash price for the chosen storage (or the base price without storages).
   int priceFor(StorageOption? storage) => storage?.price ?? plan.cashPrice;
@@ -237,10 +241,11 @@ class ProductDetail {
       brand: item(j['brand']),
       storages: atomList(j['memories']).map(StorageOption.fromJson).where((s) => s.price > 0).toList(growable: false),
       colours: atomList(j['colors']).map(ColourOption.fromJson).toList(growable: false),
-      shortDescription: _str(j['short_description']).trim(),
-      longDescription: _str(j['long_description']).trim(),
+      shortDescription: _plainText(_str(j['short_description'])),
+      longDescription: _plainText(_str(j['long_description'])),
       plan: ProductPlan.fromJson(_map(j['plan'])),
       webUrl: _webUrl(j),
+      inStock: j['in_stock'] != false && _str(j['status']) != 'Out of Stock',
     );
   }
 
@@ -277,4 +282,34 @@ class ProductOrderChoice {
 
   /// Set for [PayMode.atompay].
   final AtompayQuote? atompay;
+}
+
+/// Admin-typed description as plain text: HTML tags dropped, entities such
+/// as `&amp;` decoded, Windows line breaks and runs of blank lines tidied.
+String _plainText(String raw) {
+  const entities = {
+    '&amp;': '&',
+    '&nbsp;': ' ',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&lt;': '<',
+    '&gt;': '>',
+    '&ndash;': '–',
+    '&mdash;': '—',
+    '&rsquo;': '’',
+    '&lsquo;': '‘',
+    '&rdquo;': '”',
+    '&ldquo;': '“',
+  };
+  var t = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  t = t
+      .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'</(p|div|li|h\d)>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'<[^>]+>'), '');
+  for (final e in entities.entries) {
+    t = t.replaceAll(e.key, e.value);
+  }
+  t = t.replaceAllMapped(RegExp(r'&#(\d+);'), (m) => String.fromCharCode(int.parse(m.group(1)!)));
+  return t.replaceAll(RegExp(r'[ \t]+\n'), '\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
 }

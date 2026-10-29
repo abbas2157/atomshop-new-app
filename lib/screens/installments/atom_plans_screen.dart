@@ -49,6 +49,10 @@ class _AtomPlansScreenState extends ConsumerState<AtomPlansScreen> {
               children: [
                 Row(
                   children: [
+                    if (Navigator.of(context).canPop()) ...[
+                      AtomIconButton(icon: Icons.arrow_back_rounded, tooltip: 'Back', onPressed: () => Navigator.of(context).maybePop()),
+                      const SizedBox(width: AtomSpace.sm),
+                    ],
                     Expanded(child: Semantics(header: true, child: Text('Installments', style: AtomText.title))),
                     AtomButton(
                       label: 'History',

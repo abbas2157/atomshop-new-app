@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../core/auth/session_manager.dart';
 import '../utils/atom_format.dart';
 import 'atom_design_content.dart';
 import 'atom_http.dart';
@@ -617,7 +618,11 @@ class AskAtomAction {
     if (host.contains('wa.me') || host.contains('whatsapp')) return ('whatsapp', null);
     if (path.contains('custom-order')) return ('custom_order', null);
     if (path.contains('make-offer') || path.contains('make-an-offer')) return ('offer', null);
-    final segments = u?.pathSegments ?? const <String>[];
+    final segments = (u?.pathSegments ?? const <String>[]).where((s) => s.isNotEmpty && s != 'public').toList();
+    final onSite = host.isEmpty || host.endsWith('atomshop.pk');
+    if (onSite && (path.contains('installment-calculator') || path.contains('instalment-calculator'))) return ('shop', null);
+    if (onSite && segments.length == 1 && segments.first == 'shop') return ('shop', null);
+    if (onSite && segments.length == 1 && segments.first == 'faqs') return ('faqs', null);
     final i = segments.indexOf('category');
     if (i >= 0 && i + 1 < segments.length) {
       final slug = segments[i + 1].toLowerCase();
@@ -625,7 +630,16 @@ class AskAtomAction {
         if (c.slug.toLowerCase() == slug) return ('category', c.id);
       }
     }
+    // atomshop.pk/{product-slug}: the app finds it by name.
+    const pages = {'about-us', 'contact-us', 'privacy-policy', 'return-refund-policy', 'apps', 'smart-seller', 'brand-partners', 'blog', 'login', 'register', 'delete-account'};
+    if (onSite && host.isNotEmpty && segments.length == 1 && !pages.contains(segments.first)) return ('search', null);
     return ('url', null);
+  }
+
+  /// "apple-iphone-17-pro" → "apple iphone 17 pro", for [type] search.
+  String get searchText {
+    final last = (Uri.tryParse(url)?.pathSegments.where((s) => s.isNotEmpty).lastOrNull ?? '').replaceAll(RegExp(r'[-_]+'), ' ').trim();
+    return last.isNotEmpty ? last : label;
   }
 }
 
@@ -798,44 +812,293 @@ class AtomAccountApi {
 
   final AtomHttp _http;
 
-  Future<AccountSummary> summary() async => AccountSummary.fromJson(_map(await _http.get('app/me/summary')));
+  // Orders, installments, payments and the summary come from the existing
+  // `account/my-orders`, `account/payment-history` endpoints (owner,
+  // 2026-10-29: use these until `api/app/*` is built). Each figure shown is
+  // a server amount or a sum of the server's own installment rows; the app
+  // never works out markup.
+
+  /// One `my-orders` answer shared by the screens that open together
+  /// (Account, Overview, Installments) for a few seconds.
+  static Future<Map<String, dynamic>>? _ordersCall;
+  static DateTime _ordersAt = DateTime(2000);
+  static String _ordersToken = '';
+
+  Future<Map<String, dynamic>> _myOrders() async {
+    final token = await SessionManager.getToken() ?? '';
+    final fresh = DateTime.now().difference(_ordersAt) < const Duration(seconds: 15) && token == _ordersToken;
+    final cached = _ordersCall;
+    if (cached != null && fresh) return cached;
+    _ordersToken = token;
+    _ordersAt = DateTime.now();
+    final call = _http.post('account/my-orders').then(_map);
+    _ordersCall = call;
+    try {
+      return await call;
+    } catch (_) {
+      _ordersCall = null;
+      rethrow;
+    }
+  }
+
+  /// Drops the shared `my-orders` answer (after placing an order).
+  static void forgetOrders() => _ordersCall = null;
+
+  Future<List<_OldOrder>> _orders() async {
+    final j = await _myOrders();
+    final orders = [for (final o in atomList(j['orders'])) _OldOrder(o)];
+    orders.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+    return orders;
+  }
+
+  Future<AccountSummary> summary() async {
+    final j = await _myOrders();
+    final orders = await _orders();
+    final customer = _map(j['customer']);
+    final dues = [for (final o in orders) ?o.nextDue]..sort(_byDate);
+    var unread = 0;
+    try {
+      unread = (await notifications()).unread;
+    } on AtomApiException {
+      // The bell shows its own count; a missing number is not an error here.
+    }
+    return AccountSummary.fromJson({
+      'stats': {
+        'orders': orders.length,
+        'active_plans': orders.where((o) => o.isActivePlan).length,
+        'paid': orders.fold<int>(0, (n, o) => n + o.paid),
+        'unpaid': orders.where((o) => o.isActivePlan).fold<int>(0, (n, o) => n + o.outstanding),
+      },
+      'next_due': dues.isEmpty ? null : dues.first,
+      'verification': {
+        'verified': '${customer['verified']}' == '1' || customer['verified'] == true,
+        'cnic_masked': _maskCnic(_str(customer['cnic_no'])),
+      },
+      'atompay': const {'state': 'none'},
+      'unread_notifications': unread,
+    });
+  }
 
   /// [status]: all, active, completed.
   Future<OrdersPage> orders({String status = 'all', int page = 1}) async {
-    final j = _map(await _http.get('app/orders', query: {'status': status, 'page': page}));
-    return OrdersPage(_list(j['orders'], OrderCard.fromJson), _intOrNull(j['next_page']));
+    final all = await _orders();
+    final shown = switch (status) {
+      'active' => all.where((o) => o.isActive),
+      'completed' => all.where((o) => o.isCompleted),
+      _ => all,
+    };
+    return OrdersPage([for (final o in shown) OrderCard.fromJson(o.card())], null);
   }
 
-  Future<OrderDetail> order(String uuid) async => OrderDetail.fromJson(_map(await _http.get('app/orders/$uuid')));
+  Future<OrderDetail> order(String uuid) async {
+    final j = await _myOrders();
+    final o = (await _orders()).where((o) => o.uuid == uuid).firstOrNull;
+    if (o == null) throw const AtomApiException('We could not find this order.', statusCode: 404);
+    final c = _map(j['customer']);
+    return OrderDetail.fromJson({
+      ...o.card(),
+      'delivery': {'city': _str(c['city']), 'area': _str(c['area']), 'address': _str(c['address'])},
+      'cash_price': o.cashPrice,
+    });
+  }
 
   /// [tab]: active, pending, completed.
-  Future<InstallmentsOverview> installments(String tab) async => InstallmentsOverview.fromJson(_map(await _http.get('app/installments', query: {'tab': tab})));
-
-  Future<PaymentsPage> payments({String? orderUuid, int page = 1}) async =>
-      PaymentsPage.fromJson(_map(await _http.get('app/payments', query: {'page': page, 'order_uuid': ?orderUuid})));
-
-  Future<Receipt> receipt(int id) async => Receipt.fromJson(_map(await _http.get('app/payments/$id')));
-
-  Future<List<int>> receiptPdf(int id) => _http.bytes('app/payments/$id/pdf');
-
-  Future<CustomQuote> customQuote({required int price, required int advance, required int months, String referenceCode = ''}) async =>
-      CustomQuote.fromJson(_map(await _http.post('app/custom-orders/quote', {
-        'price': price,
-        'advance': advance,
-        'months': months,
-        if (referenceCode.isNotEmpty) 'reference_code': referenceCode,
-      })));
-
-  Future<CustomOrderPlaced> placeCustomOrder(Map<String, dynamic> fields, {List<String> photos = const []}) async {
-    final data = photos.isEmpty
-        ? await _http.post('app/custom-orders', fields)
-        : await _http.postFiles('app/custom-orders', fields, {'picture': [photos.first]});
-    return CustomOrderPlaced.fromJson(_map(data));
+  Future<InstallmentsOverview> installments(String tab) async {
+    final all = await _orders();
+    final plans = switch (tab) {
+      'pending' => all.where((o) => o.isPending),
+      'completed' => all.where((o) => o.isCompleted || (o.isActivePlan && o.outstanding == 0 && o.schedule.isNotEmpty)),
+      _ => all.where((o) => o.isActivePlan && o.outstanding > 0),
+    }.toList();
+    final dues = [for (final o in all) ?o.nextDue]..sort(_byDate);
+    return InstallmentsOverview.fromJson({
+      'summary': {
+        'outstanding': all.where((o) => o.isActivePlan).fold<int>(0, (n, o) => n + o.outstanding),
+        'paid': all.fold<int>(0, (n, o) => n + o.paid),
+        'active_plans': all.where((o) => o.isActivePlan).length,
+        'next_due': dues.isEmpty ? null : dues.first,
+      },
+      'plans': [for (final o in plans) o.card()],
+    });
   }
 
-  Future<List<CustomOrderRow>> customOrders() async => _list(_map(await _http.get('app/custom-orders'))['orders'], CustomOrderRow.fromJson);
+  /// Paid installments (`payment-history`), each matched to its order
+  /// through the installment rows in `my-orders`.
+  Future<List<Map<String, dynamic>>> _payments() async {
+    final uuid = await SessionManager.getUserUuid() ?? '';
+    final rows = atomList(await _http.post('account/payment-history', {'uuid': uuid}));
+    final orders = await _orders();
+    final byRow = <int, (_OldOrder, Map<String, dynamic>)>{
+      for (final o in orders)
+        for (final r in o.rows)
+          if (_intOrNull(r['id']) != null) _int(r['id']): (o, r),
+    };
+    final out = <Map<String, dynamic>>[];
+    for (final p in rows) {
+      final id = _int(p['id']);
+      final match = byRow[id];
+      final receipt = _str(p['receipet']);
+      out.add({
+        'id': id,
+        'order_uuid': match?.$1.uuid ?? '',
+        'order_id': match?.$1.orderId ?? '',
+        'product': match?.$1.product ?? '',
+        'label': match == null ? 'Payment' : _str(match.$2['month']),
+        'amount': _int(p['installment_price']),
+        'paid_at': _monthDayYear(_str(p['payment_date']))?.toIso8601String(),
+        'method': _str(p['payment_method']) == '-' ? '' : _str(p['payment_method']),
+        'receipt_url': receipt == '-' ? '' : receipt,
+        'due_date': match == null ? null : _str(match.$2['installment_date']),
+      });
+    }
+    out.sort((a, b) => _str(b['paid_at']).compareTo(_str(a['paid_at'])));
+    return out;
+  }
 
-  Future<List<OfferRow>> offers() async => _list(_map(await _http.get('app/offers'))['offers'], OfferRow.fromJson);
+  Future<PaymentsPage> payments({String? orderUuid, int page = 1}) async {
+    final all = await _payments();
+    final shown = orderUuid == null ? all : all.where((p) => p['order_uuid'] == orderUuid).toList();
+    final paid = shown.fold<int>(0, (n, p) => n + _int(p['amount']));
+    final advance = shown.where((p) => _str(p['label']).toLowerCase().contains('advance')).fold<int>(0, (n, p) => n + _int(p['amount']));
+    final byMethod = <String, int>{};
+    for (final p in shown) {
+      final m = _str(p['method']).isEmpty ? 'Other' : _str(p['method']);
+      byMethod[m] = (byMethod[m] ?? 0) + _int(p['amount']);
+    }
+    final orders = await _orders();
+    final scoped = orderUuid == null ? orders : orders.where((o) => o.uuid == orderUuid);
+    return PaymentsPage.fromJson({
+      'summary': {
+        'paid': paid,
+        'advance': advance,
+        'monthly': paid - advance,
+        'outstanding': scoped.where((o) => o.isActivePlan).fold<int>(0, (n, o) => n + o.outstanding),
+      },
+      'by_method': [
+        for (final e in byMethod.entries) {'method': e.key, 'amount': e.value, 'percent': paid == 0 ? 0 : (e.value * 100 / paid).round()},
+      ],
+      'orders': [
+        for (final o in orders)
+          if (all.any((p) => p['order_uuid'] == o.uuid)) {'uuid': o.uuid, 'label': o.product},
+      ],
+      'payments': shown,
+    });
+  }
+
+  Future<Receipt> receipt(int id) async {
+    final p = (await _payments()).where((p) => p['id'] == id).firstOrNull;
+    if (p == null) throw const AtomApiException('We could not find this receipt.', statusCode: 404);
+    return Receipt.fromJson({
+      ...p,
+      'receipt_no': '$id',
+      'customer': await SessionManager.getUserName() ?? '',
+      'pdf_url': p['receipt_url'],
+    });
+  }
+
+  /// The receipt file the office uploaded (image or PDF), when there is one.
+  Future<List<int>> receiptPdf(int id) async {
+    final url = (await receipt(id)).pdfUrl;
+    if (url.isEmpty) throw const AtomApiException('There is no receipt file for this payment yet.', statusCode: 404);
+    return _http.bytes(url);
+  }
+
+  /// No quote endpoint on the server yet, and the app never works out
+  /// markup: this only checks the inputs. The server works out the plan
+  /// when the order is sent ([placeCustomOrder]).
+  Future<CustomQuote> customQuote({required int price, required int advance, required int months, String referenceCode = '', int minAdvancePercent = 20}) async {
+    final minAdvance = (price * minAdvancePercent / 100).ceil();
+    if (advance < minAdvance) {
+      throw AtomApiException('Validation Error.', statusCode: 422, data: {
+        'advance': ['The advance must be at least $minAdvancePercent% of the price (${AtomFormat.rupees(minAdvance)}).'],
+      });
+    }
+    if (advance >= price) {
+      throw const AtomApiException('Validation Error.', statusCode: 422, data: {
+        'advance': ['The advance must be less than the price.'],
+      });
+    }
+    return CustomQuote(
+      price: price,
+      advance: advance,
+      minAdvance: minAdvance,
+      financed: price - advance,
+      markup: 0,
+      sourcingFee: 0,
+      sourcingFeePercent: 1,
+      total: 0,
+      monthly: 0,
+      months: months,
+      referenceValid: null,
+      referenceMessage: '',
+    );
+  }
+
+  /// Whether the server quotes a custom order before it is sent.
+  static const hasCustomQuote = false;
+
+  /// Photos and links are not taken by `custom-order-calculator/store`.
+  static const customOrderTakesExtras = false;
+
+  /// `custom-order-calculator/store`: the server works out the deal and
+  /// returns the order. Signed in, the order goes on the account (the
+  /// server checks the uuid against the token).
+  Future<CustomOrderPlaced> placeCustomOrder(Map<String, dynamic> fields, {List<String> photos = const []}) async {
+    final uuid = await SessionManager.getUserUuid() ?? '';
+    final token = await SessionManager.getToken() ?? '';
+    final o = _map(await _http.post('custom-order-calculator/store', {
+      if (uuid.isNotEmpty && token.isNotEmpty) 'uuid': uuid,
+      'name': fields['full_name'],
+      'phone': fields['phone'],
+      'email': ?fields['email'],
+      'city_id': fields['city_id'],
+      'area_id': fields['area_id'],
+      'address': fields['address'],
+      'product_title': fields['product_title'],
+      'product_price': fields['price'],
+      'advance_price': fields['advance'],
+      'tenure_months': fields['months'],
+      if (_str(fields['reference_code']).isNotEmpty) 'supplier_reference_code_val': fields['reference_code'],
+    }));
+    forgetOrders();
+    final total = _int(o['total_deal_price']);
+    final advance = _int(o['advance_price']);
+    final months = _int(o['tenure'], _int(fields['months']));
+    return CustomOrderPlaced(
+      orderId: _str(o['id']),
+      product: _str(fields['product_title']),
+      // The rest after the advance in equal months, as the server's plan is.
+      monthly: months > 0 ? ((total - advance) / months).round() : 0,
+      months: months,
+      advance: advance,
+      total: total,
+      area: '',
+    );
+  }
+
+  /// Orders without a catalogue picture are custom orders (product orders
+  /// keep the product's picture); the old API has no other marker.
+  Future<List<CustomOrderRow>> customOrders() async => [
+        for (final o in await _orders())
+          if (o.isCustom)
+            CustomOrderRow(
+              uuid: o.uuid,
+              orderId: o.orderId,
+              product: o.product,
+              price: o.cashPrice ?? 0,
+              monthly: o.monthly ?? 0,
+              months: o.months,
+              status: o.status,
+              statusLabel: o.statusLabel,
+              createdAt: o.createdAt,
+            ),
+      ];
+
+  /// No list of a customer's offers on the server; they are answered on
+  /// WhatsApp. The screen says so instead of showing an error.
+  static const offersListed = false;
+
+  Future<List<OfferRow>> offers() async => const [];
 
   /// Make an offer (`leads/create`, works for guests). Returns nothing the
   /// app needs to show beyond success.
@@ -905,3 +1168,153 @@ class AtomAccountApi {
 }
 
 final atomAccountApiProvider = Provider<AtomAccountApi>((ref) => AtomAccountApi(ref.watch(atomHttpProvider)));
+
+// ── Orders from `account/my-orders` ───────────────────────────────────────
+
+int _byDate(Map<String, dynamic> a, Map<String, dynamic> b) => _str(a['date']).compareTo(_str(b['date']));
+
+/// "Oct 28, 2026".
+DateTime? _monthDayYear(String s) {
+  final m = RegExp(r'^([A-Za-z]{3}) (\d{1,2}), (\d{4})$').firstMatch(s.trim());
+  if (m == null) return DateTime.tryParse(s);
+  const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  final month = months.indexOf(m.group(1)!.toLowerCase()) + 1;
+  return month == 0 ? null : DateTime(int.parse(m.group(3)!), month, int.parse(m.group(2)!));
+}
+
+/// "35202-•••••••-1" from a stored CNIC.
+String _maskCnic(String cnic) {
+  final d = cnic.replaceAll(RegExp(r'\D'), '');
+  return d.length == 13 ? '${d.substring(0, 5)}-•••••••-${d.substring(12)}' : '';
+}
+
+/// One order as `my-orders` sends it, read the way the app's cards want it.
+class _OldOrder {
+  _OldOrder(Map<String, dynamic> j)
+      : uuid = _str(j['uuid']),
+        orderId = _str(j['id']),
+        status = _str(j['status']),
+        createdAt = DateTime.tryParse(_str(j['created_at']).replaceFirst(' ', 'T')),
+        product = _str(_map(j['product'])['title']),
+        picture = _str(_map(j['product'])['picture']),
+        cashPrice = _intOrNull(_map(j['product'])['price']),
+        months = _int(j['tenure']),
+        advanceAmount = _int(j['advance_price']),
+        total = _int(j['total_deal_price']),
+        rows = _realRows(j),
+        seller = _map(j['seller']).isNotEmpty ? _map(j['seller']) : _map(j['supplier']);
+
+  /// The order's installment rows. Before delivery the old endpoint makes
+  /// rows up (no id) with its own markup formula, which can disagree with
+  /// the order's total (an AtomPay order is 0% markup); those are replaced by
+  /// the total after the advance in equal months, the remainder in the last
+  /// month, as the product page shows the same plan.
+  static List<Map<String, dynamic>> _realRows(Map<String, dynamic> j) {
+    final rows = [for (final r in atomList(j['installments'])) Map<String, dynamic>.from(r)];
+    if (rows.isEmpty || rows.any((r) => r['id'] != null)) return rows;
+    final months = _int(j['tenure']);
+    final rest = _int(j['total_deal_price']) - _int(j['advance_price']);
+    if (months <= 0 || rest <= 0) return rows;
+    final each = rest ~/ months;
+    return [
+      for (var i = 0; i < months; i++)
+        {...rows[i < rows.length ? i : rows.length - 1], 'installment_price': i == months - 1 ? rest - each * (months - 1) : each, 'installment_paid_price': 0},
+    ];
+  }
+
+  final String uuid;
+  final String orderId;
+  final String status;
+  final DateTime? createdAt;
+  final String product;
+  final String picture;
+  final int? cashPrice;
+  final int months;
+  final int advanceAmount;
+  final int total;
+  final List<Map<String, dynamic>> rows;
+  final Map<String, dynamic> seller;
+
+  String get _s => status.toLowerCase();
+  String get statusLabel => status == 'Varification' ? 'Verification' : status;
+  bool get isCancelled => _s == 'cancelled' || _s == 'canceled' || _s == 'rejected';
+  bool get isCompleted => _s == 'completed';
+  bool get isClosed => isCancelled || isCompleted;
+  bool get isPending => _s == 'pending' || _s == 'varification' || _s == 'verification';
+  bool get isActive => !isClosed;
+  bool get isActivePlan => !isClosed && !isPending;
+
+  /// asset(null) on the server gives a URL with no file name.
+  bool get isCustom {
+    final last = Uri.tryParse(picture)?.pathSegments.where((s) => s.isNotEmpty).lastOrNull ?? '';
+    return !last.contains('.');
+  }
+
+  bool _isAdvance(Map<String, dynamic> r) => _str(r['month']).toLowerCase().contains('advance');
+  bool _isPaid(Map<String, dynamic> r) => _str(r['status']).toLowerCase() == 'paid';
+
+  List<Map<String, dynamic>> get schedule => [
+        for (final r in rows)
+          {
+            'id': r['id'],
+            'label': _str(r['month']),
+            'amount': _int(r['installment_price']),
+            'paid_amount': _int(r['installment_paid_price']),
+            'due_date': _str(r['installment_date']),
+            'status': _status(r),
+            'method': _str(r['payment_method']),
+          },
+      ];
+
+  String _status(Map<String, dynamic> r) {
+    if (_isPaid(r)) return 'paid';
+    final due = DateTime.tryParse(_str(r['installment_date']));
+    return due != null && due.isBefore(DateTime.now()) && !isPending ? 'overdue' : 'unpaid';
+  }
+
+  /// A paid row counts its full amount, as its receipt in Payment history
+  /// does; an unpaid row counts any part already paid.
+  int get paid => rows.fold<int>(0, (n, r) => n + (_isPaid(r) ? _int(r['installment_price']) : _int(r['installment_paid_price'])));
+
+  /// What is still owed on the plan: the unpaid part of each server row.
+  int get outstanding => rows.where((r) => !_isPaid(r)).fold<int>(0, (n, r) => n + (_int(r['installment_price']) - _int(r['installment_paid_price'])).clamp(0, 1 << 31));
+
+  int? get monthly => rows.where((r) => !_isAdvance(r)).map((r) => _int(r['installment_price'])).firstOrNull;
+
+  int get paidMonths => rows.where((r) => !_isAdvance(r) && _isPaid(r)).length;
+
+  Map<String, dynamic>? get nextDue {
+    if (isClosed || isPending) return null;
+    final unpaid = rows.where((r) => !_isPaid(r) && !_isAdvance(r)).toList()
+      ..sort((a, b) => _str(a['installment_date']).compareTo(_str(b['installment_date'])));
+    if (unpaid.isEmpty) return null;
+    final r = unpaid.first;
+    return {
+      'amount': _int(r['installment_price']) - _int(r['installment_paid_price']),
+      'date': _str(r['installment_date']).isEmpty ? null : _str(r['installment_date']),
+      'label': _str(r['month']),
+      'order_uuid': uuid,
+      'product': product,
+    };
+  }
+
+  Map<String, dynamic> card() => {
+        'uuid': uuid,
+        'kind': isCustom ? 'custom' : 'product',
+        'status': status,
+        'status_label': statusLabel,
+        'product': {'title': product, 'picture_url': isCustom ? '' : picture},
+        'months': months,
+        'advance': advanceAmount,
+        'monthly': monthly,
+        'total': total,
+        'paid': paid,
+        'outstanding': outstanding,
+        'created_at': createdAt?.toIso8601String(),
+        'next_due': nextDue,
+        'order_id': orderId,
+        'paid_months': paidMonths,
+        'seller': seller.isEmpty ? null : seller,
+        'schedule': schedule,
+      };
+}

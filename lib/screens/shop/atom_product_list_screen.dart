@@ -44,8 +44,34 @@ class AtomProductListScreen extends ConsumerStatefulWidget {
 }
 
 class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
+  static const _pageSize = 20;
+
   final _search = TextEditingController();
+  final _scroll = ScrollController();
   String _query = '';
+
+  /// Cards shown so far; grows by [_pageSize] near the end of the list.
+  int _shown = _pageSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(() {
+      final p = _scroll.position;
+      if (p.pixels > p.maxScrollExtent - 500) _showMore();
+    });
+  }
+
+  void _showMore() {
+    final total = _apply(ref.read(_provider).value ?? const <ProductCard>[]).length;
+    if (_shown < total) setState(() => _shown += _pageSize);
+  }
+
+  /// A filter change starts again at the first page.
+  void _filtered(VoidCallback change) => setState(() {
+        change();
+        _shown = _pageSize;
+      });
 
   /// Brand name on a category list, category name on a brand page.
   String? _group;
@@ -55,6 +81,7 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
   @override
   void dispose() {
     _search.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -101,7 +128,7 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
       label: (s) => s.label,
       isSelected: (s) => s == _sort,
     );
-    if (picked != null) setState(() => _sort = picked);
+    if (picked != null) _filtered(() => _sort = picked);
   }
 
   @override
@@ -111,6 +138,7 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
     final all = value.value ?? const <ProductCard>[];
     final groups = {for (final p in all) _groupOf(p)}.where((g) => g.isNotEmpty).toList()..sort();
     final products = _apply(all);
+    final page = products.take(_shown).toList(growable: false);
     Widget padded(Widget child, {double top = 0}) => SliverPadding(
       padding: EdgeInsets.fromLTRB(gutter, top, gutter, 0),
       sliver: SliverToBoxAdapter(child: child),
@@ -121,7 +149,13 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
       value: widget.isBrand ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AtomColors.white,
-        body: SafeArea(
+        body: Column(
+          children: [
+            // The brand header's navy runs up behind the status bar (light icons).
+            if (widget.isBrand) Container(color: AtomColors.ink, height: MediaQuery.paddingOf(context).top),
+            Expanded(
+              child: SafeArea(
+          top: !widget.isBrand,
           bottom: false,
           child: AtomPageWidth(
             child: RefreshIndicator(
@@ -131,14 +165,15 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
                 await ref.read(_provider.future).catchError((_) => const <ProductCard>[]);
               },
               child: CustomScrollView(
+                controller: _scroll,
                 slivers: [
                   widget.isBrand
                       ? SliverToBoxAdapter(
-                          child: _BrandHeader(item: widget.item, gutter: gutter),
+                          child: _BrandHeader(item: widget.item, gutter: gutter, products: value.value),
                         )
                       : padded(_CategoryHeader(title: widget.item.title), top: AtomSpace.sm),
                   padded(
-                    AtomSearchField(controller: _search, hint: 'Search in ${widget.item.title}', onChanged: (q) => setState(() => _query = q)),
+                    AtomSearchField(controller: _search, hint: 'Search in ${widget.item.title}', onChanged: (q) => _filtered(() => _query = q)),
                     top: AtomSpace.md,
                   ),
                   if (groups.length > 1)
@@ -152,7 +187,7 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
                           separatorBuilder: (_, _) => const SizedBox(width: AtomSpace.xs),
                           itemBuilder: (_, i) {
                             final g = i == 0 ? null : groups[i - 1];
-                            return AtomChoiceChip(label: g ?? 'All', dark: true, selected: _group == g, onTap: () => setState(() => _group = g));
+                            return AtomChoiceChip(label: g ?? 'All', dark: true, selected: _group == g, onTap: () => _filtered(() => _group = g));
                           },
                         ),
                       ),
@@ -171,7 +206,7 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
                           ),
                         ),
                         const SizedBox(width: AtomSpace.xs),
-                        AtomChoiceChip(label: 'AtomPay only', selected: _atompayOnly, onTap: () => setState(() => _atompayOnly = !_atompayOnly)),
+                        AtomChoiceChip(label: 'AtomPay only', selected: _atompayOnly, onTap: () => _filtered(() => _atompayOnly = !_atompayOnly)),
                       ],
                     ),
                     top: AtomSpace.sm,
@@ -215,8 +250,21 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
                             ),
                             SliverPadding(
                               padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, 0),
-                              sliver: AtomProductSliverGrid(products: products, showCash: true, onTap: (p) => AtomNav.product(context, p.id)),
+                              sliver: AtomProductSliverGrid(products: page, showCash: true, onTap: (p) => AtomNav.product(context, p.id)),
                             ),
+                            if (page.length < products.length)
+                              padded(
+                                Center(
+                                  child: AtomButton(
+                                    label: 'Show more (${products.length - page.length} left)',
+                                    icon: Icons.expand_more_rounded,
+                                    variant: AtomButtonVariant.secondary,
+                                    size: AtomButtonSize.small,
+                                    onPressed: _showMore,
+                                  ),
+                                ),
+                                top: AtomSpace.md,
+                              ),
                             padded(
                               AtomLinkCard(
                                 icon: Icons.add_rounded,
@@ -233,6 +281,9 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
               ),
             ),
           ),
+        ),
+            ),
+          ],
         ),
       ),
     );
@@ -270,10 +321,13 @@ class _CategoryHeader extends ConsumerWidget {
 
 /// Dark brand header with the logo (canvas: "Brand page").
 class _BrandHeader extends StatelessWidget {
-  const _BrandHeader({required this.item, required this.gutter});
+  const _BrandHeader({required this.item, required this.gutter, required this.products});
 
   final CatalogueItem item;
   final double gutter;
+
+  /// The brand's products once loaded, for the figures under the name.
+  final List<ProductCard>? products;
 
   @override
   Widget build(BuildContext context) {
@@ -311,12 +365,65 @@ class _BrandHeader extends StatelessWidget {
                       child: Text(item.title, style: AtomText.title.copyWith(color: AtomColors.white)),
                     ),
                     const SizedBox(height: 4),
-                    Text('On easy monthly installments', style: AtomText.body.copyWith(color: AtomColors.onDark)),
+                    Row(
+                      children: [
+                        const Icon(Icons.verified_rounded, size: 16, color: AtomColors.amber),
+                        const SizedBox(width: 4),
+                        Flexible(child: Text('Official Brand Partner', style: AtomText.small.copyWith(color: AtomColors.amber, fontWeight: FontWeight.w800))),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text('On easy monthly installments', style: AtomText.small.copyWith(color: AtomColors.onDark)),
                   ],
                 ),
               ),
             ],
           ),
+          if (products != null && products!.isNotEmpty) ...[
+            const SizedBox(height: AtomSpace.md),
+            _BrandStats(products: products!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "18 products · 6 on AtomPay · 3 categories" as three tiles.
+class _BrandStats extends StatelessWidget {
+  const _BrandStats({required this.products});
+
+  final List<ProductCard> products;
+
+  @override
+  Widget build(BuildContext context) {
+    final atompay = products.where((p) => p.atompay).length;
+    final categories = {for (final p in products) p.category}.where((c) => c.isNotEmpty).length;
+    final inStock = products.where((p) => p.inStock).length;
+    Widget tile(String value, String label) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: AtomSpace.sm, horizontal: AtomSpace.xs),
+            decoration: BoxDecoration(color: AtomColors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(16)),
+            child: Column(
+              children: [
+                Text(value, style: AtomText.heading.copyWith(color: AtomColors.white)),
+                Text(label, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: AtomText.small.copyWith(color: AtomColors.onDark)),
+              ],
+            ),
+          ),
+        );
+    return Semantics(
+      label: '${products.length} products, $atompay on AtomPay, $categories categories, $inStock in stock',
+      excludeSemantics: true,
+      child: Row(
+        children: [
+          tile('${products.length}', products.length == 1 ? 'Product' : 'Products'),
+          const SizedBox(width: AtomSpace.xs),
+          tile('$atompay', 'AtomPay'),
+          const SizedBox(width: AtomSpace.xs),
+          tile('$categories', categories == 1 ? 'Category' : 'Categories'),
+          const SizedBox(width: AtomSpace.xs),
+          tile('$inStock', 'In stock'),
         ],
       ),
     );

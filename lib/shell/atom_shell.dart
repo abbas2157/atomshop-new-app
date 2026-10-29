@@ -10,13 +10,14 @@ import '../screens/account/atom_account_screen.dart';
 import '../screens/account/atom_guest_account_screen.dart';
 import '../screens/ask_atom/atom_ask_atom_screen.dart';
 import '../screens/home/atom_home_screen.dart';
-import '../screens/installments/atom_guest_plans_screen.dart';
-import '../screens/installments/atom_plans_screen.dart';
 import '../screens/shop/atom_shop_screen.dart';
 import '../state/atom_session.dart';
 import 'atom_nav.dart';
 
-enum AtomTab { home, shop, askAtom, installments, account }
+/// Bar order (owner, 2026-10-29). [order] is not a page: it opens a tray
+/// with Custom order and Make an offer. Installments opens from Account and
+/// Home instead ([AtomNav.installments]).
+enum AtomTab { home, shop, askAtom, order, account }
 
 /// Selected tab, so any screen can switch tabs (e.g. Home → "View all" → Shop).
 final atomTabProvider = NotifierProvider<AtomTabNotifier, AtomTab>(AtomTabNotifier.new);
@@ -26,6 +27,10 @@ class AtomTabNotifier extends Notifier<AtomTab> {
   AtomTab build() => AtomTab.home;
 
   void select(AtomTab tab) => state = tab;
+
+  /// Set by the shell: closes whatever is open inside [tab] so it shows its
+  /// first screen (used when another screen sends the customer to a tab).
+  static void Function(AtomTab tab)? popToRoot;
 }
 
 /// Root of the app: five tabs, bottom bar on phones, navigation rail on
@@ -61,7 +66,7 @@ class _AtomShellState extends ConsumerState<AtomShell> {
         AtomTab.home => const AtomHomeScreen(),
         AtomTab.shop => const AtomShopScreen(),
         AtomTab.askAtom => const AtomAskAtomScreen(),
-        AtomTab.installments => signedIn ? const AtomPlansScreen() : const AtomGuestPlansScreen(),
+        AtomTab.order => const SizedBox.shrink(),
         AtomTab.account => signedIn ? const AtomAccountScreen() : const AtomGuestAccountScreen(),
       };
 
@@ -128,7 +133,14 @@ class _AtomShellState extends ConsumerState<AtomShell> {
       ],
     );
 
+    AtomTabNotifier.popToRoot = (t) => _navigator(t, signedIn).currentState?.popUntil((route) => route.isFirst);
+
     void select(AtomTab t) {
+      // "Order" opens the tray; the open tab stays as it is.
+      if (t == AtomTab.order) {
+        _showOrderTray(context);
+        return;
+      }
       // Tapping the open tab again goes back to its first screen.
       if (t == tab) _navigator(t, signedIn).currentState?.popUntil((route) => route.isFirst);
       ref.read(atomTabProvider.notifier).select(t);
@@ -226,9 +238,51 @@ const _navItems = [
   _NavItem('Home', Icons.home_rounded),
   _NavItem('Shop', Icons.grid_view_rounded),
   _NavItem('Ask Atom', Icons.auto_awesome_rounded),
-  _NavItem('Installments', Icons.calendar_month_rounded),
+  _NavItem('Order', Icons.add_shopping_cart_rounded),
   _NavItem('Account', Icons.person_rounded),
 ];
+
+/// The "Order" tray: the two ways to order something not in the shop.
+Future<void> _showOrderTray(BuildContext context) => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AtomColors.white,
+      builder: (sheet) {
+        Widget option(IconData icon, String title, String text, VoidCallback onTap) => ListTile(
+              minVerticalPadding: AtomSpace.sm,
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: AtomColors.primarySoft, borderRadius: BorderRadius.circular(14)),
+                child: Icon(icon, color: AtomColors.primary),
+              ),
+              title: Text(title, style: AtomText.label),
+              subtitle: Text(text, style: AtomText.small),
+              trailing: const Icon(Icons.chevron_right_rounded, color: AtomColors.placeholder),
+              onTap: () {
+                Navigator.of(sheet).pop();
+                onTap();
+              },
+            );
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: AtomSpace.sm),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AtomSpace.gutter, 0, AtomSpace.gutter, AtomSpace.xs),
+                  child: Text('Order anything', style: AtomText.heading),
+                ),
+                option(Icons.calculate_outlined, 'Custom order', 'Know the price? Order anything from any shop and plan it in months.', () => AtomNav.customOrder(context)),
+                option(Icons.chat_bubble_outline_rounded, 'Make an offer', 'Not sure of the price? Tell us what you want and a seller calls you.', () => AtomNav.makeOffer(context)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
 
 /// Phone bottom bar with the raised Ask Atom button in the middle.
 class _AtomBottomBar extends StatelessWidget {

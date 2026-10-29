@@ -15,6 +15,7 @@ import '../../widgets/atom_button.dart';
 import '../../widgets/atom_page.dart';
 import '../../widgets/atom_surfaces.dart';
 import '../../widgets/atom_text_field.dart';
+import 'atom_custom_details_screen.dart';
 import 'atom_custom_plan_screen.dart';
 import 'atom_custom_shared.dart';
 
@@ -84,7 +85,13 @@ class _AtomCustomOrderScreenState extends ConsumerState<AtomCustomOrderScreen> {
     final seq = ++_seq;
     setState(() => _loading = true);
     try {
-      final quote = await ref.read(atomAccountApiProvider).customQuote(price: price, advance: advance, months: months, referenceCode: _reference.text.trim());
+      final quote = await ref.read(atomAccountApiProvider).customQuote(
+            price: price,
+            advance: advance,
+            months: months,
+            referenceCode: _reference.text.trim(),
+            minAdvancePercent: ref.read(appConfigProvider).value?.minAdvancePercent ?? 20,
+          );
       if (!mounted || seq != _seq) return;
       setState(() {
         _quote = quote;
@@ -122,7 +129,11 @@ class _AtomCustomOrderScreenState extends ConsumerState<AtomCustomOrderScreen> {
       months: quote.months,
       referenceCode: _reference.text.trim(),
     );
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => AtomCustomPlanScreen(draft: draft, quote: quote)));
+    // No server quote yet (total 0): straight to the details; the server
+    // works out the plan when the order is sent.
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => quote.total > 0 ? AtomCustomPlanScreen(draft: draft, quote: quote) : AtomCustomDetailsScreen(draft: draft, quote: quote),
+    ));
   }
 
   @override
@@ -138,7 +149,12 @@ class _AtomCustomOrderScreenState extends ConsumerState<AtomCustomOrderScreen> {
     return AtomPage(
       title: 'Custom order',
       subtitle: 'Order any product, from any shop',
-      bottom: AtomButton(label: 'Calculate plan', icon: Icons.calculate_outlined, expand: true, onPressed: _ready ? _next : null),
+      bottom: AtomButton(
+        label: AtomAccountApi.hasCustomQuote ? 'Calculate plan' : 'Continue',
+        icon: AtomAccountApi.hasCustomQuote ? Icons.calculate_outlined : Icons.arrow_forward_rounded,
+        expand: true,
+        onPressed: _ready ? _next : null,
+      ),
       children: [
         const SizedBox(height: AtomSpace.xs),
         const CustomSteps(current: 1),
@@ -276,16 +292,20 @@ class _EstimateBox extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Estimated monthly${months == null ? '' : ' · $months months'}', style: muted),
+                  Text(q != null && q.total == 0 ? 'Your monthly plan' : 'Estimated monthly${months == null ? '' : ' · $months months'}', style: muted),
                   const SizedBox(height: 4),
                   if (loading && q == null)
                     const SizedBox(height: 30, width: 30, child: Padding(padding: EdgeInsets.all(6), child: CircularProgressIndicator(strokeWidth: 2, color: AtomColors.white)))
+                  else if (q != null && q.total == 0)
+                    Text('Worked out when you send the order. A seller then calls to confirm it.', style: AtomText.body.copyWith(color: AtomColors.white))
                   else
                     Text(q == null ? 'Rs. —' : AtomFormat.rupees(q.monthly), style: AtomText.title.copyWith(color: AtomColors.white)),
                 ],
               ),
             ),
-            if (q != null)
+            if (q != null && q.total == 0)
+              const SizedBox.shrink()
+            else if (q != null)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [

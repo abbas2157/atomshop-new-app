@@ -80,16 +80,18 @@ class AtomPage extends StatelessWidget {
     final gutter = context.atomGutter;
     if (hero != null) {
       return Scaffold(
-        body: AtomPageWidth(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              hero!,
-              Padding(
-                padding: padding ?? EdgeInsets.fromLTRB(gutter, AtomSpace.lg, gutter, AtomSpace.xl),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
-              ),
-            ],
+        body: AtomStatusBarBacking(
+          child: AtomPageWidth(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                hero!,
+                Padding(
+                  padding: padding ?? EdgeInsets.fromLTRB(gutter, AtomSpace.lg, gutter, AtomSpace.xl),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+                ),
+              ],
+            ),
           ),
         ),
         bottomNavigationBar: bottom == null ? null : AtomBottomBar(child: bottom!),
@@ -222,6 +224,55 @@ class AtomGroupLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: AtomSpace.lg, bottom: AtomSpace.xs),
       child: Text(text, style: AtomText.subheading.copyWith(fontWeight: FontWeight.w800)),
+    );
+  }
+}
+
+/// For pages drawn edge to edge under the status bar (a photo at the top):
+/// once the page scrolls, a white band fills the status-bar strip so text
+/// never slides under the clock and battery icons.
+class AtomStatusBarBacking extends StatefulWidget {
+  const AtomStatusBarBacking({super.key, required this.child});
+
+  /// A scrollable (or a widget holding one).
+  final Widget child;
+
+  @override
+  State<AtomStatusBarBacking> createState() => _AtomStatusBarBackingState();
+}
+
+class _AtomStatusBarBackingState extends State<AtomStatusBarBacking> {
+  bool _scrolled = false;
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
+    final scrolled = n.metrics.pixels > 8;
+    if (scrolled != _scrolled) setState(() => _scrolled = scrolled);
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(onNotification: _onScroll, child: widget.child),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: top,
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: _scrolled ? 1 : 0,
+              duration: const Duration(milliseconds: 150),
+              child: const DecoratedBox(
+                decoration: BoxDecoration(color: AtomColors.white, border: Border(bottom: BorderSide(color: AtomColors.line))),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

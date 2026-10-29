@@ -29,7 +29,15 @@ class AtomGuestPlansScreen extends ConsumerWidget {
           child: ListView(
             padding: EdgeInsets.fromLTRB(gutter, AtomSpace.md, gutter, AtomSpace.xl),
             children: [
-              Semantics(header: true, child: Text('Installments', style: AtomText.title)),
+              Row(
+                children: [
+                  if (Navigator.of(context).canPop()) ...[
+                    AtomIconButton(icon: Icons.arrow_back_rounded, tooltip: 'Back', onPressed: () => Navigator.of(context).maybePop()),
+                    const SizedBox(width: AtomSpace.sm),
+                  ],
+                  Expanded(child: Semantics(header: true, child: Text('Installments', style: AtomText.title))),
+                ],
+              ),
               const SizedBox(height: AtomSpace.md),
               Container(
                 padding: const EdgeInsets.all(AtomSpace.lg),

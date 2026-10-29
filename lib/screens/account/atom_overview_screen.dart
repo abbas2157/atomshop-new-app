@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/atom_account.dart';
+import '../../data/atom_auth.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../shell/atom_nav.dart';
@@ -117,7 +118,7 @@ class _NextDueCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final title = [due.product, due.label].where((s) => s.isNotEmpty).join(' · ');
     return AtomCard(
-      onTap: () => AtomNav.toTab(context, ref, AtomTab.installments),
+      onTap: () => AtomNav.installments(context),
       borderColor: AtomColors.amber,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,8 +182,12 @@ class _VerificationCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AtomSpace.xs),
-          check('Identity and face', identity, summary.identity.isNotEmpty),
-          check('Address visit', summary.addressVisitAt == null ? 'Not yet' : AtomFormat.date(summary.addressVisitAt), summary.addressVisitAt != null),
+          // The account endpoint in use does not report these two checks;
+          // "Not yet" would be wrong, so they show only when it does.
+          if (AtomAuthApi.supportsExtendedProfile) ...[
+            check('Identity and face', identity, summary.identity.isNotEmpty),
+            check('Address visit', summary.addressVisitAt == null ? 'Not yet' : AtomFormat.date(summary.addressVisitAt), summary.addressVisitAt != null),
+          ],
           check('CNIC on file', summary.cnicMasked.isEmpty ? 'Not yet' : summary.cnicMasked, summary.cnicMasked.isNotEmpty),
           const SizedBox(height: AtomSpace.xs),
           Text(

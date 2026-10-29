@@ -66,7 +66,7 @@ void main() {
       });
 
       expect(r.answer, contains('**iPhone 16**'));
-      expect(r.actions.map((a) => a.type), ['whatsapp', 'custom_order', 'category', 'url']);
+      expect(r.actions.map((a) => a.type), ['whatsapp', 'custom_order', 'category', 'search']);
       expect(r.actions[2].id, 1);
       expect(r.related, ['What documents do I need?']);
       expect(r.session, 'abc.def');
@@ -108,5 +108,15 @@ void main() {
     expect(ProductDetail.fromJson(base({'url': 'https://atomshop.pk/galaxy-a56'})).webUrl, 'https://atomshop.pk/galaxy-a56');
     expect(ProductDetail.fromJson(base({'slug': 'galaxy-a56'})).webUrl, 'https://atomshop.pk/galaxy-a56');
     expect(ProductDetail.fromJson(base({})).webUrl, isEmpty);
+  });
+
+  test('product descriptions read as plain text', () {
+    final p = ProductDetail.fromJson({
+      'id': 1,
+      'title': 'OXY 43',
+      'plan': <String, dynamic>{},
+      'long_description': 'Wifi\r\n(43 &amp; Above Voice Control)<br>Air Mouse\r\n\r\n\r\n\r\nWarranty',
+    });
+    expect(p.longDescription, 'Wifi\n(43 & Above Voice Control)\nAir Mouse\n\nWarranty');
   });
 }

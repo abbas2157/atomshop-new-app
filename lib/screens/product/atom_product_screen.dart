@@ -12,6 +12,7 @@ import '../../shell/atom_shell.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../utils/atom_format.dart';
 import '../../widgets/atom_button.dart';
+import '../../widgets/atom_page.dart';
 import '../../widgets/atom_network_image.dart';
 import '../../widgets/atom_states.dart';
 import '../../widgets/atom_surfaces.dart';
@@ -131,7 +132,7 @@ class _ProductViewState extends ConsumerState<_ProductView> {
 
     return Scaffold(
       body: AtomPageWidth(
-        child: CustomScrollView(
+        child: AtomStatusBarBacking(child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _Gallery(pictures: _p.gallery, title: _p.title, onShare: _share)),
             SliverToBoxAdapter(
@@ -139,6 +140,14 @@ class _ProductViewState extends ConsumerState<_ProductView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   section(_TitleBlock(product: _p, price: _price), top: AtomSpace.md + 2),
+                  if (!_p.inStock)
+                    section(
+                      const AtomNotice(
+                        icon: Icons.inventory_2_outlined,
+                        text: 'Sold out for now. A verified seller on Atomshop can source it for you with a custom order.',
+                      ),
+                      top: AtomSpace.sm,
+                    ),
                   if (_p.storages.length > 1) ...[
                     section(Text('Choose storage', style: AtomText.label)),
                     section(
@@ -177,15 +186,24 @@ class _ProductViewState extends ConsumerState<_ProductView> {
               ),
             ),
           ],
-        ),
+        )),
       ),
-      bottomNavigationBar: _CtaBar(
-        sub: ctaSub,
-        amount: ctaAmount,
-        label: ctaLabel,
-        icon: ctaIcon,
-        onPressed: ctaAmount == null ? null : _order,
-      ),
+      // Sold out: no order; a custom order can still source it.
+      bottomNavigationBar: _p.inStock
+          ? _CtaBar(
+              sub: ctaSub,
+              amount: ctaAmount,
+              label: ctaLabel,
+              icon: ctaIcon,
+              onPressed: ctaAmount == null ? null : _order,
+            )
+          : _CtaBar(
+              sub: '',
+              amount: null,
+              label: 'Ask for a custom order',
+              icon: Icons.calculate_outlined,
+              onPressed: () => AtomNav.customOrder(context),
+            ),
     );
   }
 

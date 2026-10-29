@@ -16,7 +16,6 @@ import '../../state/atom_session.dart';
 import '../../widgets/atom_select_field.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_states.dart';
-import '../../widgets/atom_surfaces.dart';
 import '../../widgets/atom_text_field.dart';
 import 'atom_auth_common.dart';
 
@@ -33,10 +32,8 @@ class AtomLocationScreen extends ConsumerStatefulWidget {
 }
 
 class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
-  final _search = TextEditingController();
   final _address = TextEditingController();
   final _phone = TextEditingController();
-  String _query = '';
 
   /// The account endpoint saves the area together with an address and a
   /// mobile number, so signed-in customers give those here too.
@@ -69,7 +66,6 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
 
   @override
   void dispose() {
-    _search.dispose();
     _address.dispose();
     _phone.dispose();
     super.dispose();
@@ -184,8 +180,8 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
         const SizedBox(height: AtomSpace.lg),
         Text('Area', style: AtomText.label),
         const SizedBox(height: AtomSpace.xs),
-        AtomSearchField(controller: _search, hint: 'Search your area', onChanged: (q) => setState(() => _query = q)),
-        const SizedBox(height: AtomSpace.sm),
+        // A searchable select like the city (Lahore alone has hundreds of
+        // areas), so the fields below stay in view.
         if (city == null)
           Text('Choose a city first.', style: AtomText.small)
         else
@@ -193,23 +189,16 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
             value: ref.watch(areasProvider(city)),
             compactError: true,
             onRetry: () => ref.invalidate(areasProvider(city)),
-            loading: const Column(children: [AtomSkeleton(height: 48), SizedBox(height: 8), AtomSkeleton(height: 48)]),
-            data: (areas) {
-              final q = _query.trim().toLowerCase();
-              final shown = q.isEmpty ? areas : areas.where((a) => a.title.toLowerCase().contains(q)).toList();
-              if (shown.isEmpty) return Text('No area matches "${_query.trim()}".', style: AtomText.body);
-              return AtomCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    for (var i = 0; i < shown.length; i++) ...[
-                      if (i > 0) const Divider(height: 1, color: AtomColors.line),
-                      _AreaRow(place: shown[i], selected: shown[i].id == _areaId, onTap: () => setState(() => _areaId = shown[i].id)),
-                    ],
-                  ],
-                ),
-              );
-            },
+            loading: const AtomSkeleton(height: 50, radius: AtomRadius.input),
+            data: (areas) => AtomSelectField<AtomPlace>(
+              title: 'Choose your area',
+              searchHint: 'Search your area',
+              hint: 'Select area',
+              options: areas,
+              label: (a) => a.title,
+              selected: areas.where((a) => a.id == _areaId).firstOrNull,
+              onChanged: (a) => setState(() => _areaId = a.id),
+            ),
           ),
         if (ref.watch(atomSignedInProvider)) ...[
           const SizedBox(height: AtomSpace.lg),
@@ -221,42 +210,6 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
         ],
         AuthError(_error),
       ],
-    );
-  }
-}
-
-class _AreaRow extends StatelessWidget {
-  const _AreaRow({required this.place, required this.selected, required this.onTap});
-
-  final AtomPlace place;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 52),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AtomSpace.md),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    place.title,
-                    style: AtomText.label.copyWith(color: selected ? AtomColors.primary : AtomColors.ink, fontWeight: selected ? FontWeight.w800 : FontWeight.w600),
-                  ),
-                ),
-                if (selected) const Icon(Icons.check_rounded, color: AtomColors.primary),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

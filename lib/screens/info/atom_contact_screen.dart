@@ -72,10 +72,37 @@ class _AtomContactScreenState extends ConsumerState<AtomContactScreen> {
       _message.clear();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Message sent. We will get back to you soon.')));
     } catch (e) {
+      if (!mounted) return;
+      // The contact endpoint is not on the server yet: send the same
+      // message on WhatsApp (or email) instead of failing.
+      if (atomNotBuiltYet(e) && await _sendElsewhere()) return;
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(atomMessage(e))));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Opens WhatsApp (or email) with the message written out. False when
+  /// the config has neither.
+  Future<bool> _sendElsewhere() async {
+    final c = ref.read(appConfigProvider).value;
+    if (c == null) return false;
+    final text = [
+      if (_subject.text.trim().isNotEmpty) _subject.text.trim(),
+      _message.text.trim(),
+      '',
+      '${_name.text.trim()} · ${_phone.text.trim()}',
+    ].join('\n');
+    final digits = c.whatsapp.replaceAll(RegExp(r'\D'), '');
+    final wa = digits.isEmpty ? '' : (digits.startsWith('0') ? '92${digits.substring(1)}' : digits);
+    final url = wa.isNotEmpty
+        ? 'https://wa.me/$wa?text=${Uri.encodeComponent(text)}'
+        : c.email.isNotEmpty
+            ? Uri(scheme: 'mailto', path: c.email, query: 'subject=${Uri.encodeComponent(_subject.text.trim().isEmpty ? 'Message from the Atomshop app' : _subject.text.trim())}&body=${Uri.encodeComponent(text)}').toString()
+            : '';
+    if (url.isEmpty || !mounted) return false;
+    await atomOpenUrl(context, url);
+    return true;
   }
 
   static String? _required(String? v, String message) => (v ?? '').trim().isEmpty ? message : null;

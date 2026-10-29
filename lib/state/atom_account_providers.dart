@@ -97,6 +97,7 @@ final unreadNotificationsProvider = FutureProvider.autoDispose<int>((ref) async 
 /// After any change to orders or payments (an order placed, a profile
 /// saved), drop the cached account lists so screens refetch.
 void refreshAccount(WidgetRef ref) {
+  AtomAccountApi.forgetOrders();
   ref
     ..invalidate(accountSummaryProvider)
     ..invalidate(ordersProvider)

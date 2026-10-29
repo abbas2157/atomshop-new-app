@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../data/atom_auth.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
@@ -186,7 +187,7 @@ class _AtomSettingsScreenState extends ConsumerState<AtomSettingsScreen> {
           AccountMenuGroup(
             title: 'Account and security',
             rows: [
-              AccountMenuRow(Icons.person_outline_rounded, 'Profile and verification', () => AtomNav.profile(context)),
+              AccountMenuRow(Icons.person_outline_rounded, AtomAuthApi.supportsExtendedProfile ? 'Profile and verification' : 'Profile', () => AtomNav.profile(context)),
               AccountMenuRow(Icons.place_outlined, 'City and area', () => AtomNav.location(context)),
               AccountMenuRow(Icons.lock_outline_rounded, 'Change password', () => AtomNav.changePassword(context)),
               AccountMenuRow(Icons.delete_outline_rounded, 'Delete account', () => confirmDeleteAccount(context, ref)),

@@ -20,6 +20,7 @@ class ProductCard {
     required this.cashPrice,
     required this.monthlyFrom,
     required this.atompay,
+    this.inStock = true,
   });
 
   final int id;
@@ -33,6 +34,9 @@ class ProductCard {
   final int? monthlyFrom;
   final bool atompay;
 
+  /// False for a sold-out product (shop lists include them, marked).
+  final bool inStock;
+
   factory ProductCard.fromJson(Map<String, dynamic> j) => ProductCard(
         id: _int(j['id']),
         title: _str(j['title']),
@@ -42,6 +46,7 @@ class ProductCard {
         cashPrice: j['cash_price'] == null ? null : _int(j['cash_price']),
         monthlyFrom: j['monthly_from'] == null ? null : _int(j['monthly_from']),
         atompay: j['atompay'] == true,
+        inStock: j['in_stock'] != false,
       );
 }
 

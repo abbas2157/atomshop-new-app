@@ -52,8 +52,9 @@ class AtomProductCard extends StatelessWidget {
                     child: Wrap(
                       spacing: 6,
                       children: [
-                        if (tag != null) AtomBadge(tag!, tone: AtomTone.dark),
-                        if (product.atompay) const AtomBadge('AtomPay', tone: AtomTone.green),
+                        if (!product.inStock) const AtomBadge('Sold out', tone: AtomTone.rose),
+                        if (tag != null && product.inStock) AtomBadge(tag!, tone: AtomTone.dark),
+                        if (product.atompay && product.inStock) const AtomBadge('AtomPay', tone: AtomTone.green),
                       ],
                     ),
                   ),

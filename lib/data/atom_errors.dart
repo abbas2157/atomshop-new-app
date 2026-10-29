@@ -81,8 +81,10 @@ String atomStatusMessage(int status, {Map<String, dynamic> data = const {}}) {
 String atomFriendlyMessage(String? message, {int status = 0, Map<String, dynamic> data = const {}}) {
   var text = (message ?? '').trim();
 
-  // Laravel's missing-route text means the endpoint is not built yet.
+  // Laravel's missing-route and wrong-method texts mean the endpoint the
+  // app needs is not built yet.
   if (status == 404 && text.startsWith('The route ')) return _notYet;
+  if (status == 405 || text.contains('method is not supported')) return _notYet;
 
   // "Validation Error." carries the real reason in the field errors.
   if (text.isEmpty || _key(text) == 'validation error') {
@@ -102,6 +104,10 @@ String atomFriendlyMessage(String? message, {int status = 0, Map<String, dynamic
   if (text.startsWith('The ') && (text.contains(' field') || text.contains(' has already been taken'))) return _validation(text);
   return _sentence(text);
 }
+
+/// The server answered that this endpoint does not exist yet (a feature
+/// the app has but the backend has not built). Optional sections hide.
+bool atomNotBuiltYet(Object? error) => error is AtomApiException && error.message == _notYet;
 
 /// What a screen shows when something did not load: icon, title, message.
 ({IconData icon, String title, String message}) atomLoadError(Object? error) {

@@ -77,6 +77,10 @@ class _AtomCustomDetailsScreenState extends ConsumerState<AtomCustomDetailsScree
           _areaId = p.areaId;
         });
       }
+      // Filling in from the account is not the customer typing.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _dirty) setState(() => _dirty = false);
+      });
     }).ignore();
   }
 
@@ -168,7 +172,17 @@ class _AtomCustomDetailsScreenState extends ConsumerState<AtomCustomDetailsScree
               decoration: BoxDecoration(color: AtomColors.surface, borderRadius: BorderRadius.circular(16)),
               child: Row(
                 children: [
-                  Expanded(child: Text('${widget.draft.title} · ${q.months} months', style: AtomText.label)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${widget.draft.title} · ${q.months} months', style: AtomText.label),
+                        if (q.monthly == 0)
+                          Text('Price ${AtomFormat.rupees(q.price)} · advance ${AtomFormat.rupees(q.advance)}', style: AtomText.small),
+                      ],
+                    ),
+                  ),
+                  if (q.monthly > 0)
                   Text.rich(
                     TextSpan(
                       children: [
@@ -236,6 +250,7 @@ class _AtomCustomDetailsScreenState extends ConsumerState<AtomCustomDetailsScree
                 return null;
               },
             ),
+            if (AtomAccountApi.customOrderTakesExtras) ...[
             const SizedBox(height: 14),
             AtomTextField(
               label: 'Product link',
@@ -293,6 +308,7 @@ class _AtomCustomDetailsScreenState extends ConsumerState<AtomCustomDetailsScree
                       ),
                     ],
                   ),
+            ],
             const SizedBox(height: AtomSpace.md),
             const AtomNotice(icon: Icons.verified_user_outlined, text: 'Sent to verified sellers in your area. Not available with AtomPay.'),
           ],

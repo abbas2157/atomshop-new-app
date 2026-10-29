@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/atom_account.dart';
@@ -10,6 +13,7 @@ import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_nav.dart';
+import '../../shell/atom_shell.dart';
 import '../../state/atom_account_providers.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../utils/atom_format.dart';
@@ -47,10 +51,92 @@ class _AtomAskAtomScreenState extends ConsumerState<AtomAskAtomScreen> {
   final List<_Message> _messages = [const _Message.bot(_greeting)];
   bool _waiting = false;
 
+  // Voice questions, as on the website: English (Pakistan), words fill the
+  // box as they are heard and the question is sent when speech ends.
+  final _speech = SpeechToText();
+  bool _speechReady = false;
+  bool _listening = false;
+
+  /// Speech recognition is missing on this phone (not a permission
+  /// question): the mic is hidden, like the website does.
+  bool _voiceUnavailable = false;
+
   @override
   void dispose() {
+    _speech.cancel();
     _input.dispose();
     super.dispose();
+  }
+
+  void _say(String text) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _toggleVoice() async {
+    if (_listening) {
+      await _speech.stop();
+      return;
+    }
+    if (_waiting) return;
+    if (!_speechReady) {
+      _speechReady = await _speech.initialize(onError: _onSpeechError, onStatus: _onSpeechStatus).catchError((_) => false);
+      if (!_speechReady) {
+        final allowed = await _speech.hasPermission.catchError((_) => false);
+        if (!mounted) return;
+        if (allowed) {
+          setState(() => _voiceUnavailable = true);
+          _say('Voice questions are not available on this phone. Please type your question instead.');
+        } else {
+          _say('Atomshop needs the microphone for voice questions. Turn it on in your phone settings, or type your question instead.');
+        }
+        return;
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _listening = true;
+      _input.clear();
+    });
+    await _speech.listen(
+      onResult: _onSpeechResult,
+      listenOptions: SpeechListenOptions(
+        localeId: 'en_PK',
+        partialResults: true,
+        cancelOnError: true,
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _onSpeechResult(SpeechRecognitionResult r) {
+    if (!mounted || !_listening) return;
+    final words = r.recognizedWords;
+    _input.value = TextEditingValue(text: words, selection: TextSelection.collapsed(offset: words.length));
+    if (r.finalResult) {
+      setState(() => _listening = false);
+      if (words.trim().isNotEmpty) _ask(words);
+    }
+  }
+
+  void _onSpeechStatus(String status) {
+    if (!mounted) return;
+    if ((status == SpeechToText.doneStatus || status == SpeechToText.notListeningStatus) && _listening) {
+      setState(() => _listening = false);
+    }
+  }
+
+  void _onSpeechError(SpeechRecognitionError e) {
+    if (!mounted) return;
+    setState(() => _listening = false);
+    final msg = e.errorMsg;
+    if (msg == 'error_no_match' || msg == 'error_speech_timeout') {
+      _say('We did not catch that. Tap the microphone and try again, or type your question.');
+    } else if (msg.contains('permission')) {
+      _say('Atomshop needs the microphone for voice questions. Turn it on in your phone settings, or type your question instead.');
+    } else {
+      _say('Voice input stopped. Please try again, or type your question.');
+    }
   }
 
   Future<void> _ask(String question, {int? suggestionId}) async {
@@ -61,6 +147,10 @@ class _AtomAskAtomScreenState extends ConsumerState<AtomAskAtomScreen> {
     final history = [for (final m in _messages.where((m) => !m.failed)) (m.fromUser, m.text)];
     final recent = history.length > _historyLimit ? history.sublist(history.length - _historyLimit) : history;
 
+    if (_listening) {
+      _listening = false;
+      _speech.stop();
+    }
     setState(() {
       _messages.add(_Message.user(q));
       _waiting = true;
@@ -101,6 +191,12 @@ class _AtomAskAtomScreenState extends ConsumerState<AtomAskAtomScreen> {
         AtomNav.customOrder(context);
       case 'offer':
         AtomNav.makeOffer(context);
+      case 'shop':
+        AtomNav.toTab(context, ref, AtomTab.shop);
+      case 'faqs':
+        AtomNav.faqs(context);
+      case 'search':
+        AtomNav.search(context, query: a.searchText);
       case 'whatsapp':
         final url = a.url.isNotEmpty ? a.url : (ref.read(appConfigProvider).value?.whatsappUrl ?? '');
         if (url.isNotEmpty) _open(url);
@@ -180,7 +276,13 @@ class _AtomAskAtomScreenState extends ConsumerState<AtomAskAtomScreen> {
                         },
                       ),
                     ),
-                  _Composer(controller: _input, waiting: _waiting, onSend: () => _ask(_input.text)),
+                  _Composer(
+                    controller: _input,
+                    waiting: _waiting,
+                    onSend: () => _ask(_input.text),
+                    listening: _listening,
+                    onVoice: _voiceUnavailable ? null : _toggleVoice,
+                  ),
                 ],
               ),
             ),
@@ -360,6 +462,9 @@ class _BotBubble extends StatelessWidget {
     'whatsapp' => Icons.chat_outlined,
     'custom_order' => Icons.calculate_outlined,
     'offer' => Icons.chat_bubble_outline_rounded,
+    'shop' => Icons.storefront_outlined,
+    'faqs' => Icons.help_outline_rounded,
+    'search' => Icons.search_rounded,
     _ => Icons.open_in_new_rounded,
   };
 }
@@ -438,11 +543,15 @@ class _Typing extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.waiting, required this.onSend});
+  const _Composer({required this.controller, required this.waiting, required this.onSend, this.listening = false, this.onVoice});
 
   final TextEditingController controller;
   final bool waiting;
   final VoidCallback onSend;
+  final bool listening;
+
+  /// Null hides the mic (speech is not available on this phone).
+  final VoidCallback? onVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -466,7 +575,7 @@ class _Composer extends StatelessWidget {
               onSubmitted: (_) => onSend(),
               style: AtomText.body.copyWith(fontSize: 15, color: AtomColors.ink),
               decoration: InputDecoration(
-                hintText: 'Ask about a product or plan…',
+                hintText: listening ? 'Listening… speak now' : 'Ask about a product or plan…',
                 semanticCounterText: 'Ask Atom a question',
                 filled: true,
                 fillColor: AtomColors.surface,
@@ -480,6 +589,31 @@ class _Composer extends StatelessWidget {
               ),
             ),
           ),
+          if (onVoice != null) ...[
+            const SizedBox(width: AtomSpace.xs),
+            Semantics(
+              liveRegion: true,
+              child: Tooltip(
+                message: listening ? 'Stop listening' : 'Speak your question',
+                child: Material(
+                  color: listening ? AtomColors.rose : AtomColors.surface,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: waiting && !listening ? null : onVoice,
+                    child: SizedBox.square(
+                      dimension: AtomSize.iconButton,
+                      child: Icon(
+                        listening ? Icons.stop_rounded : Icons.mic_none_rounded,
+                        color: listening ? AtomColors.white : AtomColors.primary,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(width: AtomSpace.xs),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,

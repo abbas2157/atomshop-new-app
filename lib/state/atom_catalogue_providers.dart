@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/atom_api.dart';
 import '../data/atom_models.dart';
+import '../data/atom_shop.dart';
 import '../data/atom_product_detail.dart';
 import 'atom_cache.dart';
 
@@ -68,7 +69,7 @@ final brandProductsProvider = FutureProvider.autoDispose.family<List<ProductCard
 /// briefly so going back to the results does not refetch.
 final productSearchProvider = FutureProvider.autoDispose.family<List<ProductCard>, String>((ref, query) {
   ref.cacheFor(AtomCacheTime.list);
-  return ref.watch(atomCatalogueApiProvider).products(AtomEndpoints.search(query));
+  return ref.watch(atomShopApiProvider).page(ShopQuery(q: query), perPage: 50).then((p) => p.products);
 });
 
 /// One product page. Kept briefly after the page closes so going back and

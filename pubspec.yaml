@@ -57,6 +57,7 @@ dependencies:
   package_info_plus: ^10.2.2
   connectivity_plus: ^7.3.2
   app_settings: ^6.1.1
+  speech_to_text: ^7.5.0
  
 
 

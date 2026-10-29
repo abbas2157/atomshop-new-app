@@ -44,7 +44,7 @@ class _AtomCustomOrdersScreenState extends ConsumerState<AtomCustomOrdersScreen>
       },
       children: [
         AtomSegmented<bool>(
-          items: {false: 'Custom orders${count(orders)}', true: 'My offers${count(offers)}'},
+          items: {false: 'Custom orders${count(orders)}', true: AtomAccountApi.offersListed ? 'My offers${count(offers)}' : 'My offers'},
           value: _offers,
           onChanged: (v) => setState(() => _offers = v),
         ),
@@ -85,9 +85,16 @@ class _AtomCustomOrdersScreenState extends ConsumerState<AtomCustomOrdersScreen>
             data: (rows) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Offers you sent with Make an offer. Sellers in your area reply and call you.', style: AtomText.body.copyWith(fontSize: 13)),
+                if (AtomAccountApi.offersListed)
+                  Text('Offers you sent with Make an offer. Sellers in your area reply and call you.', style: AtomText.body.copyWith(fontSize: 13)),
                 const SizedBox(height: AtomSpace.sm),
-                if (rows.isEmpty)
+                if (rows.isEmpty && !AtomAccountApi.offersListed)
+                  const AtomEmptyState(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'Replies come on WhatsApp',
+                    message: 'When you make an offer, a verified seller in your area replies on WhatsApp or calls you, usually within a day.',
+                  )
+                else if (rows.isEmpty)
                   const AtomEmptyState(
                     icon: Icons.chat_bubble_outline_rounded,
                     title: 'No offers yet',

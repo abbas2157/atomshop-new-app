@@ -10,7 +10,6 @@ import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_feedback.dart';
 import '../../shell/atom_nav.dart';
-import '../../shell/atom_shell.dart';
 import '../../state/atom_account_providers.dart';
 import '../../state/atom_session.dart';
 import '../../utils/atom_format.dart';
@@ -59,6 +58,9 @@ class AtomAccountScreen extends ConsumerWidget {
                   loading: const AtomSkeleton(height: 84, radius: AtomRadius.card),
                   data: (user) => _ProfileCard(user: user),
                 ),
+                // The summary endpoint is not on the server yet: no card
+                // rather than an error the customer can do nothing about.
+                if (!atomNotBuiltYet(summary.error)) ...[
                 const SizedBox(height: AtomSpace.sm),
                 AtomAsync<AccountSummary>(
                   value: summary,
@@ -75,11 +77,12 @@ class AtomAccountScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                ],
                 AccountMenuGroup(
                   title: 'My shopping',
                   rows: [
                     AccountMenuRow(Icons.dashboard_outlined, 'Overview', () => AtomNav.overview(context)),
-                    AccountMenuRow(Icons.calendar_month_rounded, 'Installments', () => AtomNav.toTab(context, ref, AtomTab.installments),
+                    AccountMenuRow(Icons.calendar_month_rounded, 'Installments', () => AtomNav.installments(context),
                         count: s?.activePlans ?? 0),
                     AccountMenuRow(Icons.receipt_long_outlined, 'Payment history', () => AtomNav.payments(context)),
                     AccountMenuRow(Icons.inventory_2_outlined, 'My orders', () => AtomNav.orders(context)),
@@ -91,7 +94,7 @@ class AtomAccountScreen extends ConsumerWidget {
                 AccountMenuGroup(
                   title: 'Profile and security',
                   rows: [
-                    AccountMenuRow(Icons.person_outline_rounded, 'Profile and verification', () => AtomNav.profile(context)),
+                    AccountMenuRow(Icons.person_outline_rounded, AtomAuthApi.supportsExtendedProfile ? 'Profile and verification' : 'Profile', () => AtomNav.profile(context)),
                     AccountMenuRow(Icons.place_outlined, 'City and area', () => AtomNav.location(context)),
                     AccountMenuRow(Icons.lock_outline_rounded, 'Change password', () => AtomNav.changePassword(context)),
                     AccountMenuRow(Icons.delete_outline_rounded, 'Delete account', () => confirmDeleteAccount(context, ref)),
@@ -216,7 +219,7 @@ class _Stats extends StatelessWidget {
         children: [
           tile('${summary.orders}', summary.orders == 1 ? 'Order' : 'Orders', () => AtomNav.orders(context)),
           const SizedBox(width: AtomSpace.xs),
-          tile('${summary.activePlans}', summary.activePlans == 1 ? 'Active plan' : 'Active plans', () => AtomNav.toTab(context, ref, AtomTab.installments)),
+          tile('${summary.activePlans}', summary.activePlans == 1 ? 'Active plan' : 'Active plans', () => AtomNav.installments(context)),
           const SizedBox(width: AtomSpace.xs),
           tile(AtomFormat.amount(summary.paid), 'Rs. paid', () => AtomNav.payments(context)),
         ],

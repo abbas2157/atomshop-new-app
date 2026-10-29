@@ -31,7 +31,7 @@ class AtomProfileScreen extends ConsumerWidget {
       skipLoadingOnReload: true,
       data: (user) => _ProfileForm(user: user),
       loading: () => const AtomPage(
-        title: 'Profile and verification',
+        title: AtomAuthApi.supportsExtendedProfile ? 'Profile and verification' : 'Profile',
         children: [
           AtomSkeleton(height: 160, radius: AtomRadius.card),
           SizedBox(height: AtomSpace.md),
@@ -215,7 +215,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               const SizedBox(height: 14),
               _ReadOnlyField(label: 'Email', value: u.email, note: 'To change your email, contact us.', onNote: () => AtomNav.contact(context)),
             ],
-            const AtomGroupLabel('Phone numbers'),
+            AtomGroupLabel(_extended ? 'Phone numbers' : 'Phone number'),
             if (_extended)
               _ReadOnlyField(label: 'Mobile', value: u.phone, note: 'To change your mobile number, contact us.', onNote: () => AtomNav.contact(context))
             else

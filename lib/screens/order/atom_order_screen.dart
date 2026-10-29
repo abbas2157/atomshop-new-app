@@ -75,6 +75,10 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
           _areaId = p.areaId;
         });
       }
+      // Filling in from the account is not the customer typing.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _dirty) setState(() => _dirty = false);
+      });
     }).ignore();
   }
 

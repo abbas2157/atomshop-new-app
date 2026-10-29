@@ -35,14 +35,29 @@ class _AtomReceiptScreenState extends ConsumerState<AtomReceiptScreen> {
   bool _sharing = false;
   String? _savedPath;
 
-  /// Saves the PDF once and reuses the file for "Share".
+  /// "pdf", "jpg"… from the receipt file's address.
+  static String _extension(String url) {
+    final last = Uri.tryParse(url)?.pathSegments.lastOrNull ?? '';
+    final dot = last.lastIndexOf('.');
+    final ext = dot < 0 ? '' : last.substring(dot + 1).toLowerCase();
+    return const ['pdf', 'jpg', 'jpeg', 'png', 'webp'].contains(ext) ? ext : 'pdf';
+  }
+
+  static String _mime(String url) => switch (_extension(url)) {
+        'pdf' => 'application/pdf',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => 'image/jpeg',
+      };
+
+  /// Saves the receipt file once and reuses it for "Share".
   Future<String> _pdf(Receipt r) async {
     final saved = _savedPath;
     if (saved != null && File(saved).existsSync()) return saved;
     final bytes = await ref.read(atomAccountApiProvider).receiptPdf(widget.paymentId);
     final dir = await getApplicationDocumentsDirectory();
     final name = (r.receiptNo.isEmpty ? '${widget.paymentId}' : r.receiptNo).replaceAll(RegExp(r'[^A-Za-z0-9-]'), '-');
-    final file = File('${dir.path}${Platform.pathSeparator}receipt-$name.pdf');
+    final file = File('${dir.path}${Platform.pathSeparator}receipt-$name.${_extension(r.pdfUrl)}');
     await file.writeAsBytes(bytes, flush: true);
     return _savedPath = file.path;
   }
@@ -67,7 +82,7 @@ class _AtomReceiptScreenState extends ConsumerState<AtomReceiptScreen> {
     try {
       final path = await _pdf(r);
       await SharePlus.instance.share(ShareParams(
-        files: [XFile(path, mimeType: 'application/pdf')],
+        files: [XFile(path, mimeType: _mime(r.pdfUrl))],
         text: 'Atomshop receipt ${r.receiptNo}: ${AtomFormat.rupees(r.payment.amount)} for ${r.payment.label}',
       ));
     } catch (e) {
@@ -85,13 +100,13 @@ class _AtomReceiptScreenState extends ConsumerState<AtomReceiptScreen> {
 
     return AtomPage(
       title: 'Receipt',
-      bottom: r == null
+      bottom: r == null || r.pdfUrl.isEmpty
           ? null
           : Row(
               children: [
                 Expanded(
                   child: AtomButton(
-                    label: 'Download PDF',
+                    label: _extension(r.pdfUrl) == 'pdf' ? 'Download PDF' : 'Open receipt',
                     icon: Icons.download_rounded,
                     expand: true,
                     loading: _downloading,

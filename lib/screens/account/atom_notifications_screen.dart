@@ -7,7 +7,6 @@ import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_nav.dart';
-import '../../shell/atom_shell.dart';
 import '../../state/atom_account_providers.dart';
 import '../../utils/atom_format.dart';
 import '../../widgets/atom_page.dart';
@@ -103,7 +102,7 @@ class _AtomNotificationsScreenState extends ConsumerState<AtomNotificationsScree
     }
     switch (n.screen.isNotEmpty ? n.screen : n.type) {
       case 'instalments' || 'installments' || 'instalment_paid':
-        AtomNav.toTab(context, ref, AtomTab.installments);
+        AtomNav.installments(context);
       case 'profile' || 'account_verified':
         AtomNav.profile(context);
       case 'orders' || 'order_status' || 'deal_closed' || 'order':
