@@ -26,6 +26,12 @@ Duration? atomRetry(int retryCount, Object error) {
 }
 
 /// Start-up work for the app (call once in `main`, after the binding exists).
+/// Started in main(), before anything else.
+final atomLaunchClock = Stopwatch();
+
+/// The shortest time the launch splash stays on screen.
+const atomSplashMinimum = Duration(milliseconds: 1500);
+
 Future<void> initAtomApp() async {
   AtomImageMemory.configure();
   await _clearOldAppData();
@@ -74,11 +80,24 @@ class AtomApp extends StatefulWidget {
 }
 
 class _AtomAppState extends State<AtomApp> {
+  bool _covered = true;
+
   @override
   void initState() {
     super.initState();
-    // The native splash stays up until the first frame of the shell.
-    WidgetsBinding.instance.addPostFrameCallback((_) => FlutterNativeSplash.remove());
+    // The native splash goes at the first frame; the app's own copy of it
+    // ([_LaunchCover]) takes over there and stays until [atomSplashMinimum]
+    // from launch. Android 12+ shows no system splash when the app is not
+    // opened from its icon (e.g. "Open" after installing), and a release
+    // build draws its first frame almost at once, so without the cover the
+    // splash was often never seen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
+      final wait = atomSplashMinimum - atomLaunchClock.elapsed;
+      Future<void>.delayed(wait.isNegative ? Duration.zero : wait, () {
+        if (mounted) setState(() => _covered = false);
+      });
+    });
   }
 
   @override
@@ -92,10 +111,46 @@ class _AtomAppState extends State<AtomApp> {
       // light ones over it (an AnnotatedRegion nearer the top wins).
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
-        child: AtomTextScaleClamp(child: AtomOfflineBanner(child: AtomUpdateGate(child: child!))),
+        child: Stack(
+          children: [
+            AtomTextScaleClamp(child: AtomOfflineBanner(child: AtomUpdateGate(child: child!))),
+            Positioned.fill(child: _LaunchCover(visible: _covered)),
+          ],
+        ),
       ),
       navigatorKey: atomNavigatorKey,
       home: const AtomShell(),
+    );
+  }
+}
+
+/// The launch splash drawn by the app: the Android 12 splash image at the
+/// size the system shows it (240 x 240 on white), so the hand-over from the
+/// system splash is seamless. Fades out, then stops taking touches.
+class _LaunchCover extends StatelessWidget {
+  const _LaunchCover({required this.visible});
+
+  final bool visible;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 250),
+        child: const ColoredBox(
+          color: Colors.white,
+          child: Center(
+            child: Image(
+              image: AssetImage('assets/launcher/splash_android12.png'),
+              width: 240,
+              height: 240,
+              semanticLabel: 'Atomshop.pk',
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launch splash as a window background: white, with the Android 12
+     splash image at the size Android 12+ shows it (240dp). Used while the
+     app starts on every Android version and every launch path (the system
+     splash only appears when the app is opened from its icon), and matched
+     by the app's own first frame (AtomApp's launch cover in lib/app.dart).
+     flutter_native_splash does not generate this file; keep it when
+     regenerating the splash. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white" />
+    <item
+        android:width="240dp"
+        android:height="240dp"
+        android:gravity="center"
+        android:drawable="@drawable/android12splash" />
+</layer-list>
