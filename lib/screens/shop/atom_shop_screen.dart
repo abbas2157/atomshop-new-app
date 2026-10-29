@@ -113,7 +113,7 @@ class _AtomShopScreenState extends ConsumerState<AtomShopScreen> {
                     skipLoadingOnRefresh: true,
                     data: (items) => _brandResults(_filter(items), gutter),
                     loading: () => [_loading(gutter)],
-                    error: (_, _) => [SliverFillRemaining(hasScrollBody: false, child: AtomErrorState(onRetry: () => ref.invalidate(allBrandsProvider)))],
+                    error: (e, _) => [SliverFillRemaining(hasScrollBody: false, child: AtomErrorState(error: e, onRetry: () => ref.invalidate(allBrandsProvider)))],
                   ),
               ],
             ),

@@ -7,15 +7,16 @@ import '../../data/atom_http.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../shell/atom_nav.dart';
+import '../../widgets/atom_logo.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_text_field.dart';
 import '../info/atom_legal_screen.dart';
 import 'atom_auth_common.dart';
 import 'atom_code_screen.dart';
 
-/// Create account, step 1 of 3 (canvas: "Create account"). The code goes to
-/// WhatsApp (and email when given); step 2 checks it, step 3 asks for the
-/// delivery area.
+/// Create account, step 1 of 3 (canvas: "Create account"). The account
+/// endpoint needs an email and sends the code there; step 2 checks it,
+/// step 3 saves the delivery area with the mobile number.
 class AtomRegisterScreen extends ConsumerStatefulWidget {
   const AtomRegisterScreen({super.key});
 
@@ -64,7 +65,7 @@ class _AtomRegisterScreenState extends ConsumerState<AtomRegisterScreen> {
           );
       if (!mounted) return;
       setState(() => _busy = false);
-      AtomNav.code(context, code, CodePurpose.register, login: _phone.text.trim());
+      AtomNav.code(context, code, CodePurpose.register, login: _email.text.trim());
     } on AtomApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -88,8 +89,8 @@ class _AtomRegisterScreenState extends ConsumerState<AtomRegisterScreen> {
     return AuthScaffold(
       step: 'Step 1 of 3',
       bottom: AtomButton(
-        label: 'Send code on WhatsApp',
-        icon: Icons.chat_outlined,
+        label: 'Send code',
+        icon: Icons.mail_outline_rounded,
         expand: true,
         loading: _busy,
         onPressed: _agreed && !_busy ? _submit : null,
@@ -101,11 +102,11 @@ class _AtomRegisterScreenState extends ConsumerState<AtomRegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Align(alignment: Alignment.centerLeft, child: Image.asset('assets/images/nav-logo.png', height: 32, semanticLabel: 'Atomshop.pk')),
+                const Align(alignment: Alignment.centerLeft, child: AtomLogo(height: 36)),
                 const SizedBox(height: AtomSpace.md),
                 AuthTitle(
                   title: 'Create your account',
-                  subtitle: Text("We'll send a code to your WhatsApp to confirm it's you.", style: AtomText.body),
+                  subtitle: Text("We'll email you a code to confirm it's you.", style: AtomText.body),
                 ),
                 const SizedBox(height: AtomSpace.lg),
                 AtomTextField(
@@ -129,12 +130,11 @@ class _AtomRegisterScreenState extends ConsumerState<AtomRegisterScreen> {
                 const SizedBox(height: 14),
                 AtomTextField(
                   label: 'Email',
-                  optional: true,
                   controller: _email,
                   hint: 'you@example.com',
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
-                  validator: (v) => validateOptionalEmail(v) ?? _server('email'),
+                  validator: (v) => ((v ?? '').trim().isEmpty ? 'Enter your email.' : validateOptionalEmail(v)) ?? _server('email'),
                 ),
                 const SizedBox(height: 14),
                 AtomPasswordField(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/atom_models.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
@@ -20,6 +21,8 @@ class AtomAppsScreen extends ConsumerWidget {
     final config = ref.watch(appConfigProvider).value;
     final gutter = context.atomGutter;
     final brandApp = config?.storeLinks['atombrand']?['android'] ?? '';
+    final sellerLinks = atomSellerLinks(config);
+    final sellerApply = atomSellerApplyUrl(config);
 
     // Light status-bar icons over the dark header.
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -67,7 +70,14 @@ class AtomAppsScreen extends ConsumerWidget {
                   audience: 'For local sellers',
                   name: 'Atom Seller',
                   body: 'Leads from your own area, deals, guarantors and collections on a phone.',
-                  links: config?.storeLinks['atomseller'] ?? config?.storeLinks['seller'],
+                  features: const [
+                    (Icons.location_on_outlined, 'Leads from customers in your own area'),
+                    (Icons.handshake_outlined, 'Close deals and add guarantors'),
+                    (Icons.payments_outlined, 'Track every collection on your phone'),
+                  ],
+                  links: sellerLinks,
+                  applyLabel: 'Become a seller',
+                  applyUrl: sellerApply,
                 ),
                 _AppCard(
                   logo: 'assets/images/app-atombrand.png',
@@ -145,7 +155,17 @@ class AtomAppsScreen extends ConsumerWidget {
 }
 
 class _AppCard extends StatelessWidget {
-  const _AppCard({required this.logo, required this.audience, required this.name, required this.body, this.here = false, this.links});
+  const _AppCard({
+    required this.logo,
+    required this.audience,
+    required this.name,
+    required this.body,
+    this.here = false,
+    this.features = const [],
+    this.links,
+    this.applyLabel = '',
+    this.applyUrl = '',
+  });
 
   /// The app's logo (design asset).
   final String logo;
@@ -154,8 +174,15 @@ class _AppCard extends StatelessWidget {
   final String body;
   final bool here;
 
+  /// What the app does, one line each with an icon.
+  final List<(IconData, String)> features;
+
   /// android / ios store links from the config.
   final Map<String, String?>? links;
+
+  /// Sign-up on the website ("Become a seller"); hidden when empty.
+  final String applyLabel;
+  final String applyUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -190,12 +217,29 @@ class _AppCard extends StatelessWidget {
             ),
             const SizedBox(height: AtomSpace.xs),
             Text(body, style: AtomText.body),
-            if (!here && (android.isNotEmpty || ios.isNotEmpty)) ...[
+            for (final (icon, text) in features) ...[
+              const SizedBox(height: AtomSpace.xs),
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: AtomColors.primary),
+                  const SizedBox(width: AtomSpace.xs),
+                  Expanded(child: Text(text, style: AtomText.body.copyWith(fontSize: 13, color: AtomColors.ink))),
+                ],
+              ),
+            ],
+            if (!here && (android.isNotEmpty || ios.isNotEmpty || applyUrl.isNotEmpty)) ...[
               const SizedBox(height: AtomSpace.sm),
               Wrap(
                 spacing: AtomSpace.xs,
                 runSpacing: AtomSpace.xs,
                 children: [
+                  if (applyUrl.isNotEmpty)
+                    AtomButton(
+                      label: applyLabel,
+                      icon: Icons.storefront_outlined,
+                      size: AtomButtonSize.small,
+                      onPressed: () => atomOpenUrl(context, applyUrl),
+                    ),
                   if (android.isNotEmpty)
                     AtomButton(
                       label: 'Google Play',
@@ -221,3 +265,15 @@ class _AppCard extends StatelessWidget {
     );
   }
 }
+
+/// Atom Seller's store links. Until the config sends its own
+/// (`apps.atomseller`), they are Atomshop's, as on the website's apps and
+/// Smart Seller pages.
+Map<String, String?>? atomSellerLinks(AppConfig? config) {
+  final own = config?.storeLinks['atomseller'];
+  final hasOwn = (own?['android'] ?? '').isNotEmpty || (own?['ios'] ?? '').isNotEmpty;
+  return hasOwn ? own : config?.storeLinks['atomshop'];
+}
+
+/// The seller sign-up form on the website (Smart Seller page).
+String atomSellerApplyUrl(AppConfig? config) => config?.pages['smart-seller'] ?? 'https://atomshop.pk/smart-seller#apply';

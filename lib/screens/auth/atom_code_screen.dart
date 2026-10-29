@@ -31,7 +31,7 @@ class AtomCodeScreen extends ConsumerStatefulWidget {
 }
 
 class _AtomCodeScreenState extends ConsumerState<AtomCodeScreen> {
-  static const _length = 6;
+  static const _length = AtomAuthApi.codeLength;
   static const _wait = 60;
 
   final _code = TextEditingController();

@@ -8,11 +8,15 @@ import '../../widgets/atom_button.dart';
 /// Home sections that are fixed content in the design: delivery area link,
 /// Brand Partner card, the Atom ecosystem and the help links.
 
-/// "Choose your delivery area ▾" above the search pill.
+/// "Choose your delivery area ▾" above the search pill, or, once picked,
+/// "Delivering to Johar Town, Lahore ▾".
 class HomeDeliveryAreaLink extends StatelessWidget {
-  const HomeDeliveryAreaLink({super.key, required this.onTap});
+  const HomeDeliveryAreaLink({super.key, required this.onTap, this.area = ''});
 
   final VoidCallback onTap;
+
+  /// "Johar Town, Lahore", or empty when none is chosen yet.
+  final String area;
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +36,15 @@ class HomeDeliveryAreaLink extends StatelessWidget {
                 children: [
                   const Icon(Icons.location_on_outlined, size: 16, color: AtomColors.primary),
                   const SizedBox(width: 6),
-                  Text(
-                    'Choose your delivery area',
-                    style: AtomText.small.copyWith(fontSize: 13, color: AtomColors.body, fontWeight: FontWeight.w700),
+                  Flexible(
+                    child: Text.rich(
+                      area.isEmpty
+                          ? const TextSpan(text: 'Choose your delivery area')
+                          : TextSpan(children: [const TextSpan(text: 'Delivering to '), TextSpan(text: area, style: const TextStyle(color: AtomColors.ink, fontWeight: FontWeight.w800))]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AtomText.small.copyWith(fontSize: 13, color: AtomColors.body, fontWeight: FontWeight.w700),
+                    ),
                   ),
                   const SizedBox(width: 4),
                   const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AtomColors.body),
@@ -48,10 +58,53 @@ class HomeDeliveryAreaLink extends StatelessWidget {
   }
 }
 
-/// "For brands · Become a Brand Partner" with the counter photo.
-class HomeBrandPartnerCard extends StatelessWidget {
-  const HomeBrandPartnerCard({super.key, required this.onApply, required this.onGetApp});
+/// A partner programme card: photo with the app's badge, eyebrow, title,
+/// one line of copy and "Apply now" / "Get the app".
+class HomePartnerCard extends StatelessWidget {
+  const HomePartnerCard({
+    super.key,
+    required this.photo,
+    required this.photoLabel,
+    this.photoAlignment = const Alignment(0, -0.4),
+    required this.appLogo,
+    required this.appName,
+    required this.eyebrow,
+    required this.title,
+    required this.body,
+    required this.onApply,
+    required this.onGetApp,
+  });
 
+  /// "For brands · Become a Brand Partner" with the counter photo.
+  const HomePartnerCard.brand({super.key, required this.onApply, required this.onGetApp})
+      : photo = 'assets/images/brand-partner.jpg',
+        photoLabel = 'A brand partner serving a customer at a phone counter',
+        photoAlignment = const Alignment(0, -0.4),
+        appLogo = 'assets/images/app-atombrand.png',
+        appName = 'AtomBrand',
+        eyebrow = 'FOR BRANDS',
+        title = 'Become a Brand Partner',
+        body = 'Run your storefront, stock, orders and bulk quotes on Atomshop, all from the AtomBrand app.';
+
+  /// "For sellers · Become an Atom Seller".
+  const HomePartnerCard.seller({super.key, required this.onApply, required this.onGetApp})
+      : photo = 'assets/images/slide-verified-sellers.jpg',
+        photoLabel = 'Sellers checking orders on a tablet in a showroom',
+        photoAlignment = const Alignment(0.7, -0.3),
+        appLogo = 'assets/images/app-atomseller.png',
+        appName = 'Atom Seller',
+        eyebrow = 'FOR SELLERS',
+        title = 'Become an Atom Seller',
+        body = 'Sell on installments to customers near you: get leads, close deals and track collections in the Atom Seller app.';
+
+  final String photo;
+  final String photoLabel;
+  final Alignment photoAlignment;
+  final String appLogo;
+  final String appName;
+  final String eyebrow;
+  final String title;
+  final String body;
   final VoidCallback onApply;
   final VoidCallback onGetApp;
 
@@ -73,11 +126,11 @@ class HomeBrandPartnerCard extends StatelessWidget {
               children: [
                 LayoutBuilder(
                   builder: (context, c) => Image.asset(
-                    'assets/images/brand-partner.jpg',
+                    photo,
                     fit: BoxFit.cover,
-                    alignment: const Alignment(0, -0.4),
+                    alignment: photoAlignment,
                     cacheWidth: (c.maxWidth * MediaQuery.devicePixelRatioOf(context)).round(),
-                    semanticLabel: 'A brand partner serving a customer at a phone counter',
+                    semanticLabel: photoLabel,
                   ),
                 ),
                 Positioned(
@@ -90,10 +143,10 @@ class HomeBrandPartnerCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Image.asset('assets/images/app-atombrand.png', width: 20, height: 20, excludeFromSemantics: true),
+                        Image.asset(appLogo, width: 20, height: 20, excludeFromSemantics: true),
                         const SizedBox(width: 6),
                         Text(
-                          'AtomBrand',
+                          appName,
                           style: AtomText.small.copyWith(color: AtomColors.ink, fontWeight: FontWeight.w800),
                         ),
                       ],
@@ -108,12 +161,12 @@ class HomeBrandPartnerCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('FOR BRANDS', style: AtomText.eyebrow),
+                Text(eyebrow, style: AtomText.eyebrow),
                 const SizedBox(height: AtomSpace.xs),
-                Text('Become a Brand Partner', style: AtomText.heading.copyWith(fontSize: 19)),
+                Text(title, style: AtomText.heading.copyWith(fontSize: 19)),
                 const SizedBox(height: AtomSpace.xs),
                 Text(
-                  'Run your storefront, stock, orders and bulk quotes on Atomshop, all from the AtomBrand app.',
+                  body,
                   style: AtomText.body.copyWith(fontSize: 13),
                 ),
                 const SizedBox(height: AtomSpace.sm),

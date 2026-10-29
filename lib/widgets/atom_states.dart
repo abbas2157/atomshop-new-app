@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../data/atom_errors.dart';
 import '../design/atom_text.dart';
 import '../design/atom_tokens.dart';
 import 'atom_button.dart';
@@ -75,19 +76,22 @@ class AtomEmptyState extends StatelessWidget {
   }
 }
 
-/// Error with a retry button.
+/// Error with a retry button. Pass the [error] so the screen says what went
+/// wrong (offline, slow, server trouble, not found) instead of guessing.
 class AtomErrorState extends StatelessWidget {
-  const AtomErrorState({super.key, required this.onRetry, this.message});
+  const AtomErrorState({super.key, required this.onRetry, this.message, this.error});
 
   final VoidCallback onRetry;
   final String? message;
+  final Object? error;
 
   @override
   Widget build(BuildContext context) {
+    final info = atomLoadError(error);
     return AtomEmptyState(
-      icon: Icons.wifi_off_rounded,
-      title: 'Could not load this',
-      message: message ?? 'Check your internet connection and try again.',
+      icon: info.icon,
+      title: info.title,
+      message: message ?? info.message,
       actionLabel: 'Try again',
       actionIcon: Icons.refresh_rounded,
       onAction: onRetry,
@@ -123,15 +127,16 @@ class AtomAsync<T> extends StatelessWidget {
       skipLoadingOnReload: true,
       data: data,
       loading: () => loading,
-      error: (error, _) => compactError ? _InlineRetry(onRetry: onRetry) : AtomErrorState(onRetry: onRetry),
+      error: (error, _) => compactError ? _InlineRetry(onRetry: onRetry, error: error) : AtomErrorState(onRetry: onRetry, error: error),
     );
   }
 }
 
 class _InlineRetry extends StatelessWidget {
-  const _InlineRetry({required this.onRetry});
+  const _InlineRetry({required this.onRetry, this.error});
 
   final VoidCallback onRetry;
+  final Object? error;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +144,7 @@ class _InlineRetry extends StatelessWidget {
       children: [
         const Icon(Icons.error_outline_rounded, size: 18, color: AtomColors.muted),
         const SizedBox(width: AtomSpace.xs),
-        Expanded(child: Text('Could not load this section.', style: AtomText.body.copyWith(fontSize: 13))),
+        Expanded(child: Text(atomLoadError(error).message, style: AtomText.body.copyWith(fontSize: 13))),
         AtomButton(label: 'Retry', icon: Icons.refresh_rounded, onPressed: onRetry, size: AtomButtonSize.small, variant: AtomButtonVariant.secondary),
       ],
     );

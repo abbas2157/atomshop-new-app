@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/atom_http.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../widgets/atom_button.dart';
@@ -29,26 +30,41 @@ class InfoEyebrow extends StatelessWidget {
 
 
 /// Error for a server page that did not load: retry, or read it on the
-/// website (the page endpoint may not be live yet).
+/// website. Only a lost connection says "check your internet"; when the
+/// server answers without the page (endpoint not live yet) it says so and
+/// leads with the website.
 class InfoPageError extends StatelessWidget {
-  const InfoPageError({super.key, required this.onRetry, required this.websiteUrl});
+  const InfoPageError({super.key, required this.onRetry, required this.websiteUrl, this.error});
 
   final VoidCallback onRetry;
   final String websiteUrl;
+  final Object? error;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        AtomErrorState(onRetry: onRetry),
-        AtomButton(
-          label: 'Read on atomshop.pk',
-          icon: Icons.open_in_new_rounded,
-          variant: AtomButtonVariant.secondary,
-          size: AtomButtonSize.medium,
-          onPressed: () => atomOpenUrl(context, websiteUrl),
-        ),
-      ],
+    final e = error;
+    final offline = e is! AtomApiException || e.isOffline;
+    if (offline) {
+      return Column(
+        children: [
+          AtomErrorState(onRetry: onRetry, error: error),
+          AtomButton(
+            label: 'Read on atomshop.pk',
+            icon: Icons.open_in_new_rounded,
+            variant: AtomButtonVariant.secondary,
+            size: AtomButtonSize.medium,
+            onPressed: () => atomOpenUrl(context, websiteUrl),
+          ),
+        ],
+      );
+    }
+    return AtomEmptyState(
+      icon: Icons.article_outlined,
+      title: 'Read this on our website',
+      message: 'This page is not in the app yet. The full, up-to-date version is on atomshop.pk.',
+      actionLabel: 'Open on atomshop.pk',
+      actionIcon: Icons.open_in_new_rounded,
+      onAction: () => atomOpenUrl(context, websiteUrl),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../data/atom_design_content.dart';
@@ -22,13 +24,37 @@ class AtomHomeHero extends StatefulWidget {
 }
 
 class _AtomHomeHeroState extends State<AtomHomeHero> {
+  /// Time on each slide before it moves on by itself.
+  static const _interval = Duration(seconds: 3);
+
   final _controller = PageController();
   int _page = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  /// (Re)starts the countdown to the next slide. Not when there is one
+  /// slide, nor when the phone asks for reduced motion.
+  void _schedule() {
+    _timer?.cancel();
+    if (widget.slides.length < 2) return;
+    _timer = Timer(_interval, () {
+      if (!mounted || !_controller.hasClients) return;
+      if (MediaQuery.disableAnimationsOf(context)) return;
+      final next = (_page + 1) % widget.slides.length;
+      _controller.animateToPage(next, duration: const Duration(milliseconds: 450), curve: Curves.easeInOut);
+    });
   }
 
   @override
@@ -46,11 +72,19 @@ class _AtomHomeHeroState extends State<AtomHomeHero> {
           height: 220 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.15),
           child: Stack(
             children: [
-              PageView.builder(
-                controller: _controller,
-                itemCount: slides.length,
-                onPageChanged: (i) => setState(() => _page = i),
-                itemBuilder: (context, i) => _Slide(slide: slides[i], onAction: widget.onAction),
+              // Pause while the customer swipes; start over once they let go.
+              NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (n is ScrollStartNotification && n.dragDetails != null) _timer?.cancel();
+                  if (n is ScrollEndNotification) _schedule();
+                  return false;
+                },
+                child: PageView.builder(
+                  controller: _controller,
+                  itemCount: slides.length,
+                  onPageChanged: (i) => setState(() => _page = i),
+                  itemBuilder: (context, i) => _Slide(slide: slides[i], onAction: widget.onAction),
+                ),
               ),
               if (slides.length > 1)
                 Positioned(

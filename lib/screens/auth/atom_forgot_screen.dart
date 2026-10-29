@@ -24,7 +24,6 @@ class AtomForgotScreen extends ConsumerStatefulWidget {
 class _AtomForgotScreenState extends ConsumerState<AtomForgotScreen> {
   final _form = GlobalKey<FormState>();
   late final _login = TextEditingController(text: widget.login);
-  bool _byEmail = false;
   bool _busy = false;
   String? _error;
 
@@ -44,7 +43,7 @@ class _AtomForgotScreenState extends ConsumerState<AtomForgotScreen> {
       _error = null;
     });
     try {
-      final code = await ref.read(atomAuthApiProvider).forgotPassword(login: _login.text, byEmail: _byEmail);
+      final code = await ref.read(atomAuthApiProvider).forgotPassword(login: _login.text, byEmail: false);
       if (!mounted) return;
       setState(() => _busy = false);
       AtomNav.resetPassword(context, code);
@@ -82,61 +81,10 @@ class _AtomForgotScreenState extends ConsumerState<AtomForgotScreen> {
             validator: validateLogin,
           ),
         ),
-        const SizedBox(height: AtomSpace.lg),
-        Semantics(header: true, child: Text('Send the code by', style: AtomText.label)),
-        const SizedBox(height: AtomSpace.xs),
-        _ChannelRow(label: 'WhatsApp', icon: Icons.chat_outlined, selected: !_byEmail, onTap: () => setState(() => _byEmail = false)),
-        const SizedBox(height: AtomSpace.xs),
-        _ChannelRow(label: 'Email', icon: Icons.mail_outline_rounded, selected: _byEmail, onTap: () => setState(() => _byEmail = true)),
+        const SizedBox(height: AtomSpace.sm),
+        Text('We send the code to your WhatsApp and, if your account has one, your email.', style: AtomText.small),
         AuthError(_error),
       ],
-    );
-  }
-}
-
-/// Full-width radio row.
-class _ChannelRow extends StatelessWidget {
-  const _ChannelRow({required this.label, required this.icon, required this.selected, required this.onTap});
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      inMutuallyExclusiveGroup: true,
-      checked: selected,
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: Material(
-        color: selected ? AtomColors.primarySoft : AtomColors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AtomRadius.input),
-          side: BorderSide(color: selected ? AtomColors.primary : AtomColors.line2, width: selected ? 1.5 : 1),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AtomSpace.md),
-              child: Row(
-                children: [
-                  Icon(selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, color: selected ? AtomColors.primary : AtomColors.muted),
-                  const SizedBox(width: AtomSpace.sm),
-                  Icon(icon, size: 20, color: AtomColors.body),
-                  const SizedBox(width: AtomSpace.xs),
-                  Text(label, style: AtomText.label),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

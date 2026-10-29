@@ -9,15 +9,16 @@ import '../../shell/atom_nav.dart';
 import '../../widgets/atom_network_image.dart';
 import '../../widgets/atom_surfaces.dart';
 
-/// One row of an account menu: icon tile, label, optional gold count badge,
-/// chevron.
+/// One row of an account menu: icon tile, label, optional gold count badge
+/// or grey value ("Allowed", "23.4 MB"), chevron.
 class AccountMenuRow {
-  const AccountMenuRow(this.icon, this.label, this.onTap, {this.count = 0});
+  const AccountMenuRow(this.icon, this.label, this.onTap, {this.count = 0, this.value = ''});
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final int count;
+  final String value;
 }
 
 /// A titled white card of [AccountMenuRow]s with dividers.
@@ -61,7 +62,7 @@ class _MenuRowTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: row.count > 0 ? '${row.label}, ${row.count} new' : row.label,
+      label: [row.label, if (row.count > 0) '${row.count} new', if (row.value.isNotEmpty) row.value].join(', '),
       excludeSemantics: true,
       child: InkWell(
         onTap: row.onTap,
@@ -90,6 +91,12 @@ class _MenuRowTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                 ],
+                if (row.value.isNotEmpty) ...[
+                  Flexible(
+                    child: Text(row.value, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end, style: AtomText.small),
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 const Icon(Icons.chevron_right_rounded, color: AtomColors.placeholder),
               ],
             ),
@@ -102,6 +109,7 @@ class _MenuRowTile extends StatelessWidget {
 
 /// "Help and info" rows, shared by the guest and signed-in account tabs.
 List<AccountMenuRow> helpRows(BuildContext context) => [
+      AccountMenuRow(Icons.settings_outlined, 'Settings', () => AtomNav.settings(context)),
       AccountMenuRow(Icons.phone_outlined, 'Contact us', () => AtomNav.contact(context)),
       AccountMenuRow(Icons.help_outline_rounded, 'FAQs', () => AtomNav.faqs(context)),
       AccountMenuRow(Icons.info_outline_rounded, 'About us', () => AtomNav.about(context)),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,12 +11,18 @@ import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_nav.dart';
 import '../../shell/atom_shell.dart';
+import '../../state/atom_delivery_area.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_session.dart';
+import '../../widgets/atom_auto_scroll_row.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_catalogue_widgets.dart';
+import '../../widgets/atom_logo.dart';
+import '../../widgets/atom_network_image.dart';
 import '../../widgets/atom_states.dart';
 import '../../widgets/atom_surfaces.dart';
+import '../info/atom_apps_screen.dart';
+import '../info/atom_info_widgets.dart';
 import 'atom_home_hero.dart';
 import 'atom_home_sections.dart';
 
@@ -58,7 +66,10 @@ class AtomHomeScreen extends ConsumerWidget {
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.xs)),
-                padded(HomeDeliveryAreaLink(onTap: () => AtomNav.location(context))),
+                padded(HomeDeliveryAreaLink(
+                  area: ref.watch(deliveryAreaProvider).value?.label ?? '',
+                  onTap: () => AtomNav.location(context),
+                )),
                 const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.xs)),
                 padded(_SearchPill(onTap: () => AtomNav.search(context))),
                 gap,
@@ -87,7 +98,7 @@ class AtomHomeScreen extends ConsumerWidget {
                   child: _FeaturedRow(gutter: gutter, onOpen: (p) => _openProduct(context, p)),
                 ),
                 gap,
-                padded(AtomSectionHeader(title: 'Top brands on installments', actionLabel: 'All brands', onAction: goShop)),
+                padded(AtomSectionHeader(title: 'Our brand partners', subtitle: 'Official brands selling on Atomshop', actionLabel: 'All brands', onAction: goShop)),
                 const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.sm)),
                 SliverToBoxAdapter(
                   child: _BrandsRow(gutter: gutter, onOpen: (b) => AtomNav.brand(context, b)),
@@ -99,7 +110,9 @@ class AtomHomeScreen extends ConsumerWidget {
                 gap,
                 padded(_OrderAnythingRow(onCustomOrder: () => AtomNav.customOrder(context), onMakeOffer: () => AtomNav.makeOffer(context))),
                 gap,
-                padded(HomeBrandPartnerCard(onApply: () => AtomNav.apps(context), onGetApp: () => AtomNav.apps(context))),
+                padded(HomePartnerCard.brand(onApply: () => AtomNav.apps(context), onGetApp: () => AtomNav.apps(context))),
+                gap,
+                padded(HomePartnerCard.seller(onApply: () => atomOpenUrl(context, atomSellerApplyUrl(ref.read(appConfigProvider).value)), onGetApp: () => AtomNav.apps(context))),
                 gap,
                 padded(HomeEcosystemCard(onOpen: () => AtomNav.apps(context))),
                 gap,
@@ -137,12 +150,7 @@ class _Header extends StatelessWidget {
           Expanded(
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Image.asset(
-                'assets/images/nav-logo.png',
-                height: 36,
-                cacheHeight: (36 * MediaQuery.devicePixelRatioOf(context)).round(),
-                semanticLabel: 'Atomshop.pk, pay in steps',
-              ),
+              child: const AtomLogo(),
             ),
           ),
           AtomIconButton(icon: Icons.notifications_none_rounded, tooltip: 'Notifications', onPressed: onNotifications),
@@ -293,22 +301,22 @@ class _FeaturedRow extends ConsumerWidget {
     final cardWidth = context.atomPick<double>(compact: 168, medium: 190, expanded: 210);
     final height = cardWidth / 1.25 + 112 * MediaQuery.textScalerOf(context).scale(1);
 
-    Widget row(int count, Widget Function(int) item) => SizedBox(
+    // Skeletons stay still; loaded cards drift slowly.
+    Widget row(int count, Widget Function(int) item, {bool auto = true}) => AtomAutoScrollRow(
       height: height,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: gutter),
-        itemCount: count,
-        separatorBuilder: (_, _) => const SizedBox(width: AtomSpace.sm),
-        itemBuilder: (_, i) => SizedBox(width: cardWidth, child: item(i)),
-      ),
+      itemWidth: cardWidth,
+      gutter: gutter,
+      spacing: AtomSpace.sm,
+      autoScroll: auto,
+      itemCount: count,
+      itemBuilder: (_, i) => item(i),
     );
 
     return AtomAsync<List<ProductCard>>(
       value: ref.watch(featuredProductsProvider),
       onRetry: () => ref.invalidate(featuredProductsProvider),
       compactError: true,
-      loading: row(3, (_) => const AtomProductCardSkeleton()),
+      loading: row(3, (_) => const AtomProductCardSkeleton(), auto: false),
       data: (products) => products.isEmpty
           ? const SizedBox.shrink()
           : row(products.length, (i) => AtomProductCard(product: products[i], tag: 'Hot', onTap: () => onOpen(products[i]))),
@@ -316,6 +324,8 @@ class _FeaturedRow extends ConsumerWidget {
   }
 }
 
+/// Brand partners as detailed cards, two to a page. Unlike "Hot right
+/// now" (a slow drift) this pages: it turns every few seconds, with dots.
 class _BrandsRow extends ConsumerWidget {
   const _BrandsRow({required this.gutter, required this.onOpen});
 
@@ -324,23 +334,205 @@ class _BrandsRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    Widget row(int count, Widget Function(int) item) => SizedBox(
-      height: 64,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: gutter),
-        itemCount: count,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (_, i) => item(i),
-      ),
-    );
+    final scale = MediaQuery.textScalerOf(context);
+    // Padding + logo box + gaps + name, badge and count lines + button.
+    final height = 2 * AtomSpace.sm + 76 + 3 * AtomSpace.xs + scale.scale(15) * 1.3 + scale.scale(12) * 1.4 * 2 + AtomSpace.xxs + AtomSize.buttonSm + AtomSpace.xs;
 
     return AtomAsync<List<CatalogueItem>>(
       value: ref.watch(homeBrandsProvider),
       onRetry: () => ref.invalidate(homeBrandsProvider),
       compactError: true,
-      loading: row(5, (_) => const AtomSkeleton(width: 96, height: 64, radius: 18)),
-      data: (brands) => row(brands.length, (i) => AtomBrandTile(item: brands[i], onTap: () => onOpen(brands[i]))),
+      loading: Padding(
+        padding: EdgeInsets.symmetric(horizontal: gutter),
+        child: Row(
+          children: [
+            Expanded(child: AtomSkeleton(height: height, radius: AtomRadius.card)),
+            const SizedBox(width: AtomSpace.sm),
+            Expanded(child: AtomSkeleton(height: height, radius: AtomRadius.card)),
+          ],
+        ),
+      ),
+      data: (brands) => brands.isEmpty
+          ? const SizedBox.shrink()
+          : _BrandPager(brands: brands, height: height, gutter: gutter, onOpen: onOpen),
+    );
+  }
+}
+
+class _BrandPager extends StatefulWidget {
+  const _BrandPager({required this.brands, required this.height, required this.gutter, required this.onOpen});
+
+  final List<CatalogueItem> brands;
+  final double height;
+  final double gutter;
+  final ValueChanged<CatalogueItem> onOpen;
+
+  @override
+  State<_BrandPager> createState() => _BrandPagerState();
+}
+
+class _BrandPagerState extends State<_BrandPager> {
+  static const _perPage = 2;
+  static const _interval = Duration(seconds: 4);
+
+  final _controller = PageController();
+  int _page = 0;
+  Timer? _timer;
+
+  int get _pages => (widget.brands.length / _perPage).ceil();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _schedule();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    if (_pages < 2 || MediaQuery.disableAnimationsOf(context)) return;
+    _timer = Timer(_interval, () {
+      if (!mounted || !_controller.hasClients) return;
+      _controller.animateToPage((_page + 1) % _pages, duration: const Duration(milliseconds: 600), curve: Curves.easeInOut);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final brands = widget.brands;
+    return Column(
+      children: [
+        SizedBox(
+          height: widget.height,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (n) {
+              // Hold still while the customer swipes; count again after.
+              if (n is ScrollStartNotification && n.dragDetails != null) _timer?.cancel();
+              if (n is ScrollEndNotification) _schedule();
+              return false;
+            },
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: _pages,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (_, page) => Padding(
+                padding: EdgeInsets.symmetric(horizontal: widget.gutter),
+                child: Row(
+                  children: [
+                    for (var k = 0; k < _perPage; k++) ...[
+                      if (k > 0) const SizedBox(width: AtomSpace.sm),
+                      Expanded(
+                        child: page * _perPage + k < brands.length
+                            ? _BrandPartnerTile(
+                                brand: brands[page * _perPage + k],
+                                onTap: () => widget.onOpen(brands[page * _perPage + k]),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (_pages > 1) ...[
+          const SizedBox(height: AtomSpace.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < _pages; i++)
+                Semantics(
+                  button: true,
+                  label: 'Brands page ${i + 1} of $_pages',
+                  selected: i == _page,
+                  child: GestureDetector(
+                    onTap: () => _controller.animateToPage(i, duration: const Duration(milliseconds: 300), curve: Curves.easeOut),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: i == _page ? 22 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: i == _page ? AtomColors.primary : AtomColors.line2,
+                          borderRadius: BorderRadius.circular(AtomRadius.pill),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _BrandPartnerTile extends StatelessWidget {
+  const _BrandPartnerTile({required this.brand, required this.onTap});
+
+  final CatalogueItem brand;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = brand.productCount;
+    return AtomCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AtomSpace.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 76,
+            padding: const EdgeInsets.symmetric(horizontal: AtomSpace.md, vertical: AtomSpace.sm),
+            decoration: BoxDecoration(color: AtomColors.surface, borderRadius: BorderRadius.circular(AtomRadius.input)),
+            child: brand.picture.isEmpty
+                ? Center(child: Text(brand.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AtomText.subheading))
+                : AtomNetworkImage(brand.picture, fit: BoxFit.contain, semanticLabel: brand.title, placeholderIcon: Icons.storefront_outlined),
+          ),
+          const SizedBox(height: AtomSpace.xs),
+          Text(brand.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AtomText.subheading),
+          const SizedBox(height: AtomSpace.xxs),
+          Row(
+            children: [
+              const Icon(Icons.verified_rounded, size: 14, color: AtomColors.primary),
+              const SizedBox(width: AtomSpace.xxs),
+              Flexible(
+                child: Text(
+                  'Official partner',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AtomText.small.copyWith(color: AtomColors.primary, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            count == null || count <= 0 ? 'On installments' : '$count ${count == 1 ? 'product' : 'products'}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AtomText.small,
+          ),
+          const Spacer(),
+          AtomButton(
+            label: 'Shop now',
+            icon: Icons.arrow_forward_rounded,
+            onPressed: onTap,
+            variant: AtomButtonVariant.secondary,
+            size: AtomButtonSize.small,
+            expand: true,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -369,7 +561,7 @@ class _TopPicksGrid extends ConsumerWidget {
             ],
           ),
         ),
-        error: (_, _) => SliverToBoxAdapter(child: AtomErrorState(onRetry: () => ref.invalidate(topPicksProvider))),
+        error: (e, _) => SliverToBoxAdapter(child: AtomErrorState(error: e, onRetry: () => ref.invalidate(topPicksProvider))),
       ),
     );
   }

@@ -41,6 +41,6 @@ void main() {
 
   test('error messages drop the Exception prefix; network failures read plainly', () {
     expect(atomErrorMessage(Exception('That installment tenure is not available.')), 'That installment tenure is not available.');
-    expect(atomErrorMessage(Exception('Network Error: connection refused')), 'Check your internet connection and try again.');
+    expect(atomErrorMessage(Exception('Network Error: connection refused')), 'You seem to be offline. Check your internet connection and try again.');
   });
 }

@@ -148,6 +148,7 @@ Add `order_uuid` (the uuid `api/app/orders/{uuid}` accepts: the `Order`'s for a 
 - `GET api/products?q=`: add `cash_price`, `monthly_from`, `atompay` the same way as the category/brand lists (`HomePageController::withPlans`). Active-brand filtering is already in place.
 - `GET api/products/{id}`: add `slug` and `url` (`route('website.product.detail', $slug)`).
 - `api/app/config`: add `pages` (slug → website url) and `apps.atomseller {android, ios}` from new env keys `ATOMSELLER_APP_ANDROID` / `ATOMSELLER_APP_IOS` (add to `config/website.php` like `atombrand`, and to `.env.example`). The website shows no support hours, so don't invent them.
+- `GET api/products/feature` (Home "Hot right now"): today it returns the `app_setups.feature_products` snapshot, which only changes when an admin presses Sync in App setup (2 products in the snapshot vs 19 featured locally). Return the live featured products instead: `Product::where(['status' => 'Published', 'feature' => '1', 'app_home' => '1'])->fromActiveBrand()` (the same filter App setup's Sync uses), newest first, limit 20, same fields and `withPlans` as now. Keep the response shape. Fall back to the snapshot only if no product is featured.
 - `hack@123` in `Api\AccountController@login`: still waiting on the owner; don't touch it.
 
 ## J. Reliability (from the app audit)

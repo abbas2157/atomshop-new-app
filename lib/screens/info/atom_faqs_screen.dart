@@ -45,7 +45,7 @@ class _AtomFaqsScreenState extends ConsumerState<AtomFaqsScreen> {
           loading: () => [
             for (var i = 0; i < 5; i++) ...[const AtomSkeleton(height: 64, radius: AtomRadius.card), const SizedBox(height: AtomSpace.xs)],
           ],
-          error: (_, _) => [InfoPageError(onRetry: () => ref.invalidate(pageContentProvider('faqs')), websiteUrl: ref.watch(appConfigProvider).value?.pages['faqs'] ?? 'https://atomshop.pk/faqs')],
+          error: (e, _) => [InfoPageError(error: e, onRetry: () => ref.invalidate(pageContentProvider('faqs')), websiteUrl: ref.watch(appConfigProvider).value?.pages['faqs'] ?? 'https://atomshop.pk/faqs')],
         ),
         const SizedBox(height: AtomSpace.lg),
         AtomCard(

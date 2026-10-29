@@ -121,6 +121,9 @@ class SessionManager {
       _storage.delete(key: _keyEmail),
       _storage.delete(key: _keyCity),
       _storage.delete(key: _keyArea),
+      // Area names saved for Home's "Delivering to …" (atom_delivery_area.dart).
+      _storage.delete(key: 'city_title'),
+      _storage.delete(key: 'area_title'),
       _storage.delete(key: _keyAddress),
       _storage.delete(key: _keyRole),
     ]);

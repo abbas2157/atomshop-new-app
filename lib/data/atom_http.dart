@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/auth/session_manager.dart';
 import '../core/network/api_endpoints.dart';
 import '../core/network/reachability.dart';
+import 'atom_errors.dart';
+
+export 'atom_errors.dart';
 
 /// An API refusal or failure with a sentence the customer can act on.
 ///
@@ -23,11 +26,12 @@ class AtomApiException implements Exception {
   bool get isUnauthorised => statusCode == 401;
   bool get isRateLimited => statusCode == 429;
 
-  /// First message for [field] from Laravel's `{field: [messages]}`.
+  /// First message for [field] from Laravel's `{field: [messages]}`, in
+  /// customer words. Only lists count: older endpoints echo the request
+  /// back as plain strings, which are not errors.
   String? fieldError(String field) {
     final v = data[field];
-    if (v is List && v.isNotEmpty) return v.first.toString();
-    if (v is String && v.isNotEmpty) return v;
+    if (v is List && v.isNotEmpty) return atomFriendlyMessage('Validation Error.', status: 422, data: {field: v});
     return null;
   }
 
@@ -64,6 +68,14 @@ class AtomHttp {
   Future<dynamic> post(String path, [Map<String, dynamic>? body]) =>
       _send(() async => _dio.post(path, data: body ?? const {}, options: await _options()));
 
+  /// Like [get] and [post] but returns the whole envelope. Some older
+  /// endpoints put their result in `message` and a sentence in `data`.
+  Future<Map<String, dynamic>> getEnvelope(String path) async =>
+      Map<String, dynamic>.from(await _send(() async => _dio.get(path, options: await _options()), raw: true) as Map);
+
+  Future<Map<String, dynamic>> postEnvelope(String path, [Map<String, dynamic>? body]) async =>
+      Map<String, dynamic>.from(await _send(() async => _dio.post(path, data: body ?? const {}, options: await _options()), raw: true) as Map);
+
   /// Multipart post; [files] maps field name → local file path. A field
   /// ending in `[]` may carry several files.
   Future<dynamic> postFiles(String path, Map<String, dynamic> fields, Map<String, List<String>> files) => _send(() async {
@@ -83,10 +95,11 @@ class AtomHttp {
   Future<List<int>> bytes(String path) async {
     try {
       final res = await _dio.get<List<int>>(path, options: (await _options()).copyWith(responseType: ResponseType.bytes));
-      if ((res.statusCode ?? 500) >= 400) throw AtomApiException('Could not download the file.', statusCode: res.statusCode ?? 500);
+      final status = res.statusCode ?? 500;
+      if (status >= 400) throw AtomApiException('We could not download this file. Please try again.', statusCode: status);
       return res.data ?? const [];
-    } on DioException {
-      throw const AtomApiException('Check your internet connection and try again.');
+    } on DioException catch (e) {
+      throw AtomApiException(atomDioMessage(e));
     }
   }
 
@@ -95,14 +108,13 @@ class AtomHttp {
     return Options(headers: {if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token'});
   }
 
-  Future<dynamic> _send(Future<Response<dynamic>> Function() request) async {
+  Future<dynamic> _send(Future<Response<dynamic>> Function() request, {bool raw = false}) async {
     final Response<dynamic> res;
     try {
       res = await request();
     } on DioException catch (e) {
       atomServerReachable.value = false;
-      final timedOut = e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout;
-      throw AtomApiException(timedOut ? 'The server is taking too long. Please try again.' : 'Check your internet connection and try again.');
+      throw AtomApiException(atomDioMessage(e));
     }
 
     atomServerReachable.value = true;
@@ -110,49 +122,48 @@ class AtomHttp {
     final body = res.data;
     final envelope = body is Map ? Map<String, dynamic>.from(body) : const <String, dynamic>{};
     final ok = status < 400 && envelope['success'] != false;
-    if (ok) return envelope.containsKey('data') ? envelope['data'] : body;
+    if (ok) {
+      if (raw) return envelope;
+      return envelope.containsKey('data') ? envelope['data'] : body;
+    }
 
     if (status == 401 && res.requestOptions.headers.containsKey('Authorization')) onUnauthorised?.call();
-    final data = envelope['data'];
-    var message = envelope['message'];
-    // Laravel's "The route … could not be found." means the server doesn't
-    // have this feature yet; never show framework text to customers.
-    if (status == 404 && message is String && message.startsWith('The route ')) {
-      message = 'This isn’t available yet. Please try again later.';
-    }
+    final answer = envelope['data'];
+    // Older endpoints echo the request (password included) back on errors;
+    // never keep a password in memory longer than the request.
+    final data = answer is Map
+        ? <String, dynamic>{
+            for (final e in answer.entries)
+              if (!'${e.key}'.contains('password')) '${e.key}': e.value,
+          }
+        : const <String, dynamic>{};
+    final message = envelope['message'];
     throw AtomApiException(
-      message is String && message.isNotEmpty && message != 'Validation Error.' ? message : _fallback(status, data),
+      atomFriendlyMessage(message is String ? message : null, status: status, data: data),
       statusCode: status,
-      data: data is Map ? Map<String, dynamic>.from(data) : const {},
+      data: data,
     );
   }
-
-  static String _fallback(int status, Object? data) {
-    if (data is Map) {
-      for (final v in data.values) {
-        if (v is List && v.isNotEmpty) return v.first.toString();
-      }
-    }
-    return switch (status) {
-      401 => 'Please sign in again.',
-      403 => 'You are not allowed to do that.',
-      404 => 'We could not find that.',
-      429 => 'Too many tries. Please wait a little and try again.',
-      _ => 'Something went wrong. Please try again.',
-    };
-  }
 }
+
+/// A request that never got an answer: offline, too slow, or a certificate
+/// or cancel problem, in customer words.
+String atomDioMessage(DioException e) => switch (e.type) {
+      DioExceptionType.connectionTimeout || DioExceptionType.sendTimeout || DioExceptionType.receiveTimeout => atomSlowMessage,
+      DioExceptionType.badCertificate => 'We could not make a secure connection. Check the date and time on your phone, then try again.',
+      DioExceptionType.cancel => 'That was cancelled. Please try again.',
+      _ => atomStatusMessage(0),
+    };
 
 final atomHttpProvider = Provider<AtomHttp>((ref) => AtomHttp());
 
 /// The customer-facing sentence for any error the data layer throws.
 String atomMessage(Object error) {
   if (error is AtomApiException) return error.message;
+  if (error is DioException) return atomDioMessage(error);
   final text = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
-  if (text.isEmpty || text.startsWith('Network Error') || text.startsWith('Unexpected Error')) {
-    return 'Check your internet connection and try again.';
-  }
-  return text;
+  if (text.startsWith('Network Error')) return atomStatusMessage(0);
+  return atomFriendlyMessage(text, status: 500);
 }
 
 /// Random id for one submission (orders), so the server can recognise a

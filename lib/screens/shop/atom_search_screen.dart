@@ -116,7 +116,7 @@ class _AtomSearchScreenState extends ConsumerState<AtomSearchScreen> {
           ),
         ),
       ],
-      error: (_, _) => [SliverToBoxAdapter(child: AtomErrorState(onRetry: () => ref.invalidate(productSearchProvider(_query))))],
+      error: (e, _) => [SliverToBoxAdapter(child: AtomErrorState(error: e, onRetry: () => ref.invalidate(productSearchProvider(_query))))],
       data: (products) => products.isEmpty
           ? [
               SliverToBoxAdapter(

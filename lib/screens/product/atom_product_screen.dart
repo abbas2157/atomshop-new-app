@@ -44,7 +44,7 @@ class AtomProductScreen extends ConsumerWidget {
                   actionIcon: Icons.grid_view_rounded,
                   onAction: () => AtomNav.toTab(context, ref, AtomTab.shop),
                 )
-              : AtomErrorState(onRetry: () => ref.invalidate(productDetailProvider(productId))),
+              : AtomErrorState(error: error, onRetry: () => ref.invalidate(productDetailProvider(productId))),
         ),
       ),
     );

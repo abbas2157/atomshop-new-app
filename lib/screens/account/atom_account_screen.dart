@@ -8,6 +8,7 @@ import '../../data/atom_http.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
+import '../../shell/atom_feedback.dart';
 import '../../shell/atom_nav.dart';
 import '../../shell/atom_shell.dart';
 import '../../state/atom_account_providers.dart';
@@ -93,14 +94,14 @@ class AtomAccountScreen extends ConsumerWidget {
                     AccountMenuRow(Icons.person_outline_rounded, 'Profile and verification', () => AtomNav.profile(context)),
                     AccountMenuRow(Icons.place_outlined, 'City and area', () => AtomNav.location(context)),
                     AccountMenuRow(Icons.lock_outline_rounded, 'Change password', () => AtomNav.changePassword(context)),
-                    AccountMenuRow(Icons.delete_outline_rounded, 'Delete account', () => _deleteAccount(context, ref)),
+                    AccountMenuRow(Icons.delete_outline_rounded, 'Delete account', () => confirmDeleteAccount(context, ref)),
                   ],
                 ),
                 AccountMenuGroup(title: 'Help and info', rows: helpRows(context)),
                 const SizedBox(height: AtomSpace.lg),
                 Center(
                   child: TextButton.icon(
-                    onPressed: () => _signOut(context, ref),
+                    onPressed: () => confirmSignOut(context, ref),
                     icon: const Icon(Icons.logout_rounded, size: 18),
                     label: Text('Sign out', style: AtomText.label.copyWith(color: AtomColors.rose)),
                     style: TextButton.styleFrom(foregroundColor: AtomColors.rose, minimumSize: const Size(44, 44)),
@@ -114,35 +115,43 @@ class AtomAccountScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('You can keep browsing and ordering as a guest.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AtomColors.rose),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) await ref.read(atomSessionProvider.notifier).signOut();
-  }
+/// "Sign out?" then sign out: revokes the token, stops this account's
+/// pushes and forgets the account on the phone (token, ids, name, contact,
+/// area). Cached pictures and other app data stay. Closes any full-screen
+/// page so no signed-in screen is left behind the Back button.
+Future<void> confirmSignOut(BuildContext context, WidgetRef ref) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Sign out?'),
+      content: const Text('Your orders and installments stay safe in your account. You can keep browsing and ordering as a guest, and sign in again any time.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: TextButton.styleFrom(foregroundColor: AtomColors.rose),
+          child: const Text('Sign out'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final nav = Navigator.of(context, rootNavigator: true);
+  await ref.read(atomSessionProvider.notifier).signOut();
+  nav.popUntil((route) => route.isFirst);
+  atomToast('You are signed out.');
+}
 
-  Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
-    final deleted = await showDialog<bool>(context: context, builder: (_) => const _DeleteAccountDialog());
-    if (deleted == true) {
-      await ref.read(atomSessionProvider.notifier).signOut();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Your account has been deleted.')));
-      }
-    }
-  }
+/// Password-confirmed account deletion, then the same clean-up as signing out.
+Future<void> confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final deleted = await showDialog<bool>(context: context, builder: (_) => const _DeleteAccountDialog());
+  if (deleted != true || !context.mounted) return;
+  final nav = Navigator.of(context, rootNavigator: true);
+  await ref.read(atomSessionProvider.notifier).signOut();
+  nav.popUntil((route) => route.isFirst);
+  atomToast('Your account has been deleted.');
 }
 
 class _ProfileCard extends StatelessWidget {
@@ -287,8 +296,10 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
   }
 
   Future<void> _delete() async {
-    if (_password.text.isEmpty) {
-      setState(() => _error = 'Enter your password.');
+    // The account endpoint checks the sign-in, not a password, so a typed
+    // word guards against deleting by mistake.
+    if (_password.text.trim().toUpperCase() != 'DELETE') {
+      setState(() => _error = 'Type DELETE to confirm.');
       return;
     }
     setState(() {
@@ -322,7 +333,7 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
               style: AtomText.body,
             ),
             const SizedBox(height: AtomSpace.md),
-            AtomPasswordField(controller: _password, onSubmitted: _delete),
+            AtomTextField(label: 'Type DELETE to confirm', controller: _password, hint: 'DELETE', textCapitalization: TextCapitalization.characters),
             if (_error != null) ...[
               const SizedBox(height: AtomSpace.xs),
               Text(_error!, style: AtomText.small.copyWith(color: AtomColors.rose)),

@@ -15,6 +15,8 @@ import '../../widgets/atom_states.dart';
 import '../../widgets/atom_surfaces.dart';
 import 'atom_info_widgets.dart';
 
+/// The website keeps its terms inside the privacy policy, so [terms] opens
+/// the same document as [privacy] and only two tabs show.
 enum LegalTab { privacy, returns, terms }
 
 extension on LegalTab {
@@ -25,17 +27,16 @@ extension on LegalTab {
       };
 
   String get label => switch (this) {
-        LegalTab.privacy => 'Privacy',
+        LegalTab.privacy || LegalTab.terms => 'Privacy and terms',
         LegalTab.returns => 'Returns',
-        LegalTab.terms => 'Terms',
       };
 
   /// The same text on the website (fallback when the page does not load).
   String get websiteUrl => this == LegalTab.returns ? 'https://atomshop.pk/return-refund-policy' : 'https://atomshop.pk/privacy-policy';
 }
 
-/// Policies (canvas: "Policies"): privacy, returns and terms, loaded from the
-/// server so the app and the website never differ. No text is typed here.
+/// Policies (canvas: "Policies"): privacy and terms, and returns. Loaded
+/// from the server; the website's own text is bundled as a fallback.
 class AtomLegalScreen extends ConsumerStatefulWidget {
   const AtomLegalScreen({super.key, this.tab = LegalTab.privacy});
 
@@ -46,7 +47,7 @@ class AtomLegalScreen extends ConsumerStatefulWidget {
 }
 
 class _AtomLegalScreenState extends ConsumerState<AtomLegalScreen> {
-  late LegalTab _tab = widget.tab;
+  late LegalTab _tab = widget.tab == LegalTab.terms ? LegalTab.privacy : widget.tab;
   final _scroll = ScrollController();
 
   /// One key per section of the open document, for "On this page".
@@ -83,7 +84,7 @@ class _AtomLegalScreenState extends ConsumerState<AtomLegalScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       AtomSegmented<LegalTab>(
-                        items: {for (final t in LegalTab.values) t: t.label},
+                        items: {for (final t in const [LegalTab.privacy, LegalTab.returns]) t: t.label},
                         value: _tab,
                         onChanged: (t) {
                           setState(() => _tab = t);
@@ -101,7 +102,7 @@ class _AtomLegalScreenState extends ConsumerState<AtomLegalScreen> {
                           SizedBox(height: AtomSpace.md),
                           AtomSkeleton(height: 200, radius: AtomRadius.card),
                         ],
-                        error: (_, _) => [InfoPageError(onRetry: () => ref.invalidate(pageContentProvider(_tab.slug)), websiteUrl: ref.watch(appConfigProvider).value?.pages[_tab.slug] ?? _tab.websiteUrl)],
+                        error: (e, _) => [InfoPageError(error: e, onRetry: () => ref.invalidate(pageContentProvider(_tab.slug)), websiteUrl: ref.watch(appConfigProvider).value?.pages[_tab.slug] ?? _tab.websiteUrl)],
                       ),
                     ],
                   ),

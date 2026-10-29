@@ -130,7 +130,7 @@ class _AtomNotificationsScreenState extends ConsumerState<AtomNotificationsScree
         ],
       );
     } else if (_items.isEmpty && _error != null) {
-      body = Center(child: AtomErrorState(message: atomMessage(_error!), onRetry: () => _load(reset: true)));
+      body = Center(child: AtomErrorState(error: _error, onRetry: () => _load(reset: true)));
     } else if (_items.isEmpty) {
       body = ListView(children: const [
         SizedBox(height: AtomSpace.xl),

@@ -145,6 +145,7 @@ class _AtomSignInScreenState extends ConsumerState<AtomSignInScreen> {
                         AuthError(_error),
                         const SizedBox(height: AtomSpace.sm),
                         AtomButton(label: 'Sign in', icon: Icons.login_rounded, expand: true, loading: _busy, onPressed: _busy ? null : _signIn),
+                        if (AtomAuthApi.supportsCodeSignIn) ...[
                         const SizedBox(height: AtomSpace.md),
                         Row(
                           children: [
@@ -165,6 +166,7 @@ class _AtomSignInScreenState extends ConsumerState<AtomSignInScreen> {
                           loading: _sendingCode,
                           onPressed: _sendingCode ? null : _sendCode,
                         ),
+                        ],
                         const SizedBox(height: AtomSpace.lg),
                         AuthLinks(
                           parts: [

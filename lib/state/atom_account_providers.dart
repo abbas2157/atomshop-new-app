@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/atom_account.dart';
 import '../data/atom_auth.dart';
+import '../data/atom_site_pages.dart';
+import 'atom_catalogue_providers.dart';
 import 'atom_cache.dart';
 import 'atom_session.dart';
 
@@ -70,9 +72,19 @@ final askAtomSuggestionsProvider = FutureProvider.autoDispose<List<AskAtomSugges
 });
 
 /// about, why, faqs, privacy, refund, app-privacy.
-final pageContentProvider = FutureProvider.autoDispose.family<PageContent, String>((ref, slug) {
+/// A content page (privacy, refund, terms, faqs). The server's copy wins;
+/// until `api/app/pages/{slug}` is live, or when it fails, the website's
+/// text bundled in the app is shown instead (lib/data/atom_site_pages.dart).
+final pageContentProvider = FutureProvider.autoDispose.family<PageContent, String>((ref, slug) async {
   ref.cacheFor(AtomCacheTime.catalogue);
-  return ref.watch(atomAccountApiProvider).page(slug);
+  try {
+    return await ref.watch(atomAccountApiProvider).page(slug);
+  } catch (_) {
+    final fee = ref.read(appConfigProvider).value?.atompayFeePercent ?? 3;
+    final bundled = atomSitePage(slug, atompayFeePercent: fee);
+    if (bundled == null) rethrow;
+    return bundled;
+  }
 });
 
 /// Unread count for the bell; refreshed by the notifications screen.

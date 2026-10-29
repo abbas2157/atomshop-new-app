@@ -38,9 +38,9 @@ class AtomProfileScreen extends ConsumerWidget {
           AtomSkeleton(height: 300, radius: AtomRadius.card),
         ],
       ),
-      error: (_, _) => AtomPage(
-        title: 'Profile and verification',
-        children: [AtomErrorState(onRetry: () => ref.invalidate(meProvider))],
+      error: (e, _) => AtomPage(
+        title: 'Profile',
+        children: [AtomErrorState(error: e, onRetry: () => ref.invalidate(meProvider))],
       ),
     );
   }
@@ -64,6 +64,11 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
   late final _alternate = TextEditingController(text: widget.user.alternatePhone);
   late final _address = TextEditingController(text: widget.user.address);
   late final _work = TextEditingController(text: widget.user.workAddress);
+  late final _phone = TextEditingController(text: widget.user.phone);
+
+  /// Father name, CNIC, email, alternate number and work address are only
+  /// shown when the account endpoint can save them.
+  static const _extended = AtomAuthApi.supportsExtendedProfile;
   bool _saving = false;
 
   /// Edited and not sent yet: leaving asks first.
@@ -78,7 +83,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
 
   @override
   void dispose() {
-    for (final c in [_name, _father, _cnic, _email, _alternate, _address, _work]) {
+    for (final c in [_name, _father, _cnic, _email, _alternate, _address, _work, _phone]) {
       c.dispose();
     }
     super.dispose();
@@ -130,6 +135,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
             workAddress: _work.text.trim(),
             cityId: widget.user.city?.id,
             areaId: widget.user.area?.id,
+            phone: _extended ? '' : _phone.text.trim(),
           );
       refreshAccount(ref);
       if (!mounted) return;
@@ -162,10 +168,10 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
         key: _form,
         onChanged: _markDirty,
         child: AtomPage(
-          title: 'Profile and verification',
+          title: _extended ? 'Profile and verification' : 'Profile',
           bottom: AtomButton(label: 'Save changes', icon: Icons.check_rounded, expand: true, loading: _saving, onPressed: _saving ? null : _save),
           children: [
-            _Identity(user: u, uploading: _uploading == 'photo', onChangePhoto: () => _upload('photo')),
+            _Identity(user: u, uploading: _uploading == 'photo', onChangePhoto: () => _upload('photo'), showVerification: _extended),
             const AtomGroupLabel('Personal'),
             AtomTextField(
               label: 'Full name',
@@ -174,6 +180,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               autofillHints: const [AutofillHints.name],
               validator: (v) => _personName(v, required: true),
             ),
+            if (_extended) ...[
             const SizedBox(height: 14),
             AtomTextField(label: 'Father name', optional: true, controller: _father, textCapitalization: TextCapitalization.words, validator: _personName),
             const SizedBox(height: 14),
@@ -204,8 +211,24 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                 return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t) ? null : 'Enter a valid email or leave it empty.';
               },
             ),
+            ] else if (u.email.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _ReadOnlyField(label: 'Email', value: u.email, note: 'To change your email, contact us.', onNote: () => AtomNav.contact(context)),
+            ],
             const AtomGroupLabel('Phone numbers'),
-            _ReadOnlyField(label: 'Mobile', value: u.phone, note: 'To change your mobile number, contact us.', onNote: () => AtomNav.contact(context)),
+            if (_extended)
+              _ReadOnlyField(label: 'Mobile', value: u.phone, note: 'To change your mobile number, contact us.', onNote: () => AtomNav.contact(context))
+            else
+              AtomTextField(
+                label: 'Mobile number',
+                controller: _phone,
+                hint: '03001234567',
+                keyboardType: TextInputType.phone,
+                autofillHints: const [AutofillHints.telephoneNumber],
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')), LengthLimitingTextInputFormatter(20)],
+                validator: (v) => (v ?? '').trim().length < 10 ? 'Enter your mobile number.' : null,
+              ),
+            if (_extended) ...[
             const SizedBox(height: 14),
             AtomTextField(
               label: 'Alternate number',
@@ -215,6 +238,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               keyboardType: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\- ]')), LengthLimitingTextInputFormatter(20)],
             ),
+            ],
             const AtomGroupLabel('Address'),
             _ReadOnlyField(label: 'City and area', value: u.place.isEmpty ? 'Not set' : u.place, note: 'Change', onNote: () => AtomNav.location(context)),
             const SizedBox(height: 14),
@@ -226,6 +250,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               autofillHints: const [AutofillHints.fullStreetAddress],
               validator: (v) => (v ?? '').trim().isEmpty ? 'Enter your home address.' : null,
             ),
+            if (_extended) ...[
             const SizedBox(height: 14),
             AtomTextField(label: 'Work or office address', optional: true, controller: _work, hint: 'Optional', maxLines: 2),
             const AtomGroupLabel('CNIC photos'),
@@ -245,6 +270,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               icon: Icons.lock_outline_rounded,
               text: 'Your documents are only seen by the team that verifies you. They are never shown publicly.',
             ),
+            ],
           ],
         ),
       ),
@@ -253,11 +279,12 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
 }
 
 class _Identity extends StatelessWidget {
-  const _Identity({required this.user, required this.uploading, required this.onChangePhoto});
+  const _Identity({required this.user, required this.uploading, required this.onChangePhoto, this.showVerification = true});
 
   final AtomUser user;
   final bool uploading;
   final VoidCallback onChangePhoto;
+  final bool showVerification;
 
   @override
   Widget build(BuildContext context) {
@@ -297,8 +324,10 @@ class _Identity extends StatelessWidget {
         const SizedBox(height: AtomSpace.sm),
         Text(user.name, textAlign: TextAlign.center, style: AtomText.heading),
         if (user.customerId.isNotEmpty) Text('Customer ID ${user.customerId}', style: AtomText.small),
-        const SizedBox(height: 6),
-        user.verified ? const AtomBadge('Verified', tone: AtomTone.green, icon: Icons.check_rounded) : const AtomBadge('Not verified yet'),
+        if (showVerification) ...[
+          const SizedBox(height: 6),
+          user.verified ? const AtomBadge('Verified', tone: AtomTone.green, icon: Icons.check_rounded) : const AtomBadge('Not verified yet'),
+        ],
       ],
     );
   }

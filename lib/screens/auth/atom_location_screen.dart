@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/auth/session_manager.dart';
 import '../../data/atom_auth.dart';
@@ -9,6 +8,7 @@ import '../../data/atom_order.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../shell/atom_nav.dart';
+import '../../state/atom_delivery_area.dart';
 import '../../state/atom_account_providers.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_order_providers.dart';
@@ -34,7 +34,13 @@ class AtomLocationScreen extends ConsumerStatefulWidget {
 
 class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
   final _search = TextEditingController();
+  final _address = TextEditingController();
+  final _phone = TextEditingController();
   String _query = '';
+
+  /// The account endpoint saves the area together with an address and a
+  /// mobile number, so signed-in customers give those here too.
+  bool _needsPhone = false;
   int? _cityId;
   int? _areaId;
   bool _busy = false;
@@ -49,8 +55,13 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
   Future<void> _prefill() async {
     final city = int.tryParse(await SessionManager.getCityId() ?? '');
     final area = int.tryParse(await SessionManager.getAreaId() ?? '');
-    if (!mounted || _cityId != null) return;
+    final address = await SessionManager.getAddress() ?? '';
+    final phone = await SessionManager.getPhone() ?? '';
+    if (!mounted) return;
     setState(() {
+      if (_address.text.isEmpty) _address.text = address;
+      _needsPhone = phone.isEmpty && AtomAuthApi.pendingPhone.isEmpty;
+      if (_cityId != null) return;
       _cityId = city;
       _areaId = area;
     });
@@ -59,6 +70,8 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
   @override
   void dispose() {
     _search.dispose();
+    _address.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
@@ -70,20 +83,32 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
       setState(() => _error = 'Choose your city and area.');
       return;
     }
+    final signedIn = ref.read(atomSignedInProvider);
+    if (signedIn && _address.text.trim().length < 5) {
+      setState(() => _error = 'Enter your home address.');
+      return;
+    }
+    if (signedIn && _needsPhone && validatePhone(_phone.text) != null) {
+      setState(() => _error = validatePhone(_phone.text));
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      if (ref.read(atomSignedInProvider)) {
-        await ref.read(atomAuthApiProvider).updateLocation(cityId: city, areaId: area);
+      if (signedIn) {
+        await ref.read(atomAuthApiProvider).updateLocation(cityId: city, areaId: area, address: _address.text.trim(), phone: _phone.text.trim());
         refreshAccount(ref);
-      } else {
-        // A guest's area stays on this phone (same keys a session uses).
-        const storage = FlutterSecureStorage();
-        await storage.write(key: 'city_id', value: '$city');
-        await storage.write(key: 'area_id', value: '$area');
       }
+      // Kept on this phone with the names, so Home can say where we deliver.
+      String title(List<AtomPlace>? list, int id) => list?.where((p) => p.id == id).firstOrNull?.title ?? '';
+      await ref.read(deliveryAreaProvider.notifier).save(DeliveryArea(
+            cityId: city,
+            cityTitle: title(ref.read(citiesProvider).value, city),
+            areaId: area,
+            areaTitle: title(ref.read(areasProvider(city)).value, area),
+          ));
       if (!mounted) return;
       if (widget.signUpStep) {
         AtomNav.finishAuth(context);
@@ -186,6 +211,14 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
               );
             },
           ),
+        if (ref.watch(atomSignedInProvider)) ...[
+          const SizedBox(height: AtomSpace.lg),
+          AtomTextField(label: 'Home address', controller: _address, hint: 'House, street and block', maxLines: 2),
+          if (_needsPhone) ...[
+            const SizedBox(height: 14),
+            AtomTextField(label: 'Mobile number', controller: _phone, hint: '03001234567', keyboardType: TextInputType.phone),
+          ],
+        ],
         AuthError(_error),
       ],
     );

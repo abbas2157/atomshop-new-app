@@ -79,7 +79,7 @@ class _AtomResetScreenState extends ConsumerState<AtomResetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final where = widget.code.byWhatsApp ? 'WhatsApp' : 'email';
+    final where = widget.code.channels.isEmpty ? 'WhatsApp or email' : (widget.code.byWhatsApp ? 'WhatsApp' : 'email');
     return AuthScaffold(
       bottom: AtomButton(label: 'Save and sign in', icon: Icons.lock_outline_rounded, expand: true, loading: _busy, onPressed: _busy ? null : _save),
       children: [
@@ -99,7 +99,7 @@ class _AtomResetScreenState extends ConsumerState<AtomResetScreen> {
               children: [
                 Text('Code', style: AtomText.label),
                 const SizedBox(height: 6),
-                AtomCodeField(controller: _code, length: 6),
+                AtomCodeField(controller: _code, length: AtomAuthApi.codeLength),
                 const SizedBox(height: AtomSpace.md),
                 AtomPasswordField(
                   controller: _password,

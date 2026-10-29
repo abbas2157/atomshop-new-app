@@ -5,6 +5,7 @@ import '../data/atom_auth.dart';
 import '../data/atom_models.dart';
 import '../data/atom_order.dart';
 import '../data/atom_product_detail.dart';
+import '../screens/account/atom_settings_screen.dart';
 import '../screens/account/atom_custom_orders_screen.dart';
 import '../screens/account/atom_notifications_screen.dart';
 import '../screens/account/atom_order_detail_screen.dart';
@@ -164,6 +165,9 @@ abstract final class AtomNav {
   static Future<void> why(BuildContext context) => _push(context, const AtomWhyScreen());
 
   static Future<void> apps(BuildContext context) => _push(context, const AtomAppsScreen());
+
+  /// Open to guests too; the account part shows only when signed in.
+  static Future<void> settings(BuildContext context) => _push(context, const AtomSettingsScreen());
 
   static Future<void> contact(BuildContext context) => _push(context, const AtomContactScreen());
 

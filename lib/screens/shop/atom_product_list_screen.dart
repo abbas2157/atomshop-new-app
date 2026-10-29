@@ -190,7 +190,7 @@ class _AtomProductListScreenState extends ConsumerState<AtomProductListScreen> {
                         top: AtomSpace.md,
                       ),
                     ],
-                    error: (_, _) => [padded(AtomErrorState(onRetry: () => ref.invalidate(_provider)), top: AtomSpace.md)],
+                    error: (e, _) => [padded(AtomErrorState(error: e, onRetry: () => ref.invalidate(_provider)), top: AtomSpace.md)],
                     data: (_) => products.isEmpty
                         ? [
                             padded(

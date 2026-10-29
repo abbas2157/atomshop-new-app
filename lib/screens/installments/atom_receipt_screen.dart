@@ -13,6 +13,7 @@ import '../../design/atom_tokens.dart';
 import '../../state/atom_account_providers.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../utils/atom_format.dart';
+import '../../widgets/atom_logo.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_page.dart';
 import '../../widgets/atom_states.dart';
@@ -130,7 +131,7 @@ class _AtomReceiptScreenState extends ConsumerState<AtomReceiptScreen> {
                 children: [
                   Row(
                     children: [
-                      Image.asset('assets/images/nav-logo.png', height: 30, semanticLabel: 'Atomshop.pk'),
+                      const AtomLogo(height: 32),
                       const Spacer(),
                       const AtomBadge('Paid', tone: AtomTone.green, icon: Icons.check_rounded),
                     ],

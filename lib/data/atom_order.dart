@@ -4,6 +4,7 @@ import '../core/auth/session_manager.dart';
 import '../core/network/network_manager.dart';
 import '../core/network/network_provider.dart';
 import '../utils/atom_format.dart';
+import 'atom_http.dart';
 import 'atom_models.dart';
 import 'atom_product_detail.dart';
 
@@ -143,12 +144,5 @@ class AtomOrderApi {
 
 final atomOrderApiProvider = Provider<AtomOrderApi>((ref) => AtomOrderApi(ref.watch(networkManagerProvider)));
 
-/// "Exception: Down payment must be…" → "Down payment must be…". Network
-/// failures get one plain sentence.
-String atomErrorMessage(Object error) {
-  final text = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
-  if (text.isEmpty || text.startsWith('Network Error') || text.startsWith('Unexpected Error')) {
-    return 'Check your internet connection and try again.';
-  }
-  return text;
-}
+/// The order form's error sentence (same wording as everywhere else).
+String atomErrorMessage(Object error) => atomMessage(error);

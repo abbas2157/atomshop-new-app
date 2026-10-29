@@ -1,3 +1,4 @@
+import '../../data/atom_http.dart';
 import 'dart:io';
 
 import 'package:atompro/core/network/api_endpoints.dart';
@@ -202,22 +203,27 @@ class NetworkManager {
     atomServerReachable.value = true;
     if (response.statusCode == 200 || response.statusCode == 201) {
       return response.data;
-    } else {
-      throw Exception(response.data['message'] ?? 'Something went wrong');
     }
+    throw _apiError(response);
   }
 
   dynamic _handleError(dynamic error) {
+    if (error is AtomApiException) throw error;
     if (error is DioException) {
       atomServerReachable.value = error.response != null;
-      if (error.response != null) {
-        final data = error.response!.data;
-        throw Exception(data['message'] ?? 'Error occurred');
-      } else {
-        throw Exception("Network Error: ${error.message}");
-      }
-    } else {
-      throw Exception("Unexpected Error: $error");
+      final response = error.response;
+      if (response != null) throw _apiError(response);
+      throw AtomApiException(atomDioMessage(error));
     }
+    throw AtomApiException(atomStatusMessage(500), statusCode: 500);
+  }
+
+  /// A server answer that is not a success, as a customer-ready error.
+  AtomApiException _apiError(Response response) {
+    final status = response.statusCode ?? 500;
+    final body = response.data;
+    final message = body is Map ? body['message'] : null;
+    final data = body is Map && body['data'] is Map ? Map<String, dynamic>.from(body['data'] as Map) : const <String, dynamic>{};
+    return AtomApiException(atomFriendlyMessage(message is String ? message : null, status: status, data: data), statusCode: status, data: data);
   }
 }

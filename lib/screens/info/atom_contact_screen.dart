@@ -90,7 +90,7 @@ class _AtomContactScreenState extends ConsumerState<AtomContactScreen> {
           skipLoadingOnRefresh: true,
           data: (c) => _Channels(config: c),
           loading: () => const Column(children: [AtomSkeleton(height: 76, radius: AtomRadius.card), SizedBox(height: AtomSpace.sm), AtomSkeleton(height: 90, radius: AtomRadius.card)]),
-          error: (_, _) => AtomErrorState(onRetry: () => ref.invalidate(appConfigProvider)),
+          error: (e, _) => AtomErrorState(error: e, onRetry: () => ref.invalidate(appConfigProvider)),
         ),
         const AtomGroupLabel('Send a message'),
         Form(
