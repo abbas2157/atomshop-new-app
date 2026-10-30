@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/atom_text.dart';
 import '../design/atom_tokens.dart';
+import 'atom_focus_ring.dart';
 
 /// Bordered card: 20 px radius, 1 px line, no shadow. Tappable when [onTap]
 /// is set.
@@ -25,14 +26,15 @@ class AtomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(radius),
-        side: borderColor == null ? BorderSide.none : BorderSide(color: borderColor!),
+    final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius));
+    return AtomFocusRing(
+      shape: shape,
+      builder: (context, onFocusChange) => Material(
+        color: color,
+        shape: shape.copyWith(side: borderColor == null ? BorderSide.none : BorderSide(color: borderColor!)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(onTap: onTap, onFocusChange: onFocusChange, child: Padding(padding: padding, child: child)),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
     );
   }
 }
@@ -145,25 +147,27 @@ class AtomChoiceChip extends StatelessWidget {
     final (bg, fg, border) = selected
         ? (dark ? (AtomColors.ink, AtomColors.white, AtomColors.ink) : (AtomColors.primarySoft, AtomColors.primary, AtomColors.primary))
         : (AtomColors.white, AtomColors.ink, AtomColors.line2);
+    final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(dark ? AtomRadius.pill : AtomRadius.chip));
     return Semantics(
       selected: selected,
       button: true,
-      child: Material(
-        color: bg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(dark ? AtomRadius.pill : AtomRadius.chip),
-          side: BorderSide(color: border, width: selected && !dark ? 1.5 : 1),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(dark ? AtomRadius.pill : AtomRadius.chip)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 42, minWidth: 44),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Center(
-                widthFactor: 1,
-                child: Text(label, style: AtomText.label.copyWith(color: fg, fontWeight: selected ? FontWeight.w800 : FontWeight.w700)),
+      child: AtomFocusRing(
+        shape: shape,
+        builder: (context, onFocusChange) => Material(
+          color: bg,
+          shape: shape.copyWith(side: BorderSide(color: border, width: selected && !dark ? 1.5 : 1)),
+          child: InkWell(
+            onTap: onTap,
+            onFocusChange: onFocusChange,
+            customBorder: shape,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AtomSize.iconButton, minWidth: AtomSize.iconButton),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(label, style: AtomText.label.copyWith(color: fg, fontWeight: selected ? FontWeight.w800 : FontWeight.w700)),
+                ),
               ),
             ),
           ),
@@ -193,23 +197,30 @@ class AtomSegmented<T> extends StatelessWidget {
               child: Semantics(
                 selected: entry.key == value,
                 button: true,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onChanged(entry.key),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: entry.key == value ? AtomColors.white : Colors.transparent,
-                      borderRadius: BorderRadius.circular(AtomRadius.pill),
-                      boxShadow: entry.key == value ? const [BoxShadow(color: Color(0x1A14213D), blurRadius: 8, offset: Offset(0, 2))] : null,
-                    ),
-                    child: Text(
-                      entry.value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AtomText.label.copyWith(fontSize: 13, color: entry.key == value ? AtomColors.ink : AtomColors.body),
+                child: AtomFocusRing(
+                  shape: const StadiumBorder(),
+                  builder: (context, onFocusChange) => Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      onTap: () => onChanged(entry.key),
+                      onFocusChange: onFocusChange,
+                      customBorder: const StadiumBorder(),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        height: AtomSize.iconButton,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: entry.key == value ? AtomColors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(AtomRadius.pill),
+                          boxShadow: entry.key == value ? const [BoxShadow(color: Color(0x1A14213D), blurRadius: 8, offset: Offset(0, 2))] : null,
+                        ),
+                        child: Text(
+                          entry.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AtomText.label.copyWith(fontSize: 13, color: entry.key == value ? AtomColors.ink : AtomColors.body),
+                        ),
+                      ),
                     ),
                   ),
                 ),

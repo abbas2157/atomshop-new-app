@@ -13,6 +13,7 @@ import '../state/atom_app_version.dart';
 import '../state/atom_catalogue_providers.dart';
 import '../utils/atom_format.dart';
 import '../widgets/atom_button.dart';
+import '../widgets/atom_dialog.dart';
 
 /// Root navigator, so app-level prompts (update) can open over any page.
 final atomNavigatorKey = GlobalKey<NavigatorState>();
@@ -90,25 +91,16 @@ class _AtomUpdateGateState extends ConsumerState<AtomUpdateGate> {
     final url = storeUrl(ref.read(appConfigProvider).value);
     final dialogContext = atomNavigatorKey.currentContext;
     if (url == null || dialogContext == null || !dialogContext.mounted) return;
-    await showDialog<void>(
-      context: dialogContext,
-      builder: (context) => AlertDialog(
-        title: Text('A new version is ready', style: AtomText.heading),
-        content: Text('Update Atomshop to get the latest features and fixes.', style: AtomText.body),
-        actions: [
-          AtomButton(label: 'Later', icon: Icons.schedule_rounded, variant: AtomButtonVariant.text, size: AtomButtonSize.small, onPressed: () => Navigator.of(context).pop()),
-          AtomButton(
-            label: 'Update',
-            icon: Icons.system_update_rounded,
-            size: AtomButtonSize.small,
-            onPressed: () {
-              Navigator.of(context).pop();
-              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-            },
-          ),
-        ],
-      ),
+    final update = await showAtomConfirm(
+      dialogContext,
+      title: 'A new version is ready',
+      message: 'Update Atomshop to get the latest features and fixes.',
+      confirmLabel: 'Update',
+      confirmIcon: Icons.system_update_rounded,
+      cancelLabel: 'Later',
+      cancelIcon: Icons.schedule_rounded,
     );
+    if (update) await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 }
 

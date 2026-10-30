@@ -17,6 +17,7 @@ import '../../state/atom_account_providers.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_connectivity.dart';
 import '../../state/atom_session.dart';
+import '../../widgets/atom_dialog.dart';
 import '../../widgets/atom_logo.dart';
 import '../../widgets/atom_page.dart';
 import '../info/atom_info_widgets.dart';
@@ -107,18 +108,14 @@ class _AtomSettingsScreenState extends ConsumerState<AtomSettingsScreen> {
   /// Deletes downloaded pictures only. The account, delivery area and other
   /// saved choices are untouched; pictures download again when needed.
   Future<void> _clearCache() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear cached pictures?'),
-        content: const Text('This frees space on your phone. You stay signed in and nothing in your account changes. Pictures download again when you open them.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Clear')),
-        ],
-      ),
+    final ok = await showAtomConfirm(
+      context,
+      title: 'Clear cached pictures?',
+      message: 'This frees space on your phone. You stay signed in and nothing in your account changes. Pictures download again when you open them.',
+      confirmLabel: 'Clear pictures',
+      confirmIcon: Icons.cleaning_services_rounded,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     setState(() => _clearing = true);
     try {
       final dir = await _cacheDir();

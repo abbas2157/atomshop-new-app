@@ -1,6 +1,8 @@
 import 'package:atompro/design/atom_theme.dart';
+import 'package:atompro/design/atom_tokens.dart';
 import 'package:atompro/responsive/atom_responsive.dart';
 import 'package:atompro/widgets/atom_button.dart';
+import 'package:atompro/widgets/atom_dialog.dart';
 import 'package:atompro/widgets/atom_surfaces.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +40,45 @@ void main() {
     await tester.tap(find.text('Send'));
     expect(taps, 0);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('a disabled AtomButton turns grey; a loading one keeps its colour', (tester) async {
+    Color fill(String label) => tester.widget<Material>(find.ancestor(of: find.text(label), matching: find.byType(Material)).first).color!;
+    await tester.pumpWidget(_wrap(const Column(children: [
+      AtomButton(label: 'Off', icon: Icons.send, onPressed: null),
+      AtomButton(label: 'Busy', icon: Icons.send, loading: true, onPressed: null),
+    ])));
+    expect(fill('Off'), AtomColors.surface);
+    expect(fill('Busy'), AtomColors.primary);
+  });
+
+  testWidgets('showAtomConfirm is true only for the main action', (tester) async {
+    final results = <bool>[];
+    await tester.pumpWidget(_wrap(Builder(
+      builder: (context) => TextButton(
+        onPressed: () async => results.add(await showAtomConfirm(context, title: 'Sign out?', message: 'Sure?', confirmLabel: 'Sign out', confirmIcon: Icons.logout_rounded, danger: true)),
+        child: const Text('Open'),
+      ),
+    )));
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    final signOut = tester.widget<AtomButton>(find.widgetWithText(AtomButton, 'Sign out'));
+    expect(signOut.variant, AtomButtonVariant.danger);
+    await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(5, 5)); // outside the dialog
+    await tester.pumpAndSettle();
+
+    expect(results, [true, false, false]);
   });
 
   testWidgets('order status badges use the API values, including Varification', (tester) async {

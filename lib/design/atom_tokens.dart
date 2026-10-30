@@ -14,9 +14,14 @@ abstract final class AtomColors {
   static const surface = Color(0xFFF5F7FB);
   static const line = Color(0xFFE3E8F1);
   static const line2 = Color(0xFFDCE2EC);
+
+  /// Input outlines: 3:1 on white so an empty field is still visible
+  /// (WCAG 1.4.11). [line] and [line2] are for decorative dividers only.
+  static const fieldLine = Color(0xFF848EA5);
   static const body = Color(0xFF4F5B76);
-  static const muted = Color(0xFF69738C);
-  static const placeholder = Color(0xFF9AA3B8);
+  // muted and placeholder keep 4.5:1 on both white and [surface] (WCAG AA).
+  static const muted = Color(0xFF646E87);
+  static const placeholder = Color(0xFF67718A);
   static const onDark = Color(0xFFC9D1E4);
   static const white = Color(0xFFFFFFFF);
 

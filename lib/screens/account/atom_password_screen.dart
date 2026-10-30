@@ -76,7 +76,6 @@ class _AtomPasswordScreenState extends ConsumerState<AtomPasswordScreen> {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: _forgot,
-              style: TextButton.styleFrom(minimumSize: const Size(44, 40)),
               child: Text('Forgot it?', style: AtomText.label.copyWith(color: AtomColors.primary)),
             ),
           ),

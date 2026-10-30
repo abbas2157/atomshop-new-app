@@ -580,7 +580,7 @@ class _Composer extends StatelessWidget {
                 filled: true,
                 fillColor: AtomColors.surface,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(AtomRadius.pill), borderSide: BorderSide.none),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AtomRadius.pill), borderSide: BorderSide.none),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AtomRadius.pill), borderSide: const BorderSide(color: AtomColors.fieldLine)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AtomRadius.pill),
                   borderSide: const BorderSide(color: AtomColors.primary, width: 1.5),

@@ -359,9 +359,9 @@ class _AtomCentreButton extends StatelessWidget {
       selected: selected,
       label: 'Ask Atom',
       excludeSemantics: true,
-      child: GestureDetector(
+      child: InkResponse(
         onTap: onTap,
-        behavior: HitTestBehavior.opaque,
+        radius: 36,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [

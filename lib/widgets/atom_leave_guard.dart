@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../design/atom_text.dart';
-import 'atom_button.dart';
+import 'atom_dialog.dart';
 
 /// Asks before leaving a form with unsaved changes (back button, gesture or
 /// the screen's own back arrow). [dirty] turns true on the first edit and
@@ -18,30 +17,17 @@ class AtomLeaveGuard extends StatelessWidget {
       canPop: !dirty,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        final leave = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Leave this form?', style: AtomText.heading),
-            content: Text('What you typed will be lost.', style: AtomText.body),
-            actions: [
-              AtomButton(
-                label: 'Keep editing',
-                icon: Icons.edit_outlined,
-                variant: AtomButtonVariant.text,
-                size: AtomButtonSize.small,
-                onPressed: () => Navigator.of(context).pop(false),
-              ),
-              AtomButton(
-                label: 'Leave',
-                icon: Icons.logout_rounded,
-                variant: AtomButtonVariant.secondary,
-                size: AtomButtonSize.small,
-                onPressed: () => Navigator.of(context).pop(true),
-              ),
-            ],
-          ),
+        final leave = await showAtomConfirm(
+          context,
+          title: 'Leave this form?',
+          message: 'What you typed will be lost.',
+          confirmLabel: 'Leave',
+          confirmIcon: Icons.logout_rounded,
+          cancelLabel: 'Keep editing',
+          cancelIcon: Icons.edit_outlined,
+          danger: true,
         );
-        if (leave == true && context.mounted) Navigator.of(context).pop();
+        if (leave && context.mounted) Navigator.of(context).pop();
       },
       child: child,
     );

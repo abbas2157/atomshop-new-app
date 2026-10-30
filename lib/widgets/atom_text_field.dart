@@ -95,7 +95,7 @@ class AtomSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(AtomRadius.pill), borderSide: const BorderSide(color: AtomColors.line));
+    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(AtomRadius.pill), borderSide: const BorderSide(color: AtomColors.fieldLine));
     return TextField(
       controller: controller,
       onChanged: onChanged,
@@ -208,7 +208,7 @@ class AtomCodeField extends StatelessWidget {
       decoration: BoxDecoration(
         color: AtomColors.white,
         borderRadius: BorderRadius.circular(AtomRadius.input),
-        border: Border.all(color: AtomColors.line2),
+        border: Border.all(color: AtomColors.fieldLine),
       ),
     );
     return Semantics(

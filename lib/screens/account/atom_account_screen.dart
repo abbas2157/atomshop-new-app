@@ -14,6 +14,7 @@ import '../../state/atom_account_providers.dart';
 import '../../state/atom_session.dart';
 import '../../utils/atom_format.dart';
 import '../../widgets/atom_button.dart';
+import '../../widgets/atom_dialog.dart';
 import '../../widgets/atom_states.dart';
 import '../../widgets/atom_surfaces.dart';
 import '../../widgets/atom_text_field.dart';
@@ -125,22 +126,15 @@ class AtomAccountScreen extends ConsumerWidget {
 /// area). Cached pictures and other app data stay. Closes any full-screen
 /// page so no signed-in screen is left behind the Back button.
 Future<void> confirmSignOut(BuildContext context, WidgetRef ref) async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Sign out?'),
-      content: const Text('Your orders and installments stay safe in your account. You can keep browsing and ordering as a guest, and sign in again any time.'),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: TextButton.styleFrom(foregroundColor: AtomColors.rose),
-          child: const Text('Sign out'),
-        ),
-      ],
-    ),
+  final ok = await showAtomConfirm(
+    context,
+    title: 'Sign out?',
+    message: 'Your orders and installments stay safe in your account. You can keep browsing and ordering as a guest, and sign in again any time.',
+    confirmLabel: 'Sign out',
+    confirmIcon: Icons.logout_rounded,
+    danger: true,
   );
-  if (ok != true || !context.mounted) return;
+  if (!ok || !context.mounted) return;
   final nav = Navigator.of(context, rootNavigator: true);
   await ref.read(atomSessionProvider.notifier).signOut();
   nav.popUntil((route) => route.isFirst);
@@ -324,35 +318,38 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Delete your account?'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This deletes your Atomshop and AtomPay sign-in. Orders and payments already made stay on record, as the law requires.',
-              style: AtomText.body,
-            ),
-            const SizedBox(height: AtomSpace.md),
-            AtomTextField(label: 'Type DELETE to confirm', controller: _password, hint: 'DELETE', textCapitalization: TextCapitalization.characters),
-            if (_error != null) ...[
-              const SizedBox(height: AtomSpace.xs),
-              Text(_error!, style: AtomText.small.copyWith(color: AtomColors.rose)),
-            ],
+    return AtomDialog(
+      title: 'Delete your account?',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('This deletes your Atomshop and AtomPay sign-in. Orders and payments already made stay on record, as the law requires.'),
+          const SizedBox(height: AtomSpace.md),
+          AtomTextField(label: 'Type DELETE to confirm', controller: _password, hint: 'DELETE', textCapitalization: TextCapitalization.characters),
+          if (_error != null) ...[
+            const SizedBox(height: AtomSpace.xs),
+            Text(_error!, style: AtomText.small.copyWith(color: AtomColors.rose)),
           ],
-        ),
+        ],
       ),
       actions: [
-        TextButton(onPressed: _busy ? null : () => Navigator.of(context).pop(false), child: const Text('Cancel')),
         AtomButton(
-          label: 'Delete',
+          label: 'Delete account',
           icon: Icons.delete_outline_rounded,
-          size: AtomButtonSize.small,
-          variant: AtomButtonVariant.dark,
+          size: AtomButtonSize.medium,
+          variant: AtomButtonVariant.danger,
+          expand: true,
           loading: _busy,
           onPressed: _busy ? null : _delete,
+        ),
+        AtomButton(
+          label: 'Cancel',
+          icon: Icons.close_rounded,
+          size: AtomButtonSize.medium,
+          variant: AtomButtonVariant.secondary,
+          expand: true,
+          onPressed: _busy ? null : () => Navigator.of(context).pop(false),
         ),
       ],
     );
