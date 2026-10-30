@@ -6,7 +6,8 @@ import '../../design/atom_tokens.dart';
 import '../../widgets/atom_button.dart';
 
 /// Home sections that are fixed content in the design: delivery area link,
-/// Brand Partner card, the Atom ecosystem and the help links.
+/// AtomPay, Brand Partner and Atom Seller cards, the Atom ecosystem and the
+/// help links.
 
 /// "Choose your delivery area ▾" above the search pill, or, once picked,
 /// "Delivering to Johar Town, Lahore ▾".
@@ -74,6 +75,17 @@ class HomePartnerCard extends StatelessWidget {
     required this.onApply,
     required this.onGetApp,
   });
+
+  /// "For financing · Get your AtomPay limit".
+  const HomePartnerCard.pay({super.key, required this.onApply, required this.onGetApp})
+      : photo = 'assets/images/slide-pay-in-steps.jpg',
+        photoLabel = 'A sales assistant explaining a payment plan on a tablet',
+        photoAlignment = const Alignment(0.5, -0.5),
+        appLogo = 'assets/images/app-atompay.png',
+        appName = 'AtomPay',
+        eyebrow = 'FOR FINANCING',
+        title = 'Get your AtomPay limit',
+        body = 'Verify once with your CNIC and income, then buy eligible products in 3 monthly payments with no advance and 0% markup.';
 
   /// "For brands · Become a Brand Partner" with the counter photo.
   const HomePartnerCard.brand({super.key, required this.onApply, required this.onGetApp})

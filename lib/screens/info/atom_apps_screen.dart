@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,10 @@ class AtomAppsScreen extends ConsumerWidget {
     final brandApp = config?.storeLinks['atombrand']?['android'] ?? '';
     final sellerLinks = atomSellerLinks(config);
     final sellerApply = atomSellerApplyUrl(config);
+    final payLinks = config?.storeLinks['atompay'];
+    final payMonths = config?.atompayMonths ?? 3;
+    final feePercent = config?.atompayFeePercent ?? 3;
+    final payFee = feePercent == feePercent.roundToDouble() ? feePercent.round().toString() : feePercent.toString();
 
     // Light status-bar icons over the dark header.
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -62,8 +68,18 @@ class AtomAppsScreen extends ConsumerWidget {
                   logo: 'assets/images/app-atompay.png',
                   audience: 'For financing',
                   name: 'AtomPay',
-                  body: 'Your purchase limit, KYC and 3-month 0% markup plans on eligible products. Same login as Atomshop.',
-                  links: config?.storeLinks['atompay'],
+                  body: 'Your purchase limit, KYC and $payMonths-month 0% markup plans on eligible products. Same login as Atomshop.',
+                  features: [
+                    (Icons.verified_user_outlined, 'Verify once with your CNIC and income'),
+                    (Icons.account_balance_wallet_outlined, 'Get a spending limit to use at Atomshop checkout'),
+                    (Icons.calculate_outlined, '$payMonths monthly payments, no advance, 0% markup'),
+                    (Icons.receipt_long_outlined, '$payFee% processing fee and delivery charges apply'),
+                  ],
+                  links: payLinks,
+                  // Until the config sends store links, open the website.
+                  applyLabel: 'Open AtomPay',
+                  applyIcon: Icons.open_in_new_rounded,
+                  applyUrl: atomPayHasApp(config) ? '' : atomPayWebUrl,
                 ),
                 _AppCard(
                   logo: 'assets/images/app-atomseller.png',
@@ -164,6 +180,7 @@ class _AppCard extends StatelessWidget {
     this.features = const [],
     this.links,
     this.applyLabel = '',
+    this.applyIcon = Icons.storefront_outlined,
     this.applyUrl = '',
   });
 
@@ -182,6 +199,7 @@ class _AppCard extends StatelessWidget {
 
   /// Sign-up on the website ("Become a seller"); hidden when empty.
   final String applyLabel;
+  final IconData applyIcon;
   final String applyUrl;
 
   @override
@@ -236,7 +254,7 @@ class _AppCard extends StatelessWidget {
                   if (applyUrl.isNotEmpty)
                     AtomButton(
                       label: applyLabel,
-                      icon: Icons.storefront_outlined,
+                      icon: applyIcon,
                       size: AtomButtonSize.small,
                       onPressed: () => atomOpenUrl(context, applyUrl),
                     ),
@@ -273,6 +291,29 @@ Map<String, String?>? atomSellerLinks(AppConfig? config) {
   final own = config?.storeLinks['atomseller'];
   final hasOwn = (own?['android'] ?? '').isNotEmpty || (own?['ios'] ?? '').isNotEmpty;
   return hasOwn ? own : config?.storeLinks['atomshop'];
+}
+
+/// AtomPay's website: the AtomPay buttons open it while the config has no
+/// store links for the app (`apps.atompay`).
+const atomPayWebUrl = 'https://atompay.shop';
+
+/// True once the config sends an AtomPay Play Store or App Store link.
+bool atomPayHasApp(AppConfig? config) {
+  final links = config?.storeLinks['atompay'];
+  return (links?['android'] ?? '').isNotEmpty || (links?['ios'] ?? '').isNotEmpty;
+}
+
+/// Where "Get AtomPay" goes: this phone's store page when the config has
+/// one, otherwise the other store's, otherwise the website.
+String atomPayAppUrl(AppConfig? config) {
+  final links = config?.storeLinks['atompay'];
+  final android = links?['android'] ?? '';
+  final ios = links?['ios'] ?? '';
+  final mine = Platform.isIOS ? ios : android;
+  if (mine.isNotEmpty) return mine;
+  if (android.isNotEmpty) return android;
+  if (ios.isNotEmpty) return ios;
+  return atomPayWebUrl;
 }
 
 /// The seller sign-up form on the website (Smart Seller page).

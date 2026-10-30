@@ -1,11 +1,14 @@
 import 'package:atompro/data/atom_account.dart';
+import 'package:atompro/data/atom_models.dart';
 import 'package:atompro/data/atom_product_detail.dart';
+import 'package:atompro/screens/info/atom_apps_screen.dart';
 import 'package:atompro/state/atom_app_version.dart';
 import 'package:atompro/utils/atom_format.dart';
 import 'package:atompro/utils/atom_validators.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Update checks, shared form rules, Ask Atom answers and share links.
+/// Update checks, shared form rules, Ask Atom answers, share links and app
+/// store links.
 void main() {
   group('compareVersions', () {
     test('orders semantic versions', () {
@@ -118,5 +121,23 @@ void main() {
       'long_description': 'Wifi\r\n(43 &amp; Above Voice Control)<br>Air Mouse\r\n\r\n\r\n\r\nWarranty',
     });
     expect(p.longDescription, 'Wifi\n(43 & Above Voice Control)\nAir Mouse\n\nWarranty');
+  });
+
+  test('AtomPay opens its store page once the config has one, the website until then', () {
+    AppConfig config(Object? android, Object? ios) => AppConfig.fromJson({
+          'apps': {
+            'atompay': {'android': android, 'ios': ios},
+          },
+        });
+
+    // What the live config sends today.
+    expect(atomPayHasApp(config(null, null)), isFalse);
+    expect(atomPayAppUrl(config(null, null)), atomPayWebUrl);
+    expect(atomPayAppUrl(null), atomPayWebUrl);
+
+    expect(atomPayHasApp(config('https://play.google.com/store/apps/details?id=pay', null)), isTrue);
+    expect(atomPayAppUrl(config('https://play.google.com/store/apps/details?id=pay', null)), 'https://play.google.com/store/apps/details?id=pay');
+    // Only the other platform's link: still better than the website.
+    expect(atomPayAppUrl(config(null, 'https://apps.apple.com/app/id1')), 'https://apps.apple.com/app/id1');
   });
 }

@@ -114,6 +114,8 @@ class AtomHomeScreen extends ConsumerWidget {
                 gap,
                 padded(_OrderAnythingRow(onCustomOrder: () => AtomNav.customOrder(context), onMakeOffer: () => AtomNav.makeOffer(context))),
                 gap,
+                padded(HomePartnerCard.pay(onApply: () => atomOpenUrl(context, atomPayAppUrl(ref.read(appConfigProvider).value)), onGetApp: () => AtomNav.apps(context))),
+                gap,
                 padded(HomePartnerCard.brand(onApply: () => AtomNav.apps(context), onGetApp: () => AtomNav.apps(context))),
                 gap,
                 padded(HomePartnerCard.seller(onApply: () => atomOpenUrl(context, atomSellerApplyUrl(ref.read(appConfigProvider).value)), onGetApp: () => AtomNav.apps(context))),
