@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/network_manager.dart';
 import '../core/network/network_provider.dart';
+import 'atom_http.dart';
 import 'atom_models.dart';
+import 'atom_offline_store.dart';
 import 'atom_product_detail.dart';
 
 /// App v2 endpoints (server TRD: docs/trd/2026-10-28-customer-app-v2-api.md).
@@ -35,9 +37,19 @@ class AtomCatalogueApi {
     return atomList(res is Map ? res['data'] : null);
   }
 
+  /// Saved on the phone each time it loads; the saved copy is used offline
+  /// (plan months and the minimum advance for a custom order).
   Future<AppConfig> config() async {
-    final res = await _network.getRequest(AtomEndpoints.config);
-    return AppConfig.fromJson(Map<String, dynamic>.from((res as Map)['data'] as Map));
+    try {
+      final res = await _network.getRequest(AtomEndpoints.config);
+      final data = Map<String, dynamic>.from((res as Map)['data'] as Map);
+      await AtomOfflineStore.write('config', data);
+      return AppConfig.fromJson(data);
+    } on AtomApiException catch (e) {
+      final saved = e.isOffline ? await AtomOfflineStore.read('config') : null;
+      if (saved is! Map) rethrow;
+      return AppConfig.fromJson(Map<String, dynamic>.from(saved));
+    }
   }
 
   Future<List<HomeSlide>> slides() async => (await _list(AtomEndpoints.sliders)).map(HomeSlide.fromJson).toList(growable: false);

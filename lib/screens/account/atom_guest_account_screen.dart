@@ -6,6 +6,7 @@ import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_nav.dart';
 import '../../shell/atom_shell.dart';
+import '../../state/atom_outbox.dart';
 import '../../widgets/atom_button.dart';
 import 'atom_account_widgets.dart';
 
@@ -17,6 +18,7 @@ class AtomGuestAccountScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gutter = context.atomGutter;
+    final waiting = ref.watch(outboxProvider).length;
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -36,6 +38,7 @@ class AtomGuestAccountScreen extends ConsumerWidget {
                   AccountMenuRow(Icons.chat_bubble_outline_rounded, 'Make an offer', () => AtomNav.makeOffer(context)),
                   AccountMenuRow(Icons.auto_awesome_rounded, 'Ask Atom', () => AtomNav.toTab(context, ref, AtomTab.askAtom)),
                   AccountMenuRow(Icons.place_outlined, 'Delivery area', () => AtomNav.location(context)),
+                  if (waiting > 0) AccountMenuRow(Icons.schedule_send_rounded, 'Waiting to send', () => AtomNav.outbox(context), count: waiting),
                 ],
               ),
               AccountMenuGroup(title: 'Help and info', rows: helpRows(context)),

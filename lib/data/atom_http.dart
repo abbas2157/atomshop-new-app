@@ -16,11 +16,15 @@ export 'atom_errors.dart';
 /// [data] is the envelope's `data` (field errors, or extra details such as
 /// `needs_verification`).
 class AtomApiException implements Exception {
-  const AtomApiException(this.message, {this.statusCode = 0, this.data = const {}});
+  const AtomApiException(this.message, {this.statusCode = 0, this.data = const {}, this.unsent = false});
 
   final String message;
   final int statusCode;
   final Map<String, dynamic> data;
+
+  /// The request never left the phone (no connection, or the connection
+  /// could not be opened), so sending it again cannot make a duplicate.
+  final bool unsent;
 
   bool get isOffline => statusCode == 0;
   bool get isUnauthorised => statusCode == 401;
@@ -114,7 +118,7 @@ class AtomHttp {
       res = await request();
     } on DioException catch (e) {
       atomServerReachable.value = false;
-      throw AtomApiException(atomDioMessage(e));
+      throw AtomApiException(atomDioMessage(e), unsent: atomNeverSent(e));
     }
 
     atomServerReachable.value = true;
@@ -154,6 +158,10 @@ String atomDioMessage(DioException e) => switch (e.type) {
       DioExceptionType.cancel => 'That was cancelled. Please try again.',
       _ => atomStatusMessage(0),
     };
+
+/// No connection could be opened, so the server never saw the request.
+bool atomNeverSent(DioException e) =>
+    e.response == null && (e.type == DioExceptionType.connectionError || e.type == DioExceptionType.connectionTimeout);
 
 final atomHttpProvider = Provider<AtomHttp>((ref) => AtomHttp());
 

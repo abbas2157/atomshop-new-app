@@ -12,6 +12,7 @@ import '../../design/atom_tokens.dart';
 import '../../shell/atom_nav.dart';
 import '../../state/atom_account_providers.dart';
 import '../../state/atom_order_providers.dart';
+import '../../state/atom_outbox.dart';
 import '../../state/atom_session.dart';
 import '../../utils/atom_format.dart';
 import '../../utils/atom_validators.dart';
@@ -112,31 +113,35 @@ class _AtomCustomDetailsScreenState extends ConsumerState<AtomCustomDetailsScree
     final phone = _phone.text.trim();
     setState(() => _sending = true);
     try {
-      final placed = await ref
-          .read(atomAccountApiProvider)
-          .placeCustomOrder(
-            {
-              'request_id': _requestId,
-              'product_title': d.title,
-              if (_link.text.trim().isNotEmpty) 'product_link': _link.text.trim(),
-              'price': d.price,
-              'advance': d.advance,
-              'months': d.months,
-              if (d.referenceCode.isNotEmpty) 'reference_code': d.referenceCode,
-              'full_name': _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
-              'phone': phone,
-              if (_email.text.trim().isNotEmpty) 'email': _email.text.trim(),
-              'city_id': _cityId,
-              'area_id': _areaId,
-              'address': _address.text.trim(),
-            },
-            photos: [?_photo],
-          );
+      // Offline, the order is kept on the phone and sent once back online;
+      // the plan shown is the one worked out here, with the server's formula.
+      final r = await ref.read(outboxProvider.notifier).submit(
+        OutboxKind.customOrder,
+        {
+          'request_id': _requestId,
+          'product_title': d.title,
+          if (_link.text.trim().isNotEmpty) 'product_link': _link.text.trim(),
+          'price': d.price,
+          'advance': d.advance,
+          'months': d.months,
+          if (d.referenceCode.isNotEmpty) 'reference_code': d.referenceCode,
+          'full_name': _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
+          'phone': phone,
+          if (_email.text.trim().isNotEmpty) 'email': _email.text.trim(),
+          'city_id': _cityId,
+          'area_id': _areaId,
+          'address': _address.text.trim(),
+        },
+        files: [?_photo],
+      );
+      final q = widget.quote;
+      final placed = r.result as CustomOrderPlaced? ??
+          CustomOrderPlaced(orderId: '', product: d.title, monthly: q.monthly, months: q.months, advance: q.advance, total: q.total, area: '');
       if (!mounted) return;
       refreshAccount(ref);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => AtomCustomPlacedScreen(placed: placed, phone: phone),
+          builder: (_) => AtomCustomPlacedScreen(placed: placed, phone: phone, queued: r.queued),
         ),
       );
     } catch (e) {

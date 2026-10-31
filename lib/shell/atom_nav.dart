@@ -12,6 +12,7 @@ import '../screens/account/atom_custom_orders_screen.dart';
 import '../screens/account/atom_notifications_screen.dart';
 import '../screens/account/atom_order_detail_screen.dart';
 import '../screens/account/atom_orders_screen.dart';
+import '../screens/account/atom_outbox_screen.dart';
 import '../screens/account/atom_overview_screen.dart';
 import '../screens/account/atom_password_screen.dart';
 import '../screens/account/atom_profile_screen.dart';
@@ -154,6 +155,9 @@ abstract final class AtomNav {
   static Future<void> profile(BuildContext context) => _protected(context, const AtomProfileScreen());
 
   static Future<void> changePassword(BuildContext context) => _protected(context, const AtomPasswordScreen());
+
+  /// What was made offline and is waiting to be sent (guests too).
+  static Future<void> outbox(BuildContext context) => _push(context, const AtomOutboxScreen());
 
   static Future<void> notifications(BuildContext context) => _protected(context, const AtomNotificationsScreen());
 

@@ -1003,9 +1003,35 @@ class AtomAccountApi {
     return _http.bytes(url);
   }
 
-  /// No quote endpoint on the server yet, and the app never works out
-  /// markup: this only checks the inputs. The server works out the plan
-  /// when the order is sent ([placeCustomOrder]).
+  /// The rates `custom-order-calculator/store` prices a custom order with
+  /// (backend `Api\Order\CustomOfferController::store`, the same as the
+  /// website's `Web\CustomOfferController`). Keep them in step with it.
+  static const _customMarkupPerMonth = 0.04;
+  static const _customSourcingFee = 0.01;
+
+  /// Supplier codes already checked: code → (verified, message).
+  static final Map<String, (bool, String)> _references = {};
+
+  /// GET `custom-order-calculator/reference-code`: a verified supplier's
+  /// code halves the sourcing fee. Null when it could not be checked
+  /// (offline, or the check failed): the server checks it again anyway.
+  Future<(bool, String)?> _checkReference(String code) async {
+    final known = _references[code];
+    if (known != null) return known;
+    try {
+      final envelope = await _http.getEnvelope('custom-order-calculator/reference-code?code=${Uri.encodeQueryComponent(code)}');
+      final r = (_map(envelope['data'])['success'] == true, _str(envelope['message']));
+      return _references[code] = r;
+    } on AtomApiException {
+      return null;
+    }
+  }
+
+  /// No quote endpoint on the server, so the app works out the plan with
+  /// the store endpoint's own formula: markup is 4% of the financed amount
+  /// per month, plus a 1% sourcing fee (half with a verified supplier's
+  /// code). Works offline; an unchecked code counts the full fee, and the
+  /// server applies the half fee when it checks the code on sending.
   Future<CustomQuote> customQuote({required int price, required int advance, required int months, String referenceCode = '', int minAdvancePercent = 20}) async {
     final minAdvance = (price * minAdvancePercent / 100).ceil();
     if (advance < minAdvance) {
@@ -1018,24 +1044,38 @@ class AtomAccountApi {
         'advance': ['The advance must be less than the price.'],
       });
     }
+    final code = referenceCode.trim();
+    final reference = code.isEmpty ? null : await _checkReference(code);
+    final verified = reference?.$1 ?? false;
+    final feeRate = verified ? _customSourcingFee / 2 : _customSourcingFee;
+    final financed = price - advance;
+    final markup = financed * _customMarkupPerMonth * months;
+    final fee = price * feeRate;
+    final total = (price + markup + fee).round();
     return CustomQuote(
       price: price,
       advance: advance,
       minAdvance: minAdvance,
-      financed: price - advance,
-      markup: 0,
-      sourcingFee: 0,
-      sourcingFeePercent: 1,
-      total: 0,
-      monthly: 0,
+      financed: financed,
+      markup: markup.round(),
+      sourcingFee: fee.round(),
+      sourcingFeePercent: verified ? 0.5 : 1,
+      total: total,
+      // As placeCustomOrder reads the server's answer.
+      monthly: months > 0 ? ((total - advance) / months).round() : 0,
       months: months,
-      referenceValid: null,
-      referenceMessage: '',
+      referenceValid: code.isEmpty ? null : reference?.$1,
+      referenceMessage: code.isEmpty
+          ? ''
+          : reference == null
+              ? 'This code is checked when you are back online. A verified supplier code halves the sourcing fee.'
+              : reference.$2,
     );
   }
 
-  /// Whether the server quotes a custom order before it is sent.
-  static const hasCustomQuote = false;
+  /// The plan is worked out in the app before the order is sent
+  /// ([customQuote]).
+  static const hasCustomQuote = true;
 
   /// Photos and links are not taken by `custom-order-calculator/store`.
   static const customOrderTakesExtras = false;

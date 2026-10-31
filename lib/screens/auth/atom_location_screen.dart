@@ -12,6 +12,7 @@ import '../../state/atom_delivery_area.dart';
 import '../../state/atom_account_providers.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_order_providers.dart';
+import '../../state/atom_outbox.dart';
 import '../../state/atom_session.dart';
 import '../../widgets/atom_select_field.dart';
 import '../../widgets/atom_button.dart';
@@ -92,24 +93,35 @@ class _AtomLocationScreenState extends ConsumerState<AtomLocationScreen> {
       _busy = true;
       _error = null;
     });
+    String title(List<AtomPlace>? list, int id) => list?.where((p) => p.id == id).firstOrNull?.title ?? '';
+    final cityTitle = title(ref.read(citiesProvider).value, city);
+    final areaTitle = title(ref.read(areasProvider(city)).value, area);
+    var queued = false;
     try {
       if (signedIn) {
-        await ref.read(atomAuthApiProvider).updateLocation(cityId: city, areaId: area, address: _address.text.trim(), phone: _phone.text.trim());
+        // Offline, the change is kept on the phone and sent once back online.
+        final address = _address.text.trim();
+        final r = await ref.read(outboxProvider.notifier).submit(OutboxKind.location, {
+          'city_id': city,
+          'area_id': area,
+          'address': address,
+          'phone': _phone.text.trim(),
+        });
+        queued = r.queued;
+        if (queued) {
+          await ref.read(atomAuthApiProvider).keepLocally(address: address, city: AtomRef(city, cityTitle), area: AtomRef(area, areaTitle));
+        }
         refreshAccount(ref);
       }
       // Kept on this phone with the names, so Home can say where we deliver.
-      String title(List<AtomPlace>? list, int id) => list?.where((p) => p.id == id).firstOrNull?.title ?? '';
-      await ref.read(deliveryAreaProvider.notifier).save(DeliveryArea(
-            cityId: city,
-            cityTitle: title(ref.read(citiesProvider).value, city),
-            areaId: area,
-            areaTitle: title(ref.read(areasProvider(city)).value, area),
-          ));
+      await ref.read(deliveryAreaProvider.notifier).save(DeliveryArea(cityId: city, cityTitle: cityTitle, areaId: area, areaTitle: areaTitle));
       if (!mounted) return;
       if (widget.signUpStep) {
         AtomNav.finishAuth(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Delivery area saved.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(queued ? "You're offline. Your area is saved on this phone and sent when you're back online." : 'Delivery area saved.'),
+        ));
         Navigator.of(context).maybePop();
       }
     } catch (e) {

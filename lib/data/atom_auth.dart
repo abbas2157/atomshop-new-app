@@ -5,6 +5,7 @@ import '../core/auth/session_manager.dart';
 import '../core/services/fcm_service.dart';
 import '../utils/atom_format.dart';
 import 'atom_http.dart';
+import 'atom_offline_store.dart';
 
 /// Customer accounts. See [AtomAuthApi] for which endpoints and why.
 
@@ -92,6 +93,47 @@ class AtomUser {
         workAddress: _str(j['work_address']),
         cnicFrontUploaded: j['cnic_front_uploaded'] == true,
         cnicBackUploaded: j['cnic_back_uploaded'] == true,
+      );
+
+  /// The same keys [AtomUser.fromJson] reads (kept on the phone).
+  Map<String, dynamic> toJson() => {
+        'uuid': uuid,
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'joined_at': joinedAt?.toIso8601String(),
+        'picture_url': pictureUrl,
+        if (city != null) 'city': {'id': city!.id, 'title': city!.title},
+        if (area != null) 'area': {'id': area!.id, 'title': area!.title},
+        'address': address,
+        'verified': verified,
+        'customer_id': customerId,
+        'father_name': fatherName,
+        'cnic_masked': cnicMasked,
+        'alternate_phone': alternatePhone,
+        'work_address': workAddress,
+        'cnic_front_uploaded': cnicFrontUploaded,
+        'cnic_back_uploaded': cnicBackUploaded,
+      };
+
+  AtomUser copyWith({String? name, String? phone, String? address, AtomRef? city, AtomRef? area}) => AtomUser(
+        uuid: uuid,
+        name: name ?? this.name,
+        phone: phone ?? this.phone,
+        email: email,
+        joinedAt: joinedAt,
+        pictureUrl: pictureUrl,
+        city: city ?? this.city,
+        area: area ?? this.area,
+        address: address ?? this.address,
+        verified: verified,
+        customerId: customerId,
+        fatherName: fatherName,
+        cnicMasked: cnicMasked,
+        alternatePhone: alternatePhone,
+        workAddress: workAddress,
+        cnicFrontUploaded: cnicFrontUploaded,
+        cnicBackUploaded: cnicBackUploaded,
       );
 }
 
@@ -294,9 +336,67 @@ class AtomAuthApi {
     return uuid;
   }
 
+  static const _meKey = 'me';
+
+  /// The profile. Offline, the copy kept on the phone (with any changes
+  /// still waiting in the outbox already applied).
   Future<AtomUser> me() async {
-    final r = _result(await _http.getEnvelope('account/profile/${await _uuid()}'));
-    return _saved(_fromOld(_map(r['user']), _map(r['customer'])));
+    final uuid = await _uuid();
+    try {
+      final r = _result(await _http.getEnvelope('account/profile/$uuid'));
+      return await _saved(_fromOld(_map(r['user']), _map(r['customer'])));
+    } on AtomApiException catch (e) {
+      final saved = e.isOffline ? await savedMe() : null;
+      if (saved == null) rethrow;
+      return saved;
+    }
+  }
+
+  /// The profile kept on the phone for the signed-in account; before the
+  /// first profile load, what sign-in saved (name, contact, area). Null
+  /// when signed out.
+  static Future<AtomUser?> savedMe() async {
+    final uuid = await SessionManager.getUserUuid() ?? '';
+    if (uuid.isEmpty) return null;
+    final saved = await AtomOfflineStore.read(_meKey);
+    if (saved is Map) {
+      final user = AtomUser.fromJson(Map<String, dynamic>.from(saved));
+      if (user.uuid == uuid) return user;
+    }
+    const storage = FlutterSecureStorage();
+    AtomRef? place(String? id, String? title) {
+      final n = _id(id);
+      return n == null ? null : AtomRef(n, title ?? '');
+    }
+
+    final email = await SessionManager.getEmail() ?? '';
+    return AtomUser(
+      uuid: uuid,
+      name: await SessionManager.getUserName() ?? '',
+      phone: await SessionManager.getPhone() ?? '',
+      email: email.toLowerCase().endsWith('@atomshop.pk') ? '' : email,
+      joinedAt: null,
+      pictureUrl: '',
+      city: place(await SessionManager.getCityId(), await storage.read(key: 'city_title')),
+      area: place(await SessionManager.getAreaId(), await storage.read(key: 'area_title')),
+      address: await SessionManager.getAddress() ?? '',
+      verified: false,
+      customerId: await SessionManager.getUserId() ?? '',
+      fatherName: '',
+      cnicMasked: '',
+      alternatePhone: '',
+      workAddress: '',
+      cnicFrontUploaded: false,
+      cnicBackUploaded: false,
+    );
+  }
+
+  /// A change kept in the outbox (offline): shown in the app now, the way
+  /// the server will have it once it is sent.
+  Future<AtomUser?> keepLocally({String? name, String? phone, String? address, AtomRef? city, AtomRef? area}) async {
+    final current = await savedMe();
+    if (current == null) return null;
+    return _saved(current.copyWith(name: name, phone: phone, address: address, city: city, area: area));
   }
 
   /// Saves name, phone, area and address (all are required together).
@@ -369,7 +469,10 @@ class AtomAuthApi {
 
   Future<AtomUser> _saved(AtomUser user) async {
     final token = await SessionManager.getToken();
-    if (token != null && token.isNotEmpty) await saveSession(token, user);
+    if (token != null && token.isNotEmpty) {
+      await saveSession(token, user);
+      await AtomOfflineStore.write(_meKey, user.toJson());
+    }
     return user;
   }
 

@@ -20,8 +20,9 @@ import 'atom_custom_plan_screen.dart';
 import 'atom_custom_shared.dart';
 
 /// Custom order, step 1 (canvas: "Custom order · 1 Calculator"): any
-/// product from any shop. The monthly figure is the server's quote, asked
-/// for a moment after the customer stops typing; the app works out nothing.
+/// product from any shop. The monthly figure is worked out a moment after
+/// the customer stops typing, with the server's own formula, so it works
+/// offline too ([AtomAccountApi.customQuote]).
 class AtomCustomOrderScreen extends ConsumerStatefulWidget {
   const AtomCustomOrderScreen({super.key});
 

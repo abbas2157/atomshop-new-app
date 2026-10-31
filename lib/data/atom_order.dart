@@ -6,6 +6,7 @@ import '../core/network/network_provider.dart';
 import '../utils/atom_format.dart';
 import 'atom_http.dart';
 import 'atom_models.dart';
+import 'atom_offline_store.dart';
 import 'atom_product_detail.dart';
 
 /// Ordering a listed product: POST api/app/orders (server TRD
@@ -108,12 +109,47 @@ class AtomOrderApi {
 
   final NetworkManager _network;
 
-  Future<List<AtomPlace>> cities() async => _places(await _network.getRequest('cities'));
+  /// Cities and areas are saved on the phone each time they load, and the
+  /// saved list is used when offline, so the forms can be filled anywhere.
+  Future<List<AtomPlace>> cities() => _places('cities', 'cities');
 
-  Future<List<AtomPlace>> areas(int cityId) async => _places(await _network.getRequest('areas/$cityId'));
+  Future<List<AtomPlace>> areas(int cityId) => _places('areas/$cityId', 'areas_$cityId');
 
-  List<AtomPlace> _places(Object? res) =>
-      atomList(res is Map ? res['data'] : null).map(AtomPlace.fromJson).where((p) => p.id > 0).toList(growable: false);
+  Future<List<AtomPlace>> _places(String endpoint, String key) async {
+    try {
+      final res = await _network.getRequest(endpoint);
+      final rows = atomList(res is Map ? res['data'] : null);
+      final places = _parse(rows);
+      await AtomOfflineStore.write(key, [for (final p in places) {'id': p.id, 'title': p.title}]);
+      return places;
+    } on AtomApiException catch (e) {
+      final saved = e.isOffline ? await AtomOfflineStore.read(key) : null;
+      if (saved is! List) rethrow;
+      return _parse(atomList(saved));
+    }
+  }
+
+  List<AtomPlace> _parse(List<Map<String, dynamic>> rows) => rows.map(AtomPlace.fromJson).where((p) => p.id > 0).toList(growable: false);
+
+  static const _placesSavedKey = 'places_saved_at';
+
+  /// Saves every city's areas on the phone, one city at a time, at most
+  /// once a week ([first] goes first: the customer's own city). Stops
+  /// quietly when the connection drops; the next call carries on.
+  Future<void> savePlacesForOffline({int? first}) async {
+    final at = DateTime.tryParse('${await AtomOfflineStore.read(_placesSavedKey)}');
+    if (at != null && DateTime.now().difference(at) < const Duration(days: 7)) return;
+    try {
+      final ids = [for (final c in await cities()) c.id];
+      if (first != null && ids.remove(first)) ids.insert(0, first);
+      for (final id in ids) {
+        await areas(id);
+      }
+      await AtomOfflineStore.write(_placesSavedKey, DateTime.now().toIso8601String());
+    } on AtomApiException {
+      // Offline or the server is busy: try again later.
+    }
+  }
 
   /// Places the order. A signed-in customer's token makes it their order;
   /// a guest's order goes on the customer account for the phone. Throws with

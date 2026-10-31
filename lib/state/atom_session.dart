@@ -4,6 +4,7 @@ import '../core/auth/session_manager.dart';
 import '../core/services/fcm_service.dart';
 import '../data/atom_auth.dart';
 import '../data/atom_http.dart';
+import '../data/atom_offline_store.dart';
 import '../shell/atom_feedback.dart';
 
 /// Who is using the app. The app opens as a guest (owner decision
@@ -66,6 +67,8 @@ class AtomSessionNotifier extends AsyncNotifier<AtomSession> {
   Future<void> _forget() async {
     if (state.value?.signedIn == false) return;
     await SessionManager.logout();
+    // The profile copy kept for offline use belongs to that account.
+    await AtomOfflineStore.delete('me');
     state = const AsyncData(AtomSession.guest());
     // Keep receiving guest pushes on this phone.
     await FcmService.syncToken();

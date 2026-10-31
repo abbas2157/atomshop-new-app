@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../data/atom_account.dart';
 import '../../data/atom_http.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
@@ -14,6 +13,7 @@ import '../../shell/atom_nav.dart';
 import '../../shell/atom_shell.dart';
 import '../../state/atom_account_providers.dart';
 import '../../state/atom_order_providers.dart';
+import '../../state/atom_outbox.dart';
 import '../../state/atom_session.dart';
 import '../../utils/atom_validators.dart';
 import '../../widgets/atom_leave_guard.dart';
@@ -24,6 +24,7 @@ import '../../widgets/atom_photo_hero.dart';
 import '../../widgets/atom_surfaces.dart';
 import '../../widgets/atom_text_field.dart';
 import '../account/atom_custom_orders_screen.dart';
+import '../account/atom_outbox_screen.dart';
 
 /// Make an offer (canvas: "Make an offer"): not sure of the price? Tell us
 /// what you want and a seller on Atomshop calls you. Saved as a lead; guests
@@ -56,6 +57,9 @@ class _AtomMakeOfferScreenState extends ConsumerState<AtomMakeOfferScreen> {
   }
 
   bool _sent = false;
+
+  /// Saved on the phone (offline) rather than sent.
+  bool _queued = false;
 
   @override
   void initState() {
@@ -102,22 +106,25 @@ class _AtomMakeOfferScreenState extends ConsumerState<AtomMakeOfferScreen> {
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _sending = true);
     try {
-      await ref
-          .read(atomAccountApiProvider)
-          .makeOffer(
-            fullName: _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
-            phone: _phone.text.trim(),
-            cityId: _cityId!,
-            areaId: _areaId,
-            product: _product.text.trim(),
-            onWhatsApp: _whatsApp,
-            photos: List.of(_photos),
-          );
+      // Offline, the offer is kept on the phone and sent once back online.
+      final r = await ref.read(outboxProvider.notifier).submit(
+        OutboxKind.offer,
+        {
+          'full_name': _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
+          'phone': _phone.text.trim(),
+          'city_id': _cityId!,
+          'area_id': _areaId,
+          'product': _product.text.trim(),
+          'on_whatsapp': _whatsApp,
+        },
+        files: List.of(_photos),
+      );
       if (!mounted) return;
       ref.invalidate(offersProvider);
       setState(() {
         _sending = false;
         _sent = true;
+        _queued = r.queued;
       });
     } catch (e) {
       if (!mounted) return;
@@ -128,7 +135,7 @@ class _AtomMakeOfferScreenState extends ConsumerState<AtomMakeOfferScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_sent) return _Sent(signedIn: ref.watch(atomSignedInProvider));
+    if (_sent) return _Sent(signedIn: ref.watch(atomSignedInProvider), queued: _queued);
 
     return AtomLeaveGuard(
       dirty: _dirty,
@@ -301,9 +308,12 @@ class _AtomMakeOfferScreenState extends ConsumerState<AtomMakeOfferScreen> {
 }
 
 class _Sent extends ConsumerWidget {
-  const _Sent({required this.signedIn});
+  const _Sent({required this.signedIn, required this.queued});
 
   final bool signedIn;
+
+  /// Kept on the phone until the connection is back.
+  final bool queued;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -317,23 +327,33 @@ class _Sent extends ConsumerWidget {
                 child: Container(
                   width: 88,
                   height: 88,
-                  decoration: const BoxDecoration(color: AtomColors.greenSoft, shape: BoxShape.circle),
-                  child: const Icon(Icons.check_rounded, size: 44, color: AtomColors.green),
+                  decoration: BoxDecoration(color: queued ? AtomColors.amberSoft : AtomColors.greenSoft, shape: BoxShape.circle),
+                  child: Icon(queued ? Icons.schedule_send_rounded : Icons.check_rounded, size: 44, color: queued ? AtomColors.amberInk : AtomColors.green),
                 ),
               ),
               const SizedBox(height: 14),
               Semantics(
                 header: true,
-                child: Text('Request sent', textAlign: TextAlign.center, style: AtomText.title.copyWith(fontSize: 26)),
+                child: Text(queued ? 'Request saved' : 'Request sent', textAlign: TextAlign.center, style: AtomText.title.copyWith(fontSize: 26)),
               ),
               const SizedBox(height: AtomSpace.xs),
               Text(
-                'A seller in your area contacts you to confirm the price and plan.',
+                queued
+                    ? "You're offline, so your request is saved on this phone. It is sent as soon as you're back online, then a seller in your area contacts you."
+                    : 'A seller in your area contacts you to confirm the price and plan.',
                 textAlign: TextAlign.center,
                 style: AtomText.body.copyWith(fontSize: 15),
               ),
               const SizedBox(height: AtomSpace.xl),
-              if (signedIn) ...[
+              if (queued) ...[
+                AtomButton(
+                  label: 'See what is waiting to send',
+                  icon: Icons.schedule_send_rounded,
+                  expand: true,
+                  onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AtomOutboxScreen())),
+                ),
+                const SizedBox(height: 10),
+              ] else if (signedIn) ...[
                 AtomButton(
                   label: 'Track my offers',
                   icon: Icons.chat_bubble_outline_rounded,
@@ -347,7 +367,7 @@ class _Sent extends ConsumerWidget {
                 label: 'Keep shopping',
                 icon: Icons.shopping_bag_outlined,
                 expand: true,
-                variant: signedIn ? AtomButtonVariant.text : AtomButtonVariant.primary,
+                variant: signedIn || queued ? AtomButtonVariant.text : AtomButtonVariant.primary,
                 onPressed: () => AtomNav.toTab(context, ref, AtomTab.home),
               ),
             ],

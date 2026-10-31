@@ -12,14 +12,19 @@ import '../../utils/atom_format.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_page.dart';
 import '../../widgets/atom_surfaces.dart';
+import '../account/atom_outbox_screen.dart';
 
 /// After a custom order is saved: what the server stored and what happens
 /// next. Back goes home, never to the filled form.
 class AtomCustomPlacedScreen extends ConsumerWidget {
-  const AtomCustomPlacedScreen({super.key, required this.placed, required this.phone});
+  const AtomCustomPlacedScreen({super.key, required this.placed, required this.phone, this.queued = false});
 
   final CustomOrderPlaced placed;
   final String phone;
+
+  /// Saved on the phone (offline): [placed] is the plan worked out in the
+  /// app, and the order is sent once the connection is back.
+  final bool queued;
 
   static const _steps = [
     'A seller on Atomshop calls you within 24 hours to confirm the product and plan.',
@@ -48,15 +53,20 @@ class AtomCustomPlacedScreen extends ConsumerWidget {
                   child: Container(
                     width: 88,
                     height: 88,
-                    decoration: const BoxDecoration(color: AtomColors.greenSoft, shape: BoxShape.circle),
-                    child: const Icon(Icons.check_rounded, size: 44, color: AtomColors.green),
+                    decoration: BoxDecoration(color: queued ? AtomColors.amberSoft : AtomColors.greenSoft, shape: BoxShape.circle),
+                    child: Icon(queued ? Icons.schedule_send_rounded : Icons.check_rounded, size: 44, color: queued ? AtomColors.amberInk : AtomColors.green),
                   ),
                 ),
                 const SizedBox(height: 14),
-                Semantics(header: true, child: Text('Custom order placed', textAlign: TextAlign.center, style: AtomText.title.copyWith(fontSize: 26))),
+                Semantics(
+                  header: true,
+                  child: Text(queued ? 'Custom order saved' : 'Custom order placed', textAlign: TextAlign.center, style: AtomText.title.copyWith(fontSize: 26)),
+                ),
                 const SizedBox(height: AtomSpace.xs),
                 Text(
-                  'Your order has been sent to verified sellers${p.area.isEmpty ? '' : ' in ${p.area}'}. A seller will call you to confirm the price and plan.',
+                  queued
+                      ? "You're offline, so your order is saved on this phone. It is sent to verified sellers as soon as you're back online."
+                      : 'Your order has been sent to verified sellers${p.area.isEmpty ? '' : ' in ${p.area}'}. A seller will call you to confirm the price and plan.',
                   textAlign: TextAlign.center,
                   style: AtomText.body.copyWith(fontSize: 15),
                 ),
@@ -95,7 +105,14 @@ class AtomCustomPlacedScreen extends ConsumerWidget {
                     ),
                   ),
                 const SizedBox(height: AtomSpace.md),
-                if (signedIn)
+                if (queued)
+                  AtomButton(
+                    label: 'See what is waiting to send',
+                    icon: Icons.schedule_send_rounded,
+                    expand: true,
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AtomOutboxScreen())),
+                  )
+                else if (signedIn)
                   AtomButton(
                     label: 'Track my custom orders',
                     icon: Icons.inventory_2_outlined,

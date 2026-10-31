@@ -9,6 +9,7 @@ import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../shell/atom_nav.dart';
 import '../../state/atom_account_providers.dart';
+import '../../state/atom_outbox.dart';
 import '../../widgets/atom_leave_guard.dart';
 import '../../widgets/atom_button.dart';
 import '../../widgets/atom_page.dart';
@@ -103,7 +104,12 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
     try {
       final api = ref.read(atomAuthApiProvider);
       if (what == 'photo') {
-        await api.uploadPhoto(path);
+        // Offline, the photo is kept on the phone and uploaded once back online.
+        final r = await ref.read(outboxProvider.notifier).submit(OutboxKind.photo, const {}, files: [path]);
+        if (r.queued) {
+          _say("You're offline. Your new photo is uploaded when you're back online.");
+          return;
+        }
       } else {
         await api.uploadCnic(front: what == 'front', path: path);
       }
@@ -122,24 +128,29 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
+    final name = _name.text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    final phone = _extended ? '' : _phone.text.trim();
+    final address = _address.text.trim();
     try {
-      await ref
-          .read(atomAuthApiProvider)
-          .updateMe(
-            name: _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
-            email: _email.text.trim(),
-            fatherName: _father.text.trim().replaceAll(RegExp(r'\s+'), ' '),
-            cnic: _cnic.text.trim(),
-            alternatePhone: _alternate.text.trim(),
-            address: _address.text.trim(),
-            workAddress: _work.text.trim(),
-            cityId: widget.user.city?.id,
-            areaId: widget.user.area?.id,
-            phone: _extended ? '' : _phone.text.trim(),
-          );
+      // Offline, the change is kept on the phone and sent once back online.
+      final r = await ref.read(outboxProvider.notifier).submit(OutboxKind.profile, {
+        'name': name,
+        'email': _email.text.trim(),
+        'father_name': _father.text.trim().replaceAll(RegExp(r'\s+'), ' '),
+        'cnic': _cnic.text.trim(),
+        'alternate_phone': _alternate.text.trim(),
+        'address': address,
+        'work_address': _work.text.trim(),
+        'city_id': widget.user.city?.id,
+        'area_id': widget.user.area?.id,
+        'phone': phone,
+      });
+      if (r.queued) {
+        await ref.read(atomAuthApiProvider).keepLocally(name: name, phone: phone.isEmpty ? null : phone, address: address);
+      }
       refreshAccount(ref);
       if (!mounted) return;
-      _say('Your profile is saved.');
+      _say(r.queued ? "You're offline. Your changes are saved on this phone and sent when you're back online." : 'Your profile is saved.');
       // Saved: no "leave this form?" question on the way out.
       setState(() => _dirty = false);
       WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -213,7 +213,7 @@ class NetworkManager {
       atomServerReachable.value = error.response != null;
       final response = error.response;
       if (response != null) throw _apiError(response);
-      throw AtomApiException(atomDioMessage(error));
+      throw AtomApiException(atomDioMessage(error), unsent: atomNeverSent(error));
     }
     throw AtomApiException(atomStatusMessage(500), statusCode: 500);
   }

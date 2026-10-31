@@ -11,6 +11,7 @@ import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_feedback.dart';
 import '../../shell/atom_nav.dart';
 import '../../state/atom_account_providers.dart';
+import '../../state/atom_outbox.dart';
 import '../../state/atom_session.dart';
 import '../../utils/atom_format.dart';
 import '../../widgets/atom_button.dart';
@@ -30,6 +31,7 @@ class AtomAccountScreen extends ConsumerWidget {
     final me = ref.watch(meProvider);
     final summary = ref.watch(accountSummaryProvider);
     final s = summary.value;
+    final waiting = ref.watch(outboxProvider).length;
 
     Future<void> refresh() async {
       refreshAccount(ref);
@@ -90,6 +92,7 @@ class AtomAccountScreen extends ConsumerWidget {
                     AccountMenuRow(Icons.add_circle_outline_rounded, 'Custom orders and offers', () => AtomNav.customOrders(context)),
                     AccountMenuRow(Icons.notifications_none_rounded, 'Notifications', () => AtomNav.notifications(context),
                         count: s?.unreadNotifications ?? 0),
+                    if (waiting > 0) AccountMenuRow(Icons.schedule_send_rounded, 'Waiting to send', () => AtomNav.outbox(context), count: waiting),
                   ],
                 ),
                 AccountMenuGroup(
