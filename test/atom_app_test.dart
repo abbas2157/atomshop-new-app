@@ -123,21 +123,20 @@ void main() {
     expect(p.longDescription, 'Wifi\n(43 & Above Voice Control)\nAir Mouse\n\nWarranty');
   });
 
-  test('AtomPay opens its store page once the config has one, the website until then', () {
-    AppConfig config(Object? android, Object? ios) => AppConfig.fromJson({
+  test('AtomPay and Atom Seller fall back to their Play Store pages', () {
+    AppConfig config(String app, Object? android, Object? ios) => AppConfig.fromJson({
           'apps': {
-            'atompay': {'android': android, 'ios': ios},
+            app: {'android': android, 'ios': ios},
           },
         });
 
-    // What the live config sends today.
-    expect(atomPayHasApp(config(null, null)), isFalse);
-    expect(atomPayAppUrl(config(null, null)), atomPayWebUrl);
-    expect(atomPayAppUrl(null), atomPayWebUrl);
+    // What the live config sends today: no links.
+    expect(atomPayAppUrl(config('atompay', null, null)), atomPayPlayUrl);
+    expect(atomPayAppUrl(null), atomPayPlayUrl);
+    expect(atomSellerLinks(null)['android'], atomSellerPlayUrl);
 
-    expect(atomPayHasApp(config('https://play.google.com/store/apps/details?id=pay', null)), isTrue);
-    expect(atomPayAppUrl(config('https://play.google.com/store/apps/details?id=pay', null)), 'https://play.google.com/store/apps/details?id=pay');
-    // Only the other platform's link: still better than the website.
-    expect(atomPayAppUrl(config(null, 'https://apps.apple.com/app/id1')), 'https://apps.apple.com/app/id1');
+    // The config's own links win.
+    expect(atomPayAppUrl(config('atompay', 'https://play.google.com/store/apps/details?id=pay', null)), 'https://play.google.com/store/apps/details?id=pay');
+    expect(atomSellerLinks(config('atomseller', null, 'https://apps.apple.com/app/id2')), {'android': atomSellerPlayUrl, 'ios': 'https://apps.apple.com/app/id2'});
   });
 }

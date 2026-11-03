@@ -17,7 +17,7 @@ Entry: `main.dart` → `app.dart` (`AtomApp`) → `shell/atom_shell.dart`.
 | `utils/` | `AtomFormat` (rupees, dates), `atom_validators.dart` (name, phone, email, login, password rules shared by every form). |
 | `widgets/` | Shared widgets. Build every screen from these. |
 | `core/` | Kept from the old app: `network/` (`NetworkManager`, `ApiEndpoints`), `auth/session_manager.dart`, `services/` (FCM, Facebook events). |
-| `shell/` | Five-tab shell (bottom bar on phones, rail on tablets), one navigator per tab. `AtomNav`: every route (lists open inside the tab, other pages full screen). `AtomUpdateGate`: forced update below `version.min`, a one-time prompt below `version.latest` (from `api/app/config`). |
+| `shell/` | Five-tab shell (bottom bar on phones, rail on tablets), one navigator per tab. `AtomNav`: every route (lists open inside the tab, other pages full screen). `AtomUpdateGate`: forced update whenever Google Play has a newer build (Play in-app update sheet, store page as fallback) or below `version.min`; a one-time prompt below `version.latest` where Play can't answer (iOS). Both version values come from `api/app/config`. |
 | `screens/` | One folder per screen. |
 
 ## Rules

@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:in_app_update/in_app_update.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/atom_models.dart';
@@ -18,9 +19,9 @@ import '../widgets/atom_dialog.dart';
 /// Root navigator, so app-level prompts (update) can open over any page.
 final atomNavigatorKey = GlobalKey<NavigatorState>();
 
-/// Server-driven gates from GET api/app/config, over the whole app:
-/// maintenance (`maintenance.enabled`), forced update (`version.min`) and a
-/// one-time update prompt (`version.latest`).
+/// Gates over the whole app: maintenance (`maintenance.enabled` from GET
+/// api/app/config), forced update (a newer build on Google Play, or below
+/// `version.min`) and a one-time update prompt (`version.latest`, iOS).
 ///
 /// The app stays mounted underneath, so a half-filled form or the page the
 /// customer was on is still there when maintenance ends. The config is read
@@ -61,6 +62,7 @@ class _AtomUpdateGateState extends ConsumerState<AtomUpdateGate> {
     if (!force && DateTime.now().difference(_checkedAt) < _recheckAfter) return;
     _checkedAt = DateTime.now();
     ref.invalidate(appConfigProvider);
+    ref.invalidate(playUpdateProvider);
   }
 
   @override
@@ -104,11 +106,15 @@ class _AtomUpdateGateState extends ConsumerState<AtomUpdateGate> {
   }
 }
 
+/// Atomshop on Google Play, while the config has no Android link.
+const atomshopPlayUrl = 'https://play.google.com/store/apps/details?id=com.ecommerce.atomshop';
+
 /// This app's store page from the config (Atomshop android / ios link).
 String? storeUrl(AppConfig? config) {
   final links = config?.storeLinks['atomshop'];
   final url = Platform.isIOS ? (links?['ios']) : (links?['android']);
-  return (url == null || url.isEmpty) ? null : url;
+  if (url != null && url.isNotEmpty) return url;
+  return Platform.isAndroid ? atomshopPlayUrl : null;
 }
 
 class _GateScreen extends StatelessWidget {
@@ -167,21 +173,64 @@ class _MaintenanceScreen extends StatelessWidget {
   }
 }
 
-class _ForceUpdateScreen extends ConsumerWidget {
+class _ForceUpdateScreen extends ConsumerStatefulWidget {
   const _ForceUpdateScreen();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final url = storeUrl(ref.watch(appConfigProvider).value);
+  ConsumerState<_ForceUpdateScreen> createState() => _ForceUpdateScreenState();
+}
+
+class _ForceUpdateScreenState extends ConsumerState<_ForceUpdateScreen> {
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Open Play's own update sheet at once; this screen stays behind it if
+    // the customer backs out.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ref.read(playUpdateProvider).value != null) _update();
+    });
+  }
+
+  /// Play's in-app update (downloads, installs and restarts the app) when
+  /// Play offers it, otherwise the store page.
+  Future<void> _update() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      if (await _playUpdate()) return;
+      final url = storeUrl(ref.read(appConfigProvider).value);
+      if (url != null) await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// True when Play ran its update sheet (updated, or the customer backed out).
+  Future<bool> _playUpdate() async {
+    final play = ref.read(playUpdateProvider).value;
+    if (play == null || !play.immediateUpdateAllowed) return false;
+    try {
+      return await InAppUpdate.performImmediateUpdate() != AppUpdateResult.inAppUpdateFailed;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canUpdate = ref.watch(playUpdateProvider).value != null || storeUrl(ref.watch(appConfigProvider).value) != null;
     return _GateScreen(
       icon: Icons.system_update_rounded,
       title: 'Please update Atomshop',
-      message: 'This version is no longer supported. Update the app to keep shopping and tracking your installments.',
+      message: 'A new version of Atomshop is available. Update the app to keep shopping and tracking your installments.',
       action: AtomButton(
         label: 'Update now',
         icon: Icons.system_update_rounded,
         expand: true,
-        onPressed: url == null ? null : () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+        loading: _busy,
+        onPressed: canUpdate ? _update : null,
       ),
     );
   }

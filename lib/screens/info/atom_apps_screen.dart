@@ -25,7 +25,7 @@ class AtomAppsScreen extends ConsumerWidget {
     final brandApp = config?.storeLinks['atombrand']?['android'] ?? '';
     final sellerLinks = atomSellerLinks(config);
     final sellerApply = atomSellerApplyUrl(config);
-    final payLinks = config?.storeLinks['atompay'];
+    final payLinks = atomPayLinks(config);
     final payMonths = config?.atompayMonths ?? 3;
     final feePercent = config?.atompayFeePercent ?? 3;
     final payFee = feePercent == feePercent.roundToDouble() ? feePercent.round().toString() : feePercent.toString();
@@ -76,10 +76,10 @@ class AtomAppsScreen extends ConsumerWidget {
                     (Icons.receipt_long_outlined, '$payFee% processing fee and delivery charges apply'),
                   ],
                   links: payLinks,
-                  // Until the config sends store links, open the website.
+                  // iPhones get the website until the config sends an App Store link.
                   applyLabel: 'Open AtomPay',
                   applyIcon: Icons.open_in_new_rounded,
-                  applyUrl: atomPayHasApp(config) ? '' : atomPayWebUrl,
+                  applyUrl: Platform.isIOS && (payLinks['ios'] ?? '').isEmpty ? atomPayWebUrl : '',
                 ),
                 _AppCard(
                   logo: 'assets/images/app-atomseller.png',
@@ -284,31 +284,33 @@ class _AppCard extends StatelessWidget {
   }
 }
 
-/// Atom Seller's store links. Until the config sends its own
-/// (`apps.atomseller`), they are Atomshop's, as on the website's apps and
-/// Smart Seller pages.
-Map<String, String?>? atomSellerLinks(AppConfig? config) {
-  final own = config?.storeLinks['atomseller'];
-  final hasOwn = (own?['android'] ?? '').isNotEmpty || (own?['ios'] ?? '').isNotEmpty;
-  return hasOwn ? own : config?.storeLinks['atomshop'];
+/// Play Store pages for apps the config sends no Android link for.
+const atomSellerPlayUrl = 'https://play.google.com/store/apps/details?id=com.ecommerce.atomseller';
+const atomPayPlayUrl = 'https://play.google.com/store/apps/details?id=com.ecommerce.atompay';
+
+/// [config]'s store links for [app], with [playUrl] when it has no Android one.
+Map<String, String?> _withPlay(AppConfig? config, String app, String playUrl) {
+  final links = config?.storeLinks[app];
+  final android = links?['android'] ?? '';
+  return {'android': android.isNotEmpty ? android : playUrl, 'ios': links?['ios']};
 }
 
-/// AtomPay's website: the AtomPay buttons open it while the config has no
-/// store links for the app (`apps.atompay`).
+/// Atom Seller's store links (`apps.atomseller`, Play by default).
+Map<String, String?> atomSellerLinks(AppConfig? config) => _withPlay(config, 'atomseller', atomSellerPlayUrl);
+
+/// AtomPay's website, for phones with no AtomPay store link (iPhone until
+/// the config sends `apps.atompay.ios`).
 const atomPayWebUrl = 'https://atompay.shop';
 
-/// True once the config sends an AtomPay Play Store or App Store link.
-bool atomPayHasApp(AppConfig? config) {
-  final links = config?.storeLinks['atompay'];
-  return (links?['android'] ?? '').isNotEmpty || (links?['ios'] ?? '').isNotEmpty;
-}
+/// AtomPay's store links (`apps.atompay`, Play by default).
+Map<String, String?> atomPayLinks(AppConfig? config) => _withPlay(config, 'atompay', atomPayPlayUrl);
 
-/// Where "Get AtomPay" goes: this phone's store page when the config has
-/// one, otherwise the other store's, otherwise the website.
+/// Where "Get AtomPay" goes: this phone's store page when there is one,
+/// otherwise the other store's, otherwise the website.
 String atomPayAppUrl(AppConfig? config) {
-  final links = config?.storeLinks['atompay'];
-  final android = links?['android'] ?? '';
-  final ios = links?['ios'] ?? '';
+  final links = atomPayLinks(config);
+  final android = links['android'] ?? '';
+  final ios = links['ios'] ?? '';
   final mine = Platform.isIOS ? ios : android;
   if (mine.isNotEmpty) return mine;
   if (android.isNotEmpty) return android;
