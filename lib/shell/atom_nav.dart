@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/atom_auth.dart';
+import '../data/atom_brands.dart';
 import '../data/atom_models.dart';
 import '../data/atom_order.dart';
 import '../data/atom_product_detail.dart';
+import '../data/atom_sellers.dart';
+import '../screens/brands/atom_brand_partners_screen.dart';
+import '../screens/brands/atom_brand_screen.dart';
 import '../screens/installments/atom_guest_plans_screen.dart';
 import '../screens/installments/atom_plans_screen.dart';
 import '../screens/account/atom_settings_screen.dart';
@@ -37,7 +41,10 @@ import '../screens/order/atom_order_placed_screen.dart';
 import '../screens/order/atom_order_screen.dart';
 import '../screens/placeholder/atom_placeholder_screen.dart';
 import '../screens/product/atom_product_screen.dart';
+import '../screens/sellers/atom_seller_item_screen.dart';
+import '../screens/sellers/atom_seller_profile_screen.dart';
 import '../screens/sellers/atom_sellers_screen.dart';
+import '../screens/sellers/atom_stock_order_placed_screen.dart';
 import '../screens/shop/atom_product_list_screen.dart';
 import '../screens/shop/atom_search_screen.dart';
 import '../state/atom_session.dart';
@@ -54,8 +61,18 @@ abstract final class AtomNav {
   static Future<void> category(BuildContext context, CatalogueItem item) =>
       _tooSoon() ? Future.value() : Navigator.of(context).push(MaterialPageRoute(builder: (_) => AtomProductListScreen.category(item)));
 
+  /// A brand's page from a catalogue brand (Home, a product, Ask Atom).
   static Future<void> brand(BuildContext context, CatalogueItem item) =>
-      _tooSoon() ? Future.value() : Navigator.of(context).push(MaterialPageRoute(builder: (_) => AtomProductListScreen.brand(item)));
+      _brandPage(context, AtomBrandScreen(brandKey: '${item.id}', title: item.title, logo: item.picture));
+
+  /// A brand's page from the Brand partners list.
+  static Future<void> brandPartner(BuildContext context, BrandPartner brand) =>
+      _brandPage(context, AtomBrandScreen(brandKey: brand.key, title: brand.title, logo: brand.logo));
+
+  static Future<void> _brandPage(BuildContext context, AtomBrandScreen page) =>
+      _tooSoon() ? Future.value() : Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+
+  static Future<void> brandPartners(BuildContext context) => _push(context, const AtomBrandPartnersScreen());
 
   static DateTime _lastPush = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -179,8 +196,20 @@ abstract final class AtomNav {
 
   static Future<void> apps(BuildContext context) => _push(context, const AtomAppsScreen());
 
-  /// Verified sellers directory.
-  static Future<void> sellers(BuildContext context) => _push(context, const AtomSellersScreen());
+  /// Verified sellers directory, optionally filtered to one area.
+  static Future<void> sellers(BuildContext context, {int? cityId, int? areaId}) =>
+      _push(context, AtomSellersScreen(cityId: cityId, areaId: areaId));
+
+  /// A seller's profile (and shop, when they have one).
+  static Future<void> sellerProfile(BuildContext context, Seller seller) =>
+      _push(context, AtomSellerProfileScreen(sellerKey: seller.key, seller: seller));
+
+  static Future<void> sellerItem(BuildContext context, String sellerKey, int itemId) =>
+      _push(context, AtomSellerItemScreen(sellerKey: sellerKey, itemId: itemId));
+
+  /// Replaces the seller item page, so back never returns to a sent form.
+  static Future<void> stockOrderPlaced(BuildContext context, StockOrderReceipt receipt) =>
+      Navigator.of(context, rootNavigator: true).pushReplacement(MaterialPageRoute(builder: (_) => AtomStockOrderPlacedScreen(receipt: receipt)));
 
   /// Open to guests too; the account part shows only when signed in.
   static Future<void> settings(BuildContext context) => _push(context, const AtomSettingsScreen());

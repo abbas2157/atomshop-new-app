@@ -14,8 +14,10 @@ import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_feedback.dart';
 import '../../shell/atom_nav.dart';
 import '../../state/atom_account_providers.dart';
+import '../../state/atom_brand_providers.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_connectivity.dart';
+import '../../state/atom_sellers_providers.dart';
 import '../../state/atom_session.dart';
 import '../../widgets/atom_dialog.dart';
 import '../../widgets/atom_logo.dart';
@@ -136,7 +138,8 @@ class _AtomSettingsScreenState extends ConsumerState<AtomSettingsScreen> {
       ..invalidate(appConfigProvider)
       ..invalidate(featuredProductsProvider)
       ..invalidate(topPicksProvider)
-      ..invalidate(homeBrandsProvider)
+      ..invalidate(brandPartnersProvider)
+      ..invalidate(sellersNearProvider)
       ..invalidate(allCategoriesProvider)
       ..invalidate(allBrandsProvider);
     if (ref.read(atomSignedInProvider)) refreshAccount(ref);

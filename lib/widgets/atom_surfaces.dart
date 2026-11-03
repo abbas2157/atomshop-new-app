@@ -79,6 +79,18 @@ class AtomSectionHeader extends StatelessWidget {
 
 enum AtomTone { neutral, blue, amber, green, rose, violet, teal, dark }
 
+/// Background and letter colours for an initial shown instead of a missing
+/// logo or photo, chosen from [id] so the same seller or brand always gets
+/// the same colour.
+(Color, Color) atomInitialColours(int id) => const [
+      (AtomColors.primarySoft, AtomColors.primary),
+      (AtomColors.amberSoft, AtomColors.amberInk),
+      (AtomColors.greenSoft, AtomColors.green),
+      (AtomColors.violetSoft, AtomColors.violet),
+      (AtomColors.tealSoft, AtomColors.teal),
+      (AtomColors.roseSoft, AtomColors.rose),
+    ][id.abs() % 6];
+
 /// Status pill. Never wraps. One tone per status everywhere (style guide).
 class AtomBadge extends StatelessWidget {
   const AtomBadge(this.label, {super.key, this.tone = AtomTone.neutral, this.icon});

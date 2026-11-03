@@ -8,6 +8,7 @@ import '../../data/atom_sellers.dart';
 import '../../design/atom_text.dart';
 import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
+import '../../shell/atom_nav.dart';
 import '../../state/atom_order_providers.dart';
 import '../../state/atom_sellers_providers.dart';
 import '../../widgets/atom_page.dart';
@@ -21,7 +22,11 @@ import 'atom_seller_widgets.dart';
 /// then every seller, a page at a time as the list scrolls. Filter by city
 /// and area, search by business or owner name, top rated only, and sort.
 class AtomSellersScreen extends ConsumerStatefulWidget {
-  const AtomSellersScreen({super.key});
+  const AtomSellersScreen({super.key, this.cityId, this.areaId});
+
+  /// Start filtered to this place ("Sellers in {area}").
+  final int? cityId;
+  final int? areaId;
 
   @override
   ConsumerState<AtomSellersScreen> createState() => _AtomSellersScreenState();
@@ -51,6 +56,8 @@ class _AtomSellersScreenState extends ConsumerState<AtomSellersScreen> {
   @override
   void initState() {
     super.initState();
+    _cityId = widget.cityId;
+    _areaId = widget.cityId == null ? null : widget.areaId;
     _load(reset: true);
   }
 
@@ -310,21 +317,7 @@ class _TopRatedSection extends ConsumerWidget {
             child: const AtomSectionHeader(title: 'Top rated', subtitle: 'Most orders completed on Atomshop'),
           ),
           const SizedBox(height: AtomSpace.sm),
-          SellerTileRow(
-            sellers: sellers,
-            gutter: gutter,
-            onTap: (s) => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              showDragHandle: true,
-              builder: (_) => SafeArea(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(gutter, 0, gutter, AtomSpace.md),
-                  child: SellerCard(seller: s),
-                ),
-              ),
-            ),
-          ),
+          SellerTileRow(sellers: sellers, gutter: gutter, onTap: (s) => AtomNav.sellerProfile(context, s)),
         ],
       ),
     );

@@ -4,7 +4,9 @@ import '../data/atom_api.dart';
 import '../data/atom_models.dart';
 import '../data/atom_shop.dart';
 import '../data/atom_product_detail.dart';
+import 'atom_brand_providers.dart';
 import 'atom_cache.dart';
+import 'atom_sellers_providers.dart';
 
 /// Public settings (contact, store links, plan rules). Small and used on many
 /// screens, so it lives for the whole session.
@@ -24,11 +26,6 @@ final homeSlidesProvider = FutureProvider.autoDispose<List<HomeSlide>>((ref) {
 final homeCategoriesProvider = FutureProvider.autoDispose<List<CatalogueItem>>((ref) {
   ref.cacheFor(AtomCacheTime.catalogue);
   return ref.watch(atomCatalogueApiProvider).categories();
-});
-
-final homeBrandsProvider = FutureProvider.autoDispose<List<CatalogueItem>>((ref) {
-  ref.cacheFor(AtomCacheTime.catalogue);
-  return ref.watch(atomCatalogueApiProvider).brands();
 });
 
 /// "Hot right now": featured products shown on app home.
@@ -53,16 +50,11 @@ final allBrandsProvider = FutureProvider.autoDispose<List<CatalogueItem>>((ref) 
   return ref.watch(atomCatalogueApiProvider).brands(all: true);
 });
 
-/// Products of one category or brand. A family keyed by id, auto-disposed so
+/// Products of one category. A family keyed by id, auto-disposed so
 /// only recently viewed lists stay in memory.
 final categoryProductsProvider = FutureProvider.autoDispose.family<List<ProductCard>, int>((ref, id) {
   ref.cacheFor(AtomCacheTime.list);
   return ref.watch(atomCatalogueApiProvider).products(AtomEndpoints.categoryProducts(id));
-});
-
-final brandProductsProvider = FutureProvider.autoDispose.family<List<ProductCard>, int>((ref, id) {
-  ref.cacheFor(AtomCacheTime.list);
-  return ref.watch(atomCatalogueApiProvider).products(AtomEndpoints.brandProducts(id));
 });
 
 /// Product search by name, brand or category (GET api/products?q=). Kept
@@ -82,7 +74,8 @@ final productDetailProvider = FutureProvider.autoDispose.family<ProductDetail, i
 /// Pull-to-refresh for the whole home screen.
 Future<void> refreshHome(WidgetRef ref) async {
   ref
-    ..invalidate(homeBrandsProvider)
+    ..invalidate(brandPartnersProvider)
+    ..invalidate(sellersNearProvider)
     ..invalidate(featuredProductsProvider)
     ..invalidate(topPicksProvider);
   await ref.read(topPicksProvider.future).catchError((_) => const <ProductCard>[]);

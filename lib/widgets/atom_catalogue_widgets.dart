@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/atom_models.dart';
 import '../design/atom_text.dart';
 import '../design/atom_tokens.dart';
 import '../responsive/atom_responsive.dart';
+import '../state/atom_sellers_providers.dart';
 import '../utils/atom_format.dart';
 import 'atom_network_image.dart';
 import 'atom_states.dart';
@@ -49,13 +51,22 @@ class AtomProductCard extends StatelessWidget {
                   Positioned(
                     top: 10,
                     left: 10,
-                    child: Wrap(
-                      spacing: 6,
-                      children: [
-                        if (!product.inStock) const AtomBadge('Sold out', tone: AtomTone.rose),
-                        if (tag != null && product.inStock) AtomBadge(tag!, tone: AtomTone.dark),
-                        if (product.atompay && product.inStock) const AtomBadge('AtomPay', tone: AtomTone.green),
-                      ],
+                    right: 10,
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        // A seller near the buyer has it: that says more than a tag.
+                        final near = ref.watch(inStockNearProvider).contains(product.id);
+                        return Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            if (!product.inStock && !near) const AtomBadge('Sold out', tone: AtomTone.rose),
+                            if (near) const AtomBadge('In stock near you', tone: AtomTone.teal, icon: Icons.location_on_rounded),
+                            if (tag != null && product.inStock && !near) AtomBadge(tag!, tone: AtomTone.dark),
+                            if (product.atompay && product.inStock) const AtomBadge('AtomPay', tone: AtomTone.green),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],

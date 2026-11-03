@@ -10,9 +10,11 @@ import '../data/atom_order.dart';
 import '../design/atom_text.dart';
 import '../design/atom_tokens.dart';
 import '../state/atom_account_providers.dart';
+import '../state/atom_brand_providers.dart';
 import '../state/atom_catalogue_providers.dart';
 import '../state/atom_connectivity.dart';
 import '../state/atom_outbox.dart';
+import '../state/atom_sellers_providers.dart';
 import '../state/atom_session.dart';
 import 'atom_feedback.dart';
 
@@ -93,7 +95,8 @@ class _AtomOfflineBannerState extends ConsumerState<AtomOfflineBanner> with Widg
     if (ref.exists(appConfigProvider) && ref.read(appConfigProvider).hasError) ref.invalidate(appConfigProvider);
     if (ref.exists(featuredProductsProvider) && ref.read(featuredProductsProvider).hasError) ref.invalidate(featuredProductsProvider);
     if (ref.exists(topPicksProvider) && ref.read(topPicksProvider).hasError) ref.invalidate(topPicksProvider);
-    if (ref.exists(homeBrandsProvider) && ref.read(homeBrandsProvider).hasError) ref.invalidate(homeBrandsProvider);
+    if (ref.exists(brandPartnersProvider) && ref.read(brandPartnersProvider).hasError) ref.invalidate(brandPartnersProvider);
+    if (ref.exists(sellersNearProvider) && ref.read(sellersNearProvider).hasError) ref.invalidate(sellersNearProvider);
     if (ref.exists(allBrandsProvider) && ref.read(allBrandsProvider).hasError) ref.invalidate(allBrandsProvider);
     if (ref.exists(accountSummaryProvider) && ref.read(accountSummaryProvider).hasError) ref.invalidate(accountSummaryProvider);
     if (ref.exists(meProvider) && ref.read(meProvider).hasError) ref.invalidate(meProvider);
@@ -101,7 +104,8 @@ class _AtomOfflineBannerState extends ConsumerState<AtomOfflineBanner> with Widg
     // only the ones on screen are alive.
     ref
       ..invalidate(categoryProductsProvider)
-      ..invalidate(brandProductsProvider)
+      ..invalidate(sellerProfileProvider)
+      ..invalidate(sellerItemProvider)
       ..invalidate(productDetailProvider)
       ..invalidate(ordersProvider)
       ..invalidate(installmentsProvider)

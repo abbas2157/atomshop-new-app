@@ -18,7 +18,6 @@ abstract final class AtomEndpoints {
   static const featured = 'products/feature';
   static const topPicks = 'products/toprated';
   static String categoryProducts(int id) => 'products/category/$id';
-  static String brandProducts(int id) => 'products/brand/$id';
   static String productDetail(int id) => 'products/$id';
   static String search(String q) => 'products?q=${Uri.encodeQueryComponent(q)}';
   static const askAtomSuggestions = 'ask-atom/suggestions';

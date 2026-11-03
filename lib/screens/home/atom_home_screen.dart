@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/atom_brands.dart';
 import '../../data/atom_design_content.dart';
 import '../../data/atom_models.dart';
 import '../../design/atom_text.dart';
@@ -11,6 +12,7 @@ import '../../design/atom_tokens.dart';
 import '../../responsive/atom_responsive.dart';
 import '../../shell/atom_nav.dart';
 import '../../shell/atom_shell.dart';
+import '../../state/atom_brand_providers.dart';
 import '../../state/atom_delivery_area.dart';
 import '../../state/atom_catalogue_providers.dart';
 import '../../state/atom_session.dart';
@@ -99,14 +101,22 @@ class AtomHomeScreen extends ConsumerWidget {
                   child: _FeaturedRow(gutter: gutter, onOpen: (p) => _openProduct(context, p)),
                 ),
                 gap,
-                padded(AtomSectionHeader(title: 'Our brand partners', subtitle: 'Official brands selling on Atomshop', actionLabel: 'Shop all', onAction: goShop)),
+                padded(
+                  AtomSectionHeader(
+                    title: 'Our brand partners',
+                    subtitle: 'Official brands selling on Atomshop',
+                    actionLabel: 'See all',
+                    onAction: () => AtomNav.brandPartners(context),
+                  ),
+                ),
                 const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.sm)),
                 SliverToBoxAdapter(
-                  child: _BrandsRow(gutter: gutter, onOpen: (b) => AtomNav.brand(context, b)),
+                  child: _BrandsRow(gutter: gutter, onOpen: (b) => AtomNav.brandPartner(context, b)),
                 ),
                 gap,
-                // Verified sellers on Atomshop; shows nothing until the
-                // sellers API is live or when there are none.
+                // Sellers' stock in the saved area, then verified sellers;
+                // each shows nothing until its API is live or when empty.
+                SliverToBoxAdapter(child: HomeSellersNearRow(gutter: gutter)),
                 SliverToBoxAdapter(child: HomeTopSellersStrip(gutter: gutter)),
                 padded(const AtomSectionHeader(title: 'Top picks', subtitle: 'Chosen by the Atomshop team')),
                 const SliverToBoxAdapter(child: SizedBox(height: AtomSpace.sm)),
@@ -343,7 +353,7 @@ class _BrandsRow extends ConsumerWidget {
   const _BrandsRow({required this.gutter, required this.onOpen});
 
   final double gutter;
-  final ValueChanged<CatalogueItem> onOpen;
+  final ValueChanged<BrandPartner> onOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -351,9 +361,9 @@ class _BrandsRow extends ConsumerWidget {
     // Padding + logo box + gaps + name, badge and count lines + button.
     final height = 2 * AtomSpace.sm + 76 + 3 * AtomSpace.xs + scale.scale(15) * 1.3 + scale.scale(12) * 1.4 * 2 + AtomSpace.xxs + AtomSize.buttonSm + AtomSpace.xs;
 
-    return AtomAsync<List<CatalogueItem>>(
-      value: ref.watch(homeBrandsProvider),
-      onRetry: () => ref.invalidate(homeBrandsProvider),
+    return AtomAsync<List<BrandPartner>>(
+      value: ref.watch(brandPartnersProvider),
+      onRetry: () => ref.invalidate(brandPartnersProvider),
       compactError: true,
       loading: Padding(
         padding: EdgeInsets.symmetric(horizontal: gutter),
@@ -375,10 +385,10 @@ class _BrandsRow extends ConsumerWidget {
 class _BrandPager extends StatefulWidget {
   const _BrandPager({required this.brands, required this.height, required this.gutter, required this.onOpen});
 
-  final List<CatalogueItem> brands;
+  final List<BrandPartner> brands;
   final double height;
   final double gutter;
-  final ValueChanged<CatalogueItem> onOpen;
+  final ValueChanged<BrandPartner> onOpen;
 
   @override
   State<_BrandPager> createState() => _BrandPagerState();
@@ -492,12 +502,13 @@ class _BrandPagerState extends State<_BrandPager> {
 class _BrandPartnerTile extends StatelessWidget {
   const _BrandPartnerTile({required this.brand, required this.onTap});
 
-  final CatalogueItem brand;
+  final BrandPartner brand;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final count = brand.productCount;
+    final count = brand.listedCount;
+    final (initialBg, initialFg) = atomInitialColours(brand.id);
     return AtomCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AtomSpace.sm),
@@ -507,10 +518,10 @@ class _BrandPartnerTile extends StatelessWidget {
           Container(
             height: 76,
             padding: const EdgeInsets.symmetric(horizontal: AtomSpace.md, vertical: AtomSpace.sm),
-            decoration: BoxDecoration(color: AtomColors.surface, borderRadius: BorderRadius.circular(AtomRadius.input)),
-            child: brand.picture.isEmpty
-                ? Center(child: Text(brand.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AtomText.subheading))
-                : AtomNetworkImage(brand.picture, fit: BoxFit.contain, semanticLabel: brand.title, placeholderIcon: Icons.storefront_outlined),
+            decoration: BoxDecoration(color: brand.logo.isEmpty ? initialBg : AtomColors.surface, borderRadius: BorderRadius.circular(AtomRadius.input)),
+            child: brand.logo.isEmpty
+                ? Center(child: Text(brand.initial, style: AtomText.title.copyWith(fontSize: 30, color: initialFg)))
+                : AtomNetworkImage(brand.logo, fit: BoxFit.contain, semanticLabel: brand.title, placeholderIcon: Icons.storefront_outlined),
           ),
           const SizedBox(height: AtomSpace.xs),
           Text(brand.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AtomText.subheading),

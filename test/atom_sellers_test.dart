@@ -98,4 +98,125 @@ void main() {
     expect(find.text('Zaka Brothers'), findsOneWidget);
     expect(find.text('See all'), findsOneWidget);
   });
+
+  // ── Seller shops (docs/trd/2026-11-03-seller-shop-pages.md) ─────────────
+
+  final terms = SellerTerms.fromJson({'rate': 4, 'months': [3, 6, 9, 12], 'default_months': 12, 'advance': [20, 30, 40, 50], 'default_advance': 20})!;
+
+  test("the plan matches the server's worked example", () {
+    final q = terms.quote(price: 118500, advancePercent: 20, months: 12);
+    expect(q.advance, 23700);
+    expect(q.financed, 94800);
+    expect(q.markup, 45504);
+    expect(q.monthly, 11692);
+    expect(q.total, 164004);
+    expect(terms.rateLabel, '4% a month');
+  });
+
+  test('the advance rounds up to a whole rupee', () {
+    // 30% of 99,999 is 29,999.7.
+    expect(terms.quote(price: 99999, advancePercent: 30, months: 3).advance, 30000);
+  });
+
+  test('terms fall back to offered values and need months and advance', () {
+    final t = SellerTerms.fromJson({'rate': 2.5, 'months': [6, 12], 'default_months': 9, 'advance': [30], 'default_advance': 20})!;
+    expect(t.defaultMonths, 12);
+    expect(t.defaultAdvance, 30);
+    expect(t.rateLabel, '2.5% a month');
+    expect(SellerTerms.fromJson(null), isNull);
+    expect(SellerTerms.fromJson({'rate': 4, 'months': [], 'advance': [20]}), isNull);
+  });
+
+  test('a seller with a shop reads its shop fields and offers no WhatsApp', () {
+    final s = Seller.fromJson({
+      ...sample,
+      'whatsapp_url': null,
+      'has_shop': true,
+      'slug': 'zaka-brothers-4',
+      'shop_url': 'https://atomshop.pk/sellers/zaka-brothers-4',
+      'logo': 'https://atomshop.pk/logo.jpg',
+    });
+    expect(s.hasShop, isTrue);
+    expect(s.key, 'zaka-brothers-4');
+    expect(s.image, 'https://atomshop.pk/logo.jpg');
+    expect(s.shareUrl, 'https://atomshop.pk/sellers/zaka-brothers-4');
+    expect(s.whatsappUrl, isEmpty);
+    // No slug: the id is the address.
+    expect(Seller.fromJson({'id': 9, 'name': 'X'}).key, '9');
+  });
+
+  test('a seller profile reads stats, areas, terms, filters and items', () {
+    final p = SellerProfile.fromJson({
+      'seller': {...sample, 'has_shop': true, 'slug': 'zaka-brothers-4'},
+      'stats': {'products': 8, 'deals_done': 40, 'member_since': '2025-04', 'areas': 474},
+      'areas': [
+        {'id': 274, 'title': 'Abdalian Housing Society'},
+      ],
+      'delivers_to_area': true,
+      'terms': {'rate': 4, 'months': [3, 6, 9, 12], 'default_months': 12, 'advance': [20, 30, 40, 50], 'default_advance': 20},
+      'filters': {
+        'categories': [
+          {'id': 4, 'title': 'Smart TV'},
+        ],
+        'brands': [
+          {'id': 36, 'title': 'OXY'},
+        ],
+      },
+      'products': [
+        {
+          'id': 68,
+          'title': 'Haier Refrigerator HRF-336',
+          'price': 118500,
+          'monthly_from': 11692,
+          'available': 2,
+          'catalogue_product_id': null,
+          'seller': null,
+          'variants': [
+            {'stock_variant_id': 91, 'name': 'Silver', 'price': 118500, 'available': 2},
+          ],
+        },
+      ],
+    });
+    expect(p.productCount, 8);
+    expect(p.dealsDone, 40);
+    expect(p.areaCount, 474);
+    expect(p.areas.single.title, 'Abdalian Housing Society');
+    expect(p.deliversToArea, isTrue);
+    expect(p.terms?.defaultMonths, 12);
+    expect(p.categories.single.title, 'Smart TV');
+    expect(p.brands.single.id, 36);
+    final item = p.products.single;
+    expect(item.fewLeft, isTrue);
+    expect(item.catalogueProductId, isNull);
+    expect(item.seller, isNull);
+    expect(item.variants.single.stockVariantId, 91);
+
+    // No area sent: unknown, not "doesn't deliver".
+    expect(SellerProfile.fromJson({'seller': sample, 'delivers_to_area': null}).deliversToArea, isNull);
+  });
+
+  test('sellers near the buyer list items and nearby catalogue products', () {
+    final near = SellersNear.fromJson({
+      'products': [
+        {'id': 68, 'title': 'Fridge', 'price': 1000, 'available': 5, 'seller': sample, 'variants': []},
+      ],
+      'catalogue_product_ids': [163, 157],
+    });
+    expect(near.products.single.seller?.name, 'Zaka Brothers');
+    expect(near.catalogueProductIds, {163, 157});
+  });
+
+  test('a stock order receipt reads cash and installment answers', () {
+    final cash = StockOrderReceipt.fromJson(
+      {'order_uuid': 'u', 'order_id': 512, 'mode': 'cash', 'product': 'Fridge · Silver', 'total': 118500, 'advance': 0, 'months': 0, 'monthly': null, 'held_hours': 48},
+      sellerName: 'Zaka Brothers',
+    );
+    expect(cash.installment, isFalse);
+    expect(cash.monthly, isNull);
+    expect(cash.heldHours, 48);
+    final plan = StockOrderReceipt.fromJson({'mode': 'installment', 'months': 12, 'monthly': 11692, 'advance': 23700, 'total': 164004}, sellerName: 'Z');
+    expect(plan.installment, isTrue);
+    expect(plan.monthly, 11692);
+    expect(plan.heldHours, 48);
+  });
 }
