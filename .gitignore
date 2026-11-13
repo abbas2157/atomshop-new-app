@@ -46,3 +46,9 @@ app.*.map.json
 
 # Xcode build cache, written when the workspace is opened
 ios/build/
+
+# Raw device captures behind the store screenshots. The finished panels in
+# store/<target>/screenshots/ are what gets uploaded; the captures are a
+# working step and are ~13MB of PNGs that never delta-compress between
+# releases. Re-capture with tool/capture_screens.sh when the UI changes.
+store/*/raw/
