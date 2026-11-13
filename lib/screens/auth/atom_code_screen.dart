@@ -66,8 +66,9 @@ class _AtomCodeScreenState extends ConsumerState<AtomCodeScreen> {
   }
 
   Future<void> _verify() async {
-    // A second tap before the button repaints must not send twice.
-    if (_busy) return;
+    // A second tap before the button repaints must not send twice, and a
+    // code being resent replaces the one typed.
+    if (_busy || _resending) return;
     final code = _code.text.trim();
     if (code.length < _length) {
       setState(() => _error = 'Enter the $_length-digit code.');
@@ -100,6 +101,8 @@ class _AtomCodeScreenState extends ConsumerState<AtomCodeScreen> {
   }
 
   Future<void> _resend() async {
+    // A new code while one is being checked would make that check fail.
+    if (_busy || _resending) return;
     setState(() {
       _resending = true;
       _error = null;
@@ -133,7 +136,7 @@ class _AtomCodeScreenState extends ConsumerState<AtomCodeScreen> {
 
     return AuthScaffold(
       step: widget.purpose == CodePurpose.register ? 'Step 2 of 3' : null,
-      bottom: AtomButton(label: 'Verify', icon: Icons.check_rounded, expand: true, loading: _busy, onPressed: _busy ? null : _verify),
+      bottom: AtomButton(label: 'Verify', icon: Icons.check_rounded, expand: true, loading: _busy, onPressed: _busy || _resending ? null : _verify),
       children: [
         const AuthIconTile(icon: Icons.mark_chat_unread_outlined),
         const SizedBox(height: AtomSpace.md),
@@ -158,7 +161,7 @@ class _AtomCodeScreenState extends ConsumerState<AtomCodeScreen> {
           length: _length,
           errorText: _error,
           onCompleted: (_) {
-            if (!_busy) _verify();
+            if (!_busy && !_resending) _verify();
           },
         ),
         const SizedBox(height: AtomSpace.md),
@@ -176,7 +179,7 @@ class _AtomCodeScreenState extends ConsumerState<AtomCodeScreen> {
               variant: AtomButtonVariant.secondary,
               size: AtomButtonSize.small,
               loading: _resending,
-              onPressed: _resending ? null : _resend,
+              onPressed: _resending || _busy ? null : _resend,
             ),
           ),
       ],

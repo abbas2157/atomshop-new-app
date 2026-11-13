@@ -6,6 +6,9 @@ import '../utils/atom_format.dart';
 import 'atom_design_content.dart';
 import 'atom_http.dart';
 import 'atom_models.dart';
+import 'atom_order_status.dart';
+
+export 'atom_order_status.dart';
 
 /// Signed-in account data, custom orders, offers, Ask Atom, content pages
 /// and notifications (docs/backend-prompt-app-v2.md, sections B–I). Every
@@ -234,6 +237,8 @@ class OrderCard {
   final List<Installment> schedule;
 
   String get title => [product, if (storage.isNotEmpty) storage].join(' · ');
+
+  OrderStatus get state => OrderStatus.parse(status);
 
   factory OrderCard.fromJson(Map<String, dynamic> j) {
     final p = _map(j['product']);
@@ -884,7 +889,7 @@ class AtomAccountApi {
     final all = await _orders();
     final shown = switch (status) {
       'active' => all.where((o) => o.isActive),
-      'completed' => all.where((o) => o.isCompleted),
+      'completed' => all.where((o) => o.isFinished),
       _ => all,
     };
     return OrdersPage([for (final o in shown) OrderCard.fromJson(o.card())], null);
@@ -907,8 +912,8 @@ class AtomAccountApi {
     final all = await _orders();
     final plans = switch (tab) {
       'pending' => all.where((o) => o.isPending),
-      'completed' => all.where((o) => o.isCompleted || (o.isActivePlan && o.outstanding == 0 && o.schedule.isNotEmpty)),
-      _ => all.where((o) => o.isActivePlan && o.outstanding > 0),
+      'completed' => all.where((o) => o.isFinished),
+      _ => all.where((o) => o.isActivePlan && !o.isSettled),
     }.toList();
     final dues = [for (final o in all) ?o.nextDue]..sort(_byDate);
     return InstallmentsOverview.fromJson({
@@ -1275,14 +1280,18 @@ class _OldOrder {
   final List<Map<String, dynamic>> rows;
   final Map<String, dynamic> seller;
 
-  String get _s => status.toLowerCase();
-  String get statusLabel => status == 'Varification' ? 'Verification' : status;
-  bool get isCancelled => _s == 'cancelled' || _s == 'canceled' || _s == 'rejected';
-  bool get isCompleted => _s == 'completed';
-  bool get isClosed => isCancelled || isCompleted;
-  bool get isPending => _s == 'pending' || _s == 'varification' || _s == 'verification';
-  bool get isActive => !isClosed;
+  late final OrderStatus state = OrderStatus.parse(status);
+  String get statusLabel => state == OrderStatus.unknown ? status : state.label;
+  bool get isCompleted => state == OrderStatus.completed;
+  bool get isClosed => state.isClosed;
+  bool get isPending => state.isPending;
   bool get isActivePlan => !isClosed && !isPending;
+
+  /// Every installment paid, though the server hasn't marked it completed.
+  /// Orders and Installments both count it as finished.
+  bool get isSettled => isActivePlan && outstanding == 0 && schedule.isNotEmpty;
+  bool get isFinished => isCompleted || isSettled;
+  bool get isActive => !isClosed && !isSettled;
 
   /// asset(null) on the server gives a URL with no file name.
   bool get isCustom {

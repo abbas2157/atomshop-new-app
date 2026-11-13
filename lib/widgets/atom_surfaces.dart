@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/atom_order_status.dart';
 import '../design/atom_text.dart';
 import '../design/atom_tokens.dart';
 import 'atom_focus_ring.dart';
@@ -87,20 +88,20 @@ class AtomBadge extends StatelessWidget {
   final AtomTone tone;
   final IconData? icon;
 
-  /// Order status → tone, using the API's values ("Varification" included).
+  /// Order status → tone, using the API's values ("Varification" included),
+  /// read through [OrderStatus] like every order filter.
   factory AtomBadge.orderStatus(String status, {Key? key}) {
-    final s = status.toLowerCase();
-    final (label, tone) = switch (s) {
-      'pending' => ('Pending', AtomTone.neutral),
-      'varification' || 'verification' => ('Verification', AtomTone.blue),
-      'processing' => ('Processing', AtomTone.violet),
-      'delivered' => ('Delivered', AtomTone.teal),
-      'instalments' || 'installments' => ('Installments', AtomTone.amber),
-      'completed' => ('Completed', AtomTone.green),
-      'cancelled' => ('Cancelled', AtomTone.rose),
-      _ => (status, AtomTone.neutral),
+    final state = OrderStatus.parse(status);
+    final tone = switch (state) {
+      OrderStatus.pending || OrderStatus.unknown => AtomTone.neutral,
+      OrderStatus.verification => AtomTone.blue,
+      OrderStatus.processing => AtomTone.violet,
+      OrderStatus.delivered => AtomTone.teal,
+      OrderStatus.installments => AtomTone.amber,
+      OrderStatus.completed => AtomTone.green,
+      OrderStatus.cancelled || OrderStatus.rejected => AtomTone.rose,
     };
-    return AtomBadge(label, key: key, tone: tone);
+    return AtomBadge(state == OrderStatus.unknown ? status : state.label, key: key, tone: tone);
   }
 
   @override

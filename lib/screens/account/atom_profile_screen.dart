@@ -98,6 +98,8 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
   }
 
   Future<void> _upload(String what) async {
+    // One upload at a time: [_uploading] holds a single one.
+    if (_uploading != null) return;
     final path = await _pick();
     if (path == null || !mounted) return;
     setState(() => _uploading = what);
@@ -182,7 +184,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
           title: _extended ? 'Profile and verification' : 'Profile',
           bottom: AtomButton(label: 'Save changes', icon: Icons.check_rounded, expand: true, loading: _saving, onPressed: _saving ? null : _save),
           children: [
-            _Identity(user: u, uploading: _uploading == 'photo', onChangePhoto: () => _upload('photo'), showVerification: _extended),
+            _Identity(user: u, uploading: _uploading == 'photo', onChangePhoto: _uploading == null ? () => _upload('photo') : null, showVerification: _extended),
             const AtomGroupLabel('Personal'),
             AtomTextField(
               label: 'Full name',
@@ -268,11 +270,11 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
             Row(
               children: [
                 Expanded(
-                  child: _CnicTile(label: 'Front', uploaded: u.cnicFrontUploaded, busy: _uploading == 'front', onTap: () => _upload('front')),
+                  child: _CnicTile(label: 'Front', uploaded: u.cnicFrontUploaded, busy: _uploading == 'front', onTap: _uploading == null ? () => _upload('front') : null),
                 ),
                 const SizedBox(width: AtomSpace.sm),
                 Expanded(
-                  child: _CnicTile(label: 'Back', uploaded: u.cnicBackUploaded, busy: _uploading == 'back', onTap: () => _upload('back')),
+                  child: _CnicTile(label: 'Back', uploaded: u.cnicBackUploaded, busy: _uploading == 'back', onTap: _uploading == null ? () => _upload('back') : null),
                 ),
               ],
             ),
@@ -294,7 +296,8 @@ class _Identity extends StatelessWidget {
 
   final AtomUser user;
   final bool uploading;
-  final VoidCallback onChangePhoto;
+  /// Null while another upload runs.
+  final VoidCallback? onChangePhoto;
   final bool showVerification;
 
   @override
@@ -389,7 +392,9 @@ class _CnicTile extends StatelessWidget {
   final String label;
   final bool uploaded;
   final bool busy;
-  final VoidCallback onTap;
+
+  /// Null while another upload runs.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

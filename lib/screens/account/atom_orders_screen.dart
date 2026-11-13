@@ -118,7 +118,7 @@ class _AtomOrdersScreenState extends ConsumerState<AtomOrdersScreen> {
                     ),
                     data: (page) {
                       var orders = [...page.orders, ..._more];
-                      if (_filter == _Filter.cancelled) orders = orders.where((o) => o.status == 'Cancelled').toList();
+                      if (_filter == _Filter.cancelled) orders = orders.where((o) => o.state.isCancelled).toList();
                       final next = _next == null ? page.nextPage : (_next! < 0 ? null : _next);
 
                       if (orders.isEmpty && next == null) {
@@ -176,8 +176,9 @@ class _OrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = order;
-    final plan = switch (o.status) {
-      'Cancelled' => 'Cancelled before delivery',
+    final cancelled = o.state.isCancelled;
+    final plan = switch (o.state) {
+      _ when cancelled => 'Cancelled before delivery',
       _ when o.monthly == null => 'Paid in full',
       _ => '${o.months} months · ${AtomFormat.rupees(o.monthly)}/mo',
     };
@@ -208,7 +209,7 @@ class _OrderTile extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text(plan, style: AtomText.body.copyWith(fontSize: 13))),
-              Text(AtomFormat.rupees(o.status == 'Cancelled' ? 0 : o.total), style: AtomText.label),
+              Text(AtomFormat.rupees(cancelled ? 0 : o.total), style: AtomText.label),
             ],
           ),
           if (o.isCustom || o.isAtompay) ...[

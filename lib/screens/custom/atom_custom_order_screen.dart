@@ -73,6 +73,8 @@ class _AtomCustomOrderScreenState extends ConsumerState<AtomCustomOrderScreen> {
     final advance = _digits(_advance);
     final months = _months;
     if (price <= 0 || _advance.text.trim().isEmpty || months == null) {
+      // A quote still on its way was for inputs that are gone.
+      _seq++;
       setState(() {
         _quote = null;
         _error = null;

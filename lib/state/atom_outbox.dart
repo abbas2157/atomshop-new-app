@@ -96,6 +96,9 @@ class AtomOutbox extends Notifier<List<OutboxItem>> {
 
   bool _syncing = false;
 
+  /// [sync] was called while it ran; it runs again when done.
+  bool _syncAgain = false;
+
   @override
   List<OutboxItem> build() {
     _load();
@@ -188,8 +191,14 @@ class AtomOutbox extends Notifier<List<OutboxItem>> {
   /// server can't be reached (it is tried again later); a refusal is kept
   /// with its reason for the customer to see.
   Future<void> sync() async {
-    if (_syncing || state.isEmpty || ref.read(onlineProvider).value == false) return;
+    if (state.isEmpty || ref.read(onlineProvider).value == false) return;
+    if (_syncing) {
+      // Asked again mid-run (a retry, the network back): run once more after.
+      _syncAgain = true;
+      return;
+    }
     _syncing = true;
+    _syncAgain = false;
     var sent = 0;
     try {
       final me = await SessionManager.getUserUuid() ?? '';
@@ -217,6 +226,10 @@ class AtomOutbox extends Notifier<List<OutboxItem>> {
         ..invalidate(customOrdersProvider)
         ..invalidate(offersProvider);
       atomToast(sent == 1 ? 'Sent what you saved while offline.' : 'Sent $sent things you saved while offline.');
+    }
+    if (_syncAgain) {
+      _syncAgain = false;
+      await sync();
     }
   }
 
