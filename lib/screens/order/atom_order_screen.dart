@@ -54,9 +54,31 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
   /// One id for this order form, sent with every attempt.
   final String _requestId = atomRequestId();
 
+  /// AtomPay only: the Key Fact Statement shown, and the customer's tick.
+  KeyFacts? _keyFacts;
+  Object? _keyFactsError;
+  bool _keyFactsAccepted = false;
+
+  bool get _atompay => widget.choice.mode == PayMode.atompay;
+
+  Future<void> _loadKeyFacts() async {
+    setState(() {
+      _keyFacts = null;
+      _keyFactsError = null;
+      _keyFactsAccepted = false;
+    });
+    try {
+      final facts = await ref.read(atomOrderApiProvider).keyFacts(widget.choice.product.id, memoryId: widget.choice.storage?.id);
+      if (mounted) setState(() => _keyFacts = facts);
+    } catch (e) {
+      if (mounted) setState(() => _keyFactsError = e);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    if (_atompay) _loadKeyFacts();
     // Fill what a signed-in customer already gave us, without overwriting
     // anything typed meanwhile.
     ref.read(orderPrefillProvider.future).then((p) {
@@ -96,6 +118,12 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
     if (_sending) return;
     FocusScope.of(context).unfocus();
     if (!(_form.currentState?.validate() ?? false)) return;
+    if (_atompay && (_keyFacts == null || !_keyFactsAccepted)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Read the Key Fact Statement and tick the box to place your AtomPay order.')),
+      );
+      return;
+    }
 
     setState(() => _sending = true);
     try {
@@ -103,6 +131,7 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
           .read(atomOrderApiProvider)
           .place(
             requestId: _requestId,
+            acceptedKeyFacts: _atompay ? _keyFacts : null,
             widget.choice,
             OrderContact(
               fullName: _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
@@ -119,6 +148,8 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
       if (!mounted) return;
       setState(() => _sending = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(atomErrorMessage(e))));
+      // The price moved since the statement was shown: show the new one, untick.
+      if (isKeyFactsPriceChange(e)) _loadKeyFacts();
     }
   }
 
@@ -242,6 +273,16 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
                             return null;
                           },
                         ),
+                        if (_atompay) ...[
+                          const SizedBox(height: AtomSpace.md),
+                          _KeyFactsCard(
+                            facts: _keyFacts,
+                            error: _keyFactsError,
+                            accepted: _keyFactsAccepted,
+                            onAccepted: (v) => setState(() => _keyFactsAccepted = v),
+                            onRetry: _loadKeyFacts,
+                          ),
+                        ],
                         const SizedBox(height: AtomSpace.md),
                         Container(
                           padding: const EdgeInsets.all(14),
@@ -276,10 +317,148 @@ class _AtomOrderScreenState extends ConsumerState<AtomOrderScreen> {
           child: AtomPageWidth(
             child: Padding(
               padding: EdgeInsets.fromLTRB(gutter, AtomSpace.sm, gutter, AtomSpace.sm),
-              child: AtomButton(label: cta, icon: Icons.send_rounded, expand: true, loading: _sending, onPressed: _sending ? null : _submit),
+              child: AtomButton(
+                label: cta,
+                icon: Icons.send_rounded,
+                expand: true,
+                loading: _sending,
+                // AtomPay: only once the customer has ticked the Key Fact Statement.
+                onPressed: _sending || (_atompay && !_keyFactsAccepted) ? null : _submit,
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The AtomPay Key Fact Statement, with the customer's agreement box
+/// (unticked to start). Figures come from the server, priced as the order
+/// will be; nothing is worked out here.
+class _KeyFactsCard extends StatelessWidget {
+  const _KeyFactsCard({
+    required this.facts,
+    required this.error,
+    required this.accepted,
+    required this.onAccepted,
+    required this.onRetry,
+  });
+
+  final KeyFacts? facts;
+  final Object? error;
+  final bool accepted;
+  final ValueChanged<bool> onAccepted;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final f = facts;
+    final Widget body;
+    if (error != null) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(atomErrorMessage(error!), style: AtomText.body.copyWith(fontSize: 13, color: AtomColors.rose)),
+          const SizedBox(height: AtomSpace.xs),
+          AtomButton(label: 'Try again', icon: Icons.refresh_rounded, variant: AtomButtonVariant.secondary, size: AtomButtonSize.small, onPressed: onRetry),
+        ],
+      );
+    } else if (f == null) {
+      body = const Padding(
+        padding: EdgeInsets.symmetric(vertical: AtomSpace.md),
+        child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4))),
+      );
+    } else {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _row('Cash price', AtomFormat.rupees(f.cashPrice)),
+          _row('Advance', AtomFormat.rupees(f.advance)),
+          _row('Amount on the plan', AtomFormat.rupees(f.amountFinanced)),
+          _row('Markup', '${KeyFacts.percent(f.markupPercent)} · ${f.months} months'),
+          _row('Processing fee', '${KeyFacts.percent(f.processingFeePercent)} · ${AtomFormat.rupees(f.processingFee)}', note: 'Charged in addition to the plan'),
+          _row('Annual rate (APR)', KeyFacts.percent(f.aprPercent)),
+          const Divider(height: AtomSpace.lg, color: AtomColors.line),
+          for (final i in f.instalments) _row('Instalment ${i.number}', AtomFormat.rupees(i.amount), note: i.due),
+          _row('Total you repay', AtomFormat.rupees(f.totalRepayable), strong: true),
+          const SizedBox(height: AtomSpace.xs),
+          for (final line in [
+            f.dueDates,
+            if (f.deliveryCharges.isNotEmpty) 'Delivery charges: ${f.deliveryCharges}',
+            if (f.latePayment.isNotEmpty) 'Late payment: ${f.latePayment}',
+            if (f.earlySettlement.isNotEmpty) 'Paying early: ${f.earlySettlement}',
+            if (f.complaints.isNotEmpty) 'Complaints: ${f.complaints}',
+            ['Sold by ${f.sellerName}', if (f.sellerAddress.isNotEmpty) f.sellerAddress].join(', '),
+          ])
+            if (line.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(line, style: AtomText.body.copyWith(fontSize: 12.5)),
+              ),
+          const SizedBox(height: AtomSpace.sm),
+          Material(
+            color: accepted ? AtomColors.greenSoft : AtomColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            child: CheckboxListTile(
+              value: accepted,
+              onChanged: (v) => onAccepted(v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: const EdgeInsets.symmetric(horizontal: AtomSpace.xs),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              title: Text('I have read the Key Fact Statement and agree to these terms', style: AtomText.label.copyWith(fontSize: 13.5)),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AtomColors.white,
+        borderRadius: BorderRadius.circular(AtomRadius.card),
+        border: Border.all(color: AtomColors.line2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.description_outlined, size: 20, color: AtomColors.primary),
+              const SizedBox(width: AtomSpace.xs),
+              Expanded(child: Semantics(header: true, child: Text('Key Fact Statement', style: AtomText.label.copyWith(fontSize: 15)))),
+              if (f != null && f.version.isNotEmpty) Text(f.version, style: AtomText.small),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('Please read your AtomPay plan before you order.', style: AtomText.body.copyWith(fontSize: 13)),
+          const SizedBox(height: AtomSpace.sm),
+          body,
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String label, String value, {String? note, bool strong = false}) {
+    final valueStyle = AtomText.label.copyWith(fontSize: strong ? 14.5 : 13.5, color: strong ? AtomColors.primary : null);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AtomText.body.copyWith(fontSize: 13)),
+                if (note != null && note.isNotEmpty) Text(note, style: AtomText.small),
+              ],
+            ),
+          ),
+          const SizedBox(width: AtomSpace.sm),
+          Text(value, style: valueStyle),
+        ],
       ),
     );
   }
