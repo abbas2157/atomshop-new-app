@@ -1,5 +1,6 @@
 import 'package:atompro/data/atom_account.dart';
 import 'package:atompro/data/atom_http.dart';
+import 'package:atompro/screens/installments/atom_orders_widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -117,4 +118,58 @@ void main() {
     expect(o.outstanding, 473999);
     expect(o.monthly, 157999);
   });
+
+  test('a closed deal\'s leftover months are settled, not owed', () async {
+    final closedApi = AtomAccountApi(_ClosedDealHttp());
+    final o = (await closedApi.orders()).orders.firstWhere((o) => o.uuid == 'o-4');
+
+    // The two leftover months are past their due date, but the deal was settled:
+    // never owed, never overdue, never the next due.
+    expect(o.outstanding, 0);
+    expect(o.nextDue, isNull);
+
+    final statuses = o.schedule.map((r) => r.status).toList();
+    expect(statuses.where((s) => s == InstallmentStatus.closed).length, 2);
+    expect(statuses, isNot(contains(InstallmentStatus.overdue)));
+
+    final tones = scheduleTones((await closedApi.order('o-4')).card.schedule);
+    expect(tones.where((t) => t == ScheduleTone.closed).length, 2);
+    expect(tones, isNot(contains(ScheduleTone.overdue)));
+  });
+}
+
+/// One completed order whose deal was settled early: some months paid, the
+/// settlement recorded, and the leftover months left as `Closed`.
+class _ClosedDealHttp extends AtomHttp {
+  @override
+  Future<dynamic> post(String path, [Map<String, dynamic>? body]) async => switch (path) {
+        'account/my-orders' => {
+            'customer': {'city': 'Lahore', 'area': 'Johar Town', 'address': '12 Main Rd'},
+            'orders': [
+              {
+                'id': 44,
+                'uuid': 'o-4',
+                'status': 'Completed',
+                'total_deal_price': 100000,
+                'advance_price': 20000,
+                'tenure': 3,
+                'created_at': '2026-08-01 10:00:00',
+                'product': {'title': 'Dawlance AC', 'price': 100000, 'picture': 'https://atomshop.pk/public/images/ac.jpg'},
+                'installments': [
+                  {'id': 10, 'month': 'Advance', 'installment_price': 20000, 'installment_paid_price': 20000, 'installment_date': '2026-08-01', 'status': 'Paid', 'payment_method': 'Cash'},
+                  {'id': 11, 'month': '1st Month', 'installment_price': 26667, 'installment_paid_price': 26667, 'installment_date': '2026-09-01', 'status': 'Paid', 'payment_method': 'Bank'},
+                  {'id': 12, 'month': 'Settlement Amount', 'installment_price': 20000, 'installment_paid_price': 20000, 'installment_date': '2026-09-15', 'status': 'Paid', 'payment_method': 'Cash'},
+                  {'id': 13, 'month': '2nd Month', 'installment_price': 26667, 'installment_paid_price': 0, 'installment_date': '2026-10-01', 'status': 'Closed', 'payment_method': null},
+                  {'id': 14, 'month': '3rd Month', 'installment_price': 26666, 'installment_paid_price': 0, 'installment_date': '2026-11-01', 'status': 'Closed', 'payment_method': null},
+                ],
+              },
+            ],
+          },
+        'account/payment-history' => <dynamic>[],
+        _ => throw AtomApiException('unexpected $path', statusCode: 404),
+      };
+
+  @override
+  Future<dynamic> get(String path, {Map<String, dynamic>? query}) async =>
+      path == 'notifications' ? {'notifications': {'data': [], 'current_page': 1, 'last_page': 1}, 'unread_count': 0} : throw AtomApiException('unexpected $path', statusCode: 404);
 }
