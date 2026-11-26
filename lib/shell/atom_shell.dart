@@ -74,10 +74,13 @@ class _AtomShellState extends ConsumerState<AtomShell> {
   void initState() {
     super.initState();
     _welcomeOnce();
-    // A tapped push opens Notifications (or sign in, for a guest's phone).
-    FcmService.onNotificationTap = () {
+    // A tapped push opens what it is about — the order, the receipt, the
+    // plans — and the inbox only when it says nothing more. A guest's phone
+    // is sent to sign in first by the account screens themselves, which then
+    // carry on to the same place.
+    FcmService.onNotificationTap = (data) {
       if (!mounted) return;
-      ref.read(atomSignedInProvider) ? AtomNav.notifications(context) : AtomNav.signIn(context);
+      AtomNav.fromPushData(context, data);
     };
   }
 

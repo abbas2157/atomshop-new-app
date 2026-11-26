@@ -90,26 +90,17 @@ class _AtomNotificationsScreenState extends ConsumerState<AtomNotificationsScree
       ref.read(atomAccountApiProvider).markNotificationRead(n.id).then((_) => _refreshCounts()).ignore();
     }
     if (!mounted) return;
-    // Open the exact receipt or order when the server says which.
-    final paymentId = n.paymentId;
-    if (paymentId != null) {
-      AtomNav.receipt(context, paymentId);
-      return;
-    }
-    if (n.orderUuid.isNotEmpty) {
-      AtomNav.orderDetail(context, n.orderUuid);
-      return;
-    }
-    switch (n.screen.isNotEmpty ? n.screen : n.type) {
-      case 'instalments' || 'installments' || 'instalment_paid':
-        AtomNav.installments(context);
-      case 'profile' || 'account_verified':
-        AtomNav.profile(context);
-      case 'orders' || 'order_status' || 'deal_closed' || 'order':
-        AtomNav.orders(context);
-      default:
-        break;
-    }
+    // The same rule a tapped push follows (AtomNav.fromNotification), so the
+    // two never disagree; an unknown row stays here rather than reopening
+    // this screen on top of itself.
+    AtomNav.fromNotification(
+      context,
+      type: n.type,
+      screen: n.screen,
+      orderUuid: n.orderUuid,
+      paymentId: n.paymentId,
+      stayWhenUnknown: true,
+    );
   }
 
   @override

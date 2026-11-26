@@ -167,6 +167,46 @@ abstract final class AtomNav {
         Consumer(builder: (_, ref, _) => ref.watch(atomSignedInProvider) ? const AtomPlansScreen() : const AtomGuestPlansScreen()),
       );
 
+  /// Where a notification opens, from the keys the server puts on both the
+  /// inbox row and the push payload (`screen`, `order_uuid`, `payment_id`,
+  /// falling back to `type`). One rule, so a tapped push and a tapped inbox
+  /// row land in the same place.
+  ///
+  /// [stayWhenUnknown] is for the inbox list itself: opening Notifications
+  /// from there would push a second copy of the screen the tap came from.
+  static Future<void> fromNotification(
+    BuildContext context, {
+    String type = '',
+    String screen = '',
+    String orderUuid = '',
+    int? paymentId,
+    bool stayWhenUnknown = false,
+  }) {
+    if (paymentId != null) return receipt(context, paymentId);
+    if (orderUuid.isNotEmpty) return orderDetail(context, orderUuid);
+
+    return switch (screen.isNotEmpty ? screen : type) {
+      'instalments' || 'installments' || 'instalment_paid' => installments(context),
+      'profile' || 'account_verified' => profile(context),
+      'orders' || 'order_status' || 'deal_closed' || 'order' => orders(context),
+      _ => stayWhenUnknown ? Future<void>.value() : notifications(context),
+    };
+  }
+
+  /// [fromNotification] for a tapped push. FCM delivers every data value as a
+  /// string, and the server leaves out the keys it has no value for.
+  static Future<void> fromPushData(BuildContext context, Map<String, dynamic> data) {
+    String read(String key) => data[key]?.toString() ?? '';
+
+    return fromNotification(
+      context,
+      type: read('type'),
+      screen: read('screen'),
+      orderUuid: read('order_uuid'),
+      paymentId: int.tryParse(read('payment_id')),
+    );
+  }
+
   static Future<void> payments(BuildContext context, {String orderUuid = ''}) => _protected(context, AtomPaymentsScreen(orderUuid: orderUuid));
 
   static Future<void> receipt(BuildContext context, int paymentId) => _protected(context, AtomReceiptScreen(paymentId: paymentId));

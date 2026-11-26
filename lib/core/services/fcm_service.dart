@@ -238,7 +238,22 @@ class FcmService {
 
   static void _onLocalNotificationTap(NotificationResponse response) {
     debugPrint('[FCM] Local notification tapped — payload: ${response.payload}');
-    _openNotificationsScreen();
+    // The payload is the message's own data map, written by _showLocalNotification.
+    _openFor(_decodePayload(response.payload));
+  }
+
+  /// The data map a local notification carried, or empty when it is missing
+  /// or not the JSON object we wrote (an older notification still in the
+  /// tray, say) — the tap then opens the inbox rather than being dropped.
+  static Map<String, dynamic> _decodePayload(String? payload) {
+    if (payload == null || payload.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(payload);
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : const {};
+    } catch (e) {
+      debugPrint('[FCM] Could not read notification payload: $e');
+      return const {};
+    }
   }
 
   static void _openFromMessage(RemoteMessage message) {
@@ -248,29 +263,37 @@ class FcmService {
       'body: ${notification?.body}',
     );
     debugPrint('[FCM] Data payload: ${message.data}');
-    _openNotificationsScreen();
+    _openFor(message.data);
   }
 
-  static VoidCallback? _onNotificationTap;
-  static bool _pendingTap = false;
+  static void Function(Map<String, dynamic> data)? _onNotificationTap;
+  static Map<String, dynamic>? _pendingTap;
 
   /// Set by the app shell. A tap that arrived before (the app was opened
   /// from a notification) is delivered as soon as the handler is set.
-  static set onNotificationTap(VoidCallback? handler) {
+  static set onNotificationTap(
+    void Function(Map<String, dynamic> data)? handler,
+  ) {
     _onNotificationTap = handler;
-    if (handler != null && _pendingTap) {
-      _pendingTap = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) => handler());
+    final pending = _pendingTap;
+    if (handler != null && pending != null) {
+      _pendingTap = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) => handler(pending));
     }
   }
 
-  static void _openNotificationsScreen() {
+  /// Opens where the notification points. The server sends the same routing
+  /// keys on the push as on the inbox row (`screen`, `order_uuid`,
+  /// `payment_id`), so a tap can go straight to the order or receipt instead
+  /// of stopping at the list.
+  static void _openFor(Map<String, dynamic> data) {
     final open = _onNotificationTap;
     if (open == null) {
-      _pendingTap = true;
+      // The app was launched by this tap: hold it until the shell is ready.
+      _pendingTap = data;
       return;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => open());
+    WidgetsBinding.instance.addPostFrameCallback((_) => open(data));
   }
 
   static Future<String?> getToken() async {
