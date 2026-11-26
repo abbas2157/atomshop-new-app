@@ -332,10 +332,17 @@ class FcmService {
     await storeGuestToken(resolvedToken);
   }
 
+  /// Which app this phone is. Every Atom app registers into the one
+  /// `fcm_tokens` table, and the Android channel the server names has to be one
+  /// this app created — so it has to say which app it is. Omitting it is not an
+  /// error: the server falls back to its default channel.
+  static const _app = 'atomshop';
+
   static Future<void> storeGuestToken(String fcmToken) async {
     await _safePost(ApiEndpoints.fcmStore, {
       'fcm_token': fcmToken,
       'device_type': _deviceType,
+      'app': _app,
     });
   }
 
@@ -348,8 +355,12 @@ class FcmService {
       return;
     }
     await _safePost(ApiEndpoints.fcmAttachUser, {
+      // user_id is ignored by the server, which takes the person from the
+      // bearer token; it is still sent so older server builds keep working.
       'user_id': userId,
       'fcm_token': resolvedToken,
+      'device_type': _deviceType,
+      'app': _app,
     });
   }
 
