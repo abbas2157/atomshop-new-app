@@ -123,7 +123,9 @@ class AccountSummary {
 
 // ── Orders and installments ───────────────────────────────────────────────
 
-enum InstallmentStatus { paid, unpaid, overdue }
+/// `closed` is a leftover month of a deal settled early: not paid, but not
+/// owed either (server status `Closed`, 2026-11-13).
+enum InstallmentStatus { paid, unpaid, overdue, closed }
 
 class Installment {
   const Installment({
@@ -158,6 +160,7 @@ class Installment {
         status: switch (_str(j['status']).toLowerCase()) {
           'paid' => InstallmentStatus.paid,
           'overdue' => InstallmentStatus.overdue,
+          'closed' => InstallmentStatus.closed,
           _ => InstallmentStatus.unpaid,
         },
         paidAt: _date(j['paid_at']),
@@ -1302,6 +1305,9 @@ class _OldOrder {
   bool _isAdvance(Map<String, dynamic> r) => _str(r['month']).toLowerCase().contains('advance');
   bool _isPaid(Map<String, dynamic> r) => _str(r['status']).toLowerCase() == 'paid';
 
+  /// A leftover month of a deal settled early: never owed, never overdue, never the next due.
+  bool _isClosed(Map<String, dynamic> r) => _str(r['status']).toLowerCase() == 'closed';
+
   List<Map<String, dynamic>> get schedule => [
         for (final r in rows)
           {
@@ -1317,6 +1323,7 @@ class _OldOrder {
 
   String _status(Map<String, dynamic> r) {
     if (_isPaid(r)) return 'paid';
+    if (_isClosed(r)) return 'closed';
     final due = DateTime.tryParse(_str(r['installment_date']));
     return due != null && due.isBefore(DateTime.now()) && !isPending ? 'overdue' : 'unpaid';
   }
@@ -1325,8 +1332,8 @@ class _OldOrder {
   /// does; an unpaid row counts any part already paid.
   int get paid => rows.fold<int>(0, (n, r) => n + (_isPaid(r) ? _int(r['installment_price']) : _int(r['installment_paid_price'])));
 
-  /// What is still owed on the plan: the unpaid part of each server row.
-  int get outstanding => rows.where((r) => !_isPaid(r)).fold<int>(0, (n, r) => n + (_int(r['installment_price']) - _int(r['installment_paid_price'])).clamp(0, 1 << 31));
+  /// What is still owed on the plan: the unpaid part of each server row. A closed-deal leftover month is not owed.
+  int get outstanding => rows.where((r) => !_isPaid(r) && !_isClosed(r)).fold<int>(0, (n, r) => n + (_int(r['installment_price']) - _int(r['installment_paid_price'])).clamp(0, 1 << 31));
 
   int? get monthly => rows.where((r) => !_isAdvance(r)).map((r) => _int(r['installment_price'])).firstOrNull;
 
@@ -1334,7 +1341,7 @@ class _OldOrder {
 
   Map<String, dynamic>? get nextDue {
     if (isClosed || isPending) return null;
-    final unpaid = rows.where((r) => !_isPaid(r) && !_isAdvance(r)).toList()
+    final unpaid = rows.where((r) => !_isPaid(r) && !_isAdvance(r) && !_isClosed(r)).toList()
       ..sort((a, b) => _str(a['installment_date']).compareTo(_str(b['installment_date'])));
     if (unpaid.isEmpty) return null;
     final r = unpaid.first;

@@ -19,10 +19,11 @@ Future<void> atomCall(String phone) async {
 }
 
 /// How a schedule row is shown.
-enum ScheduleTone { paid, overdue, due, upcoming }
+enum ScheduleTone { paid, overdue, due, upcoming, closed }
 
 /// Paid and overdue as the server says; the first other unpaid month is
-/// "Due", the rest "Upcoming".
+/// "Due", the rest "Upcoming". A closed-deal leftover month is "Closed":
+/// settled, so it is neither due nor upcoming.
 List<ScheduleTone> scheduleTones(List<Installment> rows) {
   var dueShown = false;
   final tones = <ScheduleTone>[];
@@ -32,6 +33,8 @@ List<ScheduleTone> scheduleTones(List<Installment> rows) {
         tones.add(ScheduleTone.paid);
       case InstallmentStatus.overdue:
         tones.add(ScheduleTone.overdue);
+      case InstallmentStatus.closed:
+        tones.add(ScheduleTone.closed);
       case InstallmentStatus.unpaid:
         tones.add(dueShown ? ScheduleTone.upcoming : ScheduleTone.due);
         dueShown = true;
@@ -77,6 +80,7 @@ class ScheduleRow extends StatelessWidget {
       ScheduleTone.overdue => (AtomColors.rose, const AtomBadge('Overdue', tone: AtomTone.rose)),
       ScheduleTone.due => (AtomColors.amber, const AtomBadge('Due', tone: AtomTone.amber)),
       ScheduleTone.upcoming => (AtomColors.line2, const AtomBadge('Upcoming')),
+      ScheduleTone.closed => (AtomColors.line2, const AtomBadge('Closed')),
     };
     final date = row.status == InstallmentStatus.paid ? (row.paidAt ?? row.dueDate) : row.dueDate;
     return InkWell(

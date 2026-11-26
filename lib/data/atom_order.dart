@@ -96,6 +96,109 @@ class OrderReceipt {
       );
 }
 
+/// One month of the AtomPay plan on the Key Fact Statement.
+class KeyFactsInstalment {
+  const KeyFactsInstalment({required this.number, required this.due, required this.amount});
+
+  final int number;
+
+  /// "1 month after delivery": the dates are set on the day of delivery.
+  final String due;
+  final int amount;
+
+  factory KeyFactsInstalment.fromJson(Map<String, dynamic> j) =>
+      KeyFactsInstalment(number: _int(j['number']), due: _str(j['due']), amount: _int(j['amount']));
+}
+
+/// The AtomPay Key Fact Statement for one product and storage choice, from
+/// GET api/app/atompay/kfs-preview (server doc
+/// docs/customer-app-atompay-kfs.md). The customer reads it and ticks the
+/// box before an AtomPay order; the order then sends [amountFinanced] so a
+/// price change since is caught.
+class KeyFacts {
+  const KeyFacts({
+    required this.version,
+    required this.product,
+    required this.sellerName,
+    required this.sellerAddress,
+    required this.cashPrice,
+    required this.amountFinanced,
+    required this.advance,
+    required this.markupPercent,
+    required this.processingFeePercent,
+    required this.processingFee,
+    required this.aprPercent,
+    required this.months,
+    required this.instalments,
+    required this.dueDates,
+    required this.totalRepayable,
+    required this.deliveryCharges,
+    required this.latePayment,
+    required this.earlySettlement,
+    required this.complaints,
+  });
+
+  final String version;
+  final String product;
+  final String sellerName;
+  final String sellerAddress;
+  final int cashPrice;
+  final int amountFinanced;
+  final int advance;
+  final num markupPercent;
+  final num processingFeePercent;
+  final int processingFee;
+  final num aprPercent;
+  final int months;
+  final List<KeyFactsInstalment> instalments;
+  final String dueDates;
+  final int totalRepayable;
+  final String deliveryCharges;
+  final String latePayment;
+  final String earlySettlement;
+  final String complaints;
+
+  factory KeyFacts.fromJson(Map<String, dynamic> j) {
+    final seller = j['seller'] is Map ? Map<String, dynamic>.from(j['seller'] as Map) : const <String, dynamic>{};
+    num pct(Object? v) => v is num ? v : (num.tryParse('$v') ?? 0);
+    return KeyFacts(
+      version: _str(j['version']),
+      product: _str(j['product']),
+      sellerName: _str(seller['name']).isEmpty ? 'Atomshop' : _str(seller['name']),
+      sellerAddress: _str(seller['address']),
+      cashPrice: _int(j['cash_price']),
+      amountFinanced: _int(j['amount_financed']),
+      advance: _int(j['advance']),
+      markupPercent: pct(j['markup_percent']),
+      processingFeePercent: pct(j['processing_fee_percent']),
+      processingFee: _int(j['processing_fee']),
+      aprPercent: pct(j['apr_percent']),
+      months: _int(j['months']),
+      instalments: atomList(j['instalments']).map(KeyFactsInstalment.fromJson).toList(growable: false),
+      dueDates: _str(j['due_dates']),
+      totalRepayable: _int(j['total_repayable']),
+      deliveryCharges: _str(j['delivery_charges']),
+      latePayment: _str(j['late_payment']),
+      earlySettlement: _str(j['early_settlement']),
+      complaints: _str(j['complaints']),
+    );
+  }
+
+  /// A percentage as the statement shows it: `0%`, `3%`, `18.5%`.
+  static String percent(num value) {
+    final fixed = value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+    return '$fixed%';
+  }
+
+  /// What an AtomPay order adds once the customer has ticked the box.
+  Map<String, dynamic> get acceptance => {'accept_kfs': true, 'kfs_amount': amountFinanced};
+}
+
+/// True when the server refused an AtomPay order because the price moved
+/// since the statement was shown: show the new statement and ask again.
+bool isKeyFactsPriceChange(Object error) =>
+    error is AtomApiException && error.statusCode == 422 && error.message.contains('Key Fact Statement');
+
 extension PayModeApi on PayMode {
   String get apiName => switch (this) {
         PayMode.installment => 'installment',
@@ -151,15 +254,28 @@ class AtomOrderApi {
     }
   }
 
+  /// The AtomPay Key Fact Statement for [productId] and the storage choice,
+  /// priced exactly as the order will be. Public: no token needed.
+  Future<KeyFacts> keyFacts(int productId, {int? memoryId}) async {
+    final res = await _network.getRequest(
+      'app/atompay/kfs-preview?product_id=$productId${memoryId != null ? '&memory_id=$memoryId' : ''}',
+    );
+    final data = res is Map ? res['data'] : null;
+    if (data is! Map) throw const AtomApiException('The Key Fact Statement could not be loaded. Please try again.');
+    return KeyFacts.fromJson(Map<String, dynamic>.from(data));
+  }
+
   /// Places the order. A signed-in customer's token makes it their order;
   /// a guest's order goes on the customer account for the phone. Throws with
   /// the server's message when it refuses (sold out, plan not offered).
   /// [requestId] stays the same for every retry of one order form, so the
-  /// server can ignore a repeat (backend prompt: idempotent orders).
-  Future<OrderReceipt> place(ProductOrderChoice choice, OrderContact contact, {String requestId = ''}) async {
+  /// server returns the first order for a repeat instead of placing another.
+  /// [acceptedKeyFacts] is the statement the customer ticked, for AtomPay.
+  Future<OrderReceipt> place(ProductOrderChoice choice, OrderContact contact, {String requestId = '', KeyFacts? acceptedKeyFacts}) async {
     final quote = choice.quote;
     final res = await _network.postRequest('app/orders', {
       if (requestId.isNotEmpty) 'request_id': requestId,
+      if (choice.mode == PayMode.atompay && acceptedKeyFacts != null) ...acceptedKeyFacts.acceptance,
       'product_id': choice.product.id,
       'mode': choice.mode.apiName,
       if (choice.mode == PayMode.installment && quote != null) ...{'months': quote.months, 'advance_percent': quote.advancePercent},

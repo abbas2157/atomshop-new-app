@@ -354,14 +354,15 @@ class FcmService {
     if (resolvedToken == null || resolvedToken.isEmpty || userId.isEmpty) {
       return;
     }
+    // The server links the phone to whoever's token signs the call, never to
+    // the user_id in the body, so the session token must go with it. user_id is
+    // still sent so older server builds keep working.
     await _safePost(ApiEndpoints.fcmAttachUser, {
-      // user_id is ignored by the server, which takes the person from the
-      // bearer token; it is still sent so older server builds keep working.
       'user_id': userId,
       'fcm_token': resolvedToken,
       'device_type': _deviceType,
       'app': _app,
-    });
+    }, token: await SessionManager.getToken());
   }
 
   static Future<void> unlinkUser({String? userId, String? fcmToken}) async {
@@ -371,10 +372,12 @@ class FcmService {
     final resolvedUserId = userId ?? await SessionManager.getUserId();
     if (resolvedUserId == null || resolvedUserId.isEmpty) return;
 
+    // After sign-out the token is already revoked; the server then matches the
+    // user_id and push token instead.
     await _safePost(ApiEndpoints.fcmLogout, {
       'user_id': resolvedUserId,
       'fcm_token': resolvedToken,
-    });
+    }, token: await SessionManager.getToken());
   }
 
   static Future<void> _requestPermission() async {
@@ -391,12 +394,13 @@ class FcmService {
 
   static Future<void> _safePost(
     String endpoint,
-    Map<String, dynamic> data,
-  ) async {
+    Map<String, dynamic> data, {
+    String? token,
+  }) async {
     try {
       // Bodies hold the push token and user id: log the endpoint only.
       debugPrint('[FCM] POST $endpoint');
-      final response = await _network.postRequest(endpoint, data);
+      final response = await _network.postRequest(endpoint, data, token: token);
       debugPrint('[FCM] POST $endpoint done (${response is Map ? response['success'] : 'no envelope'})');
     } catch (e) {
       debugPrint('[FCM] POST $endpoint threw: $e');

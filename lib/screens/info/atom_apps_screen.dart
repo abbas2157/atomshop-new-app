@@ -22,7 +22,6 @@ class AtomAppsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(appConfigProvider).value;
     final gutter = context.atomGutter;
-    final brandApp = config?.storeLinks['atombrand']?['android'] ?? '';
     final sellerLinks = atomSellerLinks(config);
     final sellerApply = atomSellerApplyUrl(config);
     final payLinks = atomPayLinks(config);
@@ -133,7 +132,10 @@ class AtomAppsScreen extends ConsumerWidget {
                               label: 'Apply as a Brand Partner',
                               icon: Icons.description_outlined,
                               expand: true,
-                              onPressed: () => atomOpenUrl(context, brandApp.isNotEmpty ? brandApp : 'https://atomshop.pk/brand-partners'),
+                              // Applying is the web form, never the store listing: AtomBrand accounts
+                              // are set up by Atomshop after approval. The card above carries
+                              // the store buttons (config.storeLinks['atombrand']).
+                              onPressed: () => atomOpenUrl(context, 'https://atomshop.pk/brand-partners'),
                             ),
                           ],
                         ),
